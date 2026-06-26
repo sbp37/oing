@@ -516,6 +516,7 @@ html, body {
 .arrow-up { font-size: 12px; color: #ef4444; font-weight: 900; }
 .arrow-down { font-size: 12px; color: #3b82f6; font-weight: 900; }
 .arrow-same { font-size: 11px; color: #3a5a7a; }
+.rank-new-badge { font-size: 9px; font-weight: 700; background: #22c55e; color: white; padding: 1px 5px; border-radius: 4px; margin-left: 3px; vertical-align: middle; }
 
 /* 4등 이하 목록 */
 .rank-list { display: flex; flex-direction: column; gap: 6px; }
@@ -908,10 +909,10 @@ html, body {
   width:100%; max-width:650px; z-index:80;
   background:var(--surface); border-top:2px solid var(--border2);
   padding:14px 16px 20px; box-shadow:0 -4px 24px rgba(0,0,0,0.5);">
-  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-    <div style="font-size:13px; color:var(--muted); font-weight:700;">⏱ 종료!</div>
-    <div style="font-size:32px; font-weight:900; color:var(--blue-bright); letter-spacing:-1px;" id="finalScore">0</div>
-    <div style="font-size:12px; color:var(--muted); text-align:right; line-height:1.6;">
+  <div style="display:flex; align-items:center; margin-bottom:10px;">
+    <div style="flex:1; font-size:13px; color:var(--muted); font-weight:700;">⏱ 종료!</div>
+    <div style="flex:2; font-size:32px; font-weight:900; color:var(--blue-bright); letter-spacing:-1px; text-align:center;" id="finalScore">0</div>
+    <div style="flex:1; font-size:12px; color:var(--muted); text-align:right; line-height:1.6;">
       <div id="resClear2">클리어 0회</div>
       <div id="resCombo2">최고 콤보 ×0</div>
     </div>
@@ -921,13 +922,22 @@ html, body {
     <button class="action-btn" id="submitScore" style="margin-top:0; margin-bottom:8px;">🏆 점수 등록하기</button>
   </div>
   <div id="nickDone" style="display:none; color:var(--blue-light); font-size:13px; font-weight:700; text-align:center; margin-bottom:10px;"></div>
-  <button id="resultRestartBtn" style="
-    display:block; width:100%; padding:16px;
-    border-radius:12px; border:none;
-    background:var(--blue-bright); color:white;
-    font-family:inherit; font-size:17px; font-weight:900;
-    cursor:pointer; letter-spacing:-0.5px;
-  ">🔄 다시 하기</button>
+  <div style="display:flex; gap:8px; margin-top:4px;">
+    <button id="resultRestartBtn" style="
+      flex:2; padding:14px;
+      border-radius:12px; border:none;
+      background:var(--blue-bright); color:white;
+      font-family:inherit; font-size:15px; font-weight:900;
+      cursor:pointer; letter-spacing:-0.5px;
+    ">🔄 다시 하기</button>
+    <button id="resultRankBtn" style="
+      flex:1; padding:14px;
+      border-radius:12px; border:1px solid var(--border2);
+      background:var(--surface2); color:var(--blue-light);
+      font-family:inherit; font-size:15px; font-weight:700;
+      cursor:pointer;
+    ">🏆 랭킹</button>
+  </div>
 </div>
 
 <!-- 시작 오버레이 -->
@@ -939,11 +949,11 @@ html, body {
       <li><div class="rule-num">1</div>두 셀을 탭해 직사각형 영역 선택</li>
       <li><div class="rule-num">2</div>선택한 숫자 합이 <strong>딱 10</strong>이면 클리어!</li>
       <li><div class="rule-num">3</div>🐱 고양이는 와일드카드 · 포함 시 +5 보너스</li>
-      <li><div class="rule-num">4</div>🐾 연속 클리어 → 콤보 UP · ×7마다 아이템 생성! <span class="new-badge">NEW</span></li>
-      <li><div class="rule-num">5</div>⚡️ 5개 이상 동시 클리어 → WOW! 점수 보너스 <span class="new-badge">NEW</span></li>
-      <li><div class="rule-num">6</div>💣 폭탄 — 주변 셀 추가 폭발 <span class="new-badge">NEW</span></li>
-      <li><div class="rule-num">7</div>⏰ 시계 — +8초 추가 <span class="new-badge">NEW</span></li>
-      <li><div class="rule-num">8</div>💡 힌트 — 판당 1회, 정답 잠깐 표시 <span class="new-badge">NEW</span></li>
+      <li><div class="rule-num">4</div>🐾 연속 클리어 → 콤보 UP · ×7마다 아이템 생성!</li>
+      <li><div class="rule-num">5</div>⚡️ 5개 이상 동시 클리어 → WOW! 점수 보너스</li>
+      <li><div class="rule-num">6</div>💣 폭탄 — 주변 셀 추가 폭발</li>
+      <li><div class="rule-num">7</div>⏰ 시계 — +8초 추가</li>
+    </ul>
     </ul>
     <div style="text-align:center; font-size:14px; font-weight:900; color:var(--blue-bright); margin:8px 0 4px;">
       ⏱ 2분 안에 최고 점수 도전!
@@ -1206,6 +1216,22 @@ function playComboUp(level) {
     gain.gain.setValueAtTime(0.12, t);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
     osc.start(t); osc.stop(t + 0.18);
+  });
+}
+
+function playCombo7() {
+  resumeAC();
+  const now = AC.currentTime;
+  // 7콤보 달성 — 기존보다 높은 음역대로 도로롱~
+  const notes = [1046, 1318, 1568, 2093]; // C6 E6 G6 C7
+  notes.forEach((f, i) => {
+    const osc = AC.createOscillator(); const gain = AC.createGain();
+    osc.connect(gain); gain.connect(AC.destination);
+    osc.type = 'sine'; osc.frequency.value = f;
+    const t = now + i * 0.07;
+    gain.gain.setValueAtTime(0.14, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc.start(t); osc.stop(t + 0.22);
   });
 }
 
@@ -1538,8 +1564,8 @@ function tryRemove(sel2) {
     score += wowBonus;
     if (catCells > 0) playMeow();
   } else {
-    if (combo % 7 === 0 && combo > 0) playCombo10();
-    else if (combo > prevCombo && combo >= 2) playComboUp(Math.min(combo, 7));
+    if (combo % 7 === 0 && combo > 0) { playCombo7(); showComboMilestonePop(combo); }
+    else if (combo > prevCombo && combo >= 2) playComboUp(Math.min(combo, 6));
     else playSuccess(catCells);
     if (catCells > 0) playMeow();
   }
@@ -1985,6 +2011,7 @@ async function endGame() {
     renderRanking();
 
     if (isNewRecord && score > 0) {
+      try { sessionStorage.setItem('oeing_just_updated', savedNick); } catch {}
       nickDone.innerHTML = `🎉 ${savedNick} 자동 등록 완료!<br><span style="color:#fbbf24;font-size:15px;font-weight:900;">최고점수 등극! 대단하다냥🐱</span>`;
       showNewRecordPop();
     } else {
@@ -2237,23 +2264,14 @@ async function renderRanking() {
   } else {
     rankEmpty.style.display = 'none';
 
-    // 이전 순위 불러오기 (화살표용)
-    let prevRanks = {};
-    try { prevRanks = JSON.parse(localStorage.getItem('oeing_prev_ranks') || '{}'); } catch {}
-
-    // 현재 순위 먼저 저장 (다음번 비교용) - 단 prevRanks가 비어있으면 저장만 하고 화살표는 안 표시
-    const newRanks = {};
-    list.forEach((e, i) => { newRanks[e.nickname] = i + 1; });
-    const hasPrev = Object.keys(prevRanks).length > 0;
-    try { localStorage.setItem('oeing_prev_ranks', JSON.stringify(newRanks)); } catch {}
+    // 이번 게임에서 갱신된 닉네임 (NEW 표시용)
+    const newRecord = loadNickname();
+    const justUpdated = sessionStorage.getItem('oeing_just_updated');
 
     list.slice(3).forEach((entry, i) => {
       const rank = i + 4;
       const isMe = myNick && entry.nickname === myNick;
-      const prev = hasPrev ? prevRanks[entry.nickname] : null;
-      let arrowHtml = '<span class="arrow-same">—</span>';
-      if (prev && prev > rank) arrowHtml = `<span class="arrow-up">▲${prev - rank}</span>`;
-      else if (prev && prev < rank) arrowHtml = `<span class="arrow-down">▼${rank - prev}</span>`;
+      const isNew = justUpdated && entry.nickname === justUpdated;
 
       const row = document.createElement('div');
       row.className = 'rank-row' + (isMe ? ' me' : '');
@@ -2261,7 +2279,7 @@ async function renderRanking() {
         <span class="rank-num">${rank}</span>
         <span class="rank-nick">${isMe ? '👤 ' : ''}${entry.nickname}</span>
         ${isMe ? '<span class="rank-me-badge">나</span>' : ''}
-        ${arrowHtml}
+        ${isNew ? '<span class="rank-new-badge">NEW</span>' : ''}
         <span class="rank-pts">${entry.score}pt</span>
       `;
       rankList.appendChild(row);
@@ -2283,6 +2301,14 @@ async function renderRanking() {
 }
 
 // 탭 전환
+function clearAnswerHighlights() {
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      const el = cellEl(r, c);
+      if (el) el.classList.remove('answer');
+    }
+}
+
 function switchTab(tab) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -2295,12 +2321,36 @@ function switchTab(tab) {
     renderRanking();
   }
 }
-document.getElementById('tabGame').addEventListener('click', () => switchTab('game'));
+document.getElementById('tabGame').addEventListener('click', () => {
+  switchTab('game');
+  clearAnswerHighlights();
+  if (!gameRunning && !gameEnding) {
+    // 결과 패널 닫고 바로 시작
+    const rp = document.getElementById('resultPanel');
+    if (rp && rp.style.display !== 'none') {
+      rp.style.display = 'none';
+      startGame();
+    }
+  }
+});
 document.getElementById('tabRank').addEventListener('click', () => switchTab('rank'));
 document.getElementById('themeBtn').addEventListener('click', toggleTheme);
 document.getElementById('restartBtn').addEventListener('click', confirmRestart);
 document.getElementById('nickChangeWrapBtn').addEventListener('click', changeNickname);
-document.getElementById('resultRestartBtn').addEventListener('click', startGame);
+document.getElementById('resultRestartBtn').addEventListener('click', () => {
+  switchTab('game');
+  startGame();
+});
+document.getElementById('resultRankBtn').addEventListener('click', () => {
+  document.getElementById('resultPanel').style.display = 'none';
+  switchTab('rank');
+  // 게임탭 클릭 시 바로 시작하도록
+  document.getElementById('tabGame').addEventListener('click', function onceStart() {
+    clearAnswerHighlights();
+    startGame();
+    document.getElementById('tabGame').removeEventListener('click', onceStart);
+  }, { once: true });
+});
 
 // 닉네임 변경
 function changeNickname() {
