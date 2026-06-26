@@ -189,37 +189,42 @@ html, body {
 /* ── 그리드 ── */
 .grid-wrap {
   flex: 1;
-  padding: 4px 10px 8px;
+  padding: 4px 8px 4px;
   min-height: 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 .grid {
   display: grid;
   grid-template-columns: repeat(9, 1fr);
+  grid-template-rows: repeat(13, 1fr);
   gap: 2px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 6px;
+  border-radius: 10px;
+  padding: 3px;
   width: 100%;
+  flex: 1;
+  min-height: 0;
+  background-color: #0a1628;
+  background-image:
+    linear-gradient(rgba(59,130,246,0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,0.15) 1px, transparent 1px);
+  background-size: calc((100% - 6px) / 9) calc((100% - 6px) / 13);
+  background-position: 3px 3px;
 }
 
 .cell {
-  aspect-ratio: 1;
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  font-size: clamp(13px, 4vw, 20px);
+  border-radius: 5px;
+  font-size: clamp(12px, 3.8vw, 20px);
   font-weight: 800;
   cursor: pointer;
   background: var(--surface2);
-  border: 1.5px solid var(--border);
+  border: 1.5px solid #2a4a70;
   color: var(--blue-light);
   transition: background 0.1s, border-color 0.1s, transform 0.1s;
   -webkit-user-select: none;
@@ -229,8 +234,8 @@ html, body {
 
 .cell.cat {
   background: var(--cat-bg);
-  border-color: var(--cat-border);
-  font-size: clamp(15px, 4.5vw, 22px);
+  border-color: #4a7aaf;
+  font-size: clamp(14px, 4vw, 22px);
 }
 
 /* PC에서 셀 크기 제한 */
@@ -563,33 +568,41 @@ html, body {
 
 /* 힌트 버튼 */
 .hint-btn-wrap {
-  padding: 4px 14px 6px;
+  padding: 2px 14px 3px;
   display: flex;
   justify-content: center;
+  flex-shrink: 0;
 }
 .hint-btn {
   background: linear-gradient(135deg, #16a34a, #22c55e);
   border: none;
   color: white;
   font-family: inherit; font-size: 14px; font-weight: 900;
-  padding: 10px 24px; border-radius: 24px; cursor: pointer;
+  padding: 7px 24px; border-radius: 24px; cursor: pointer;
   transition: all 0.2s; flex-shrink: 0;
-  box-shadow: 0 3px 12px rgba(34,197,94,0.4);
+  box-shadow: 0 2px 10px rgba(34,197,94,0.4);
   letter-spacing: 0.3px;
   display: block;
 }
 .hint-btn:hover {
   background: linear-gradient(135deg, #15803d, #16a34a);
-  box-shadow: 0 4px 18px rgba(34,197,94,0.6);
+  box-shadow: 0 3px 16px rgba(34,197,94,0.6);
   transform: translateY(-1px);
 }
 .hint-btn.used {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--muted);
+  background: #1a2535;
+  border: 1px solid #2a3a50;
+  color: #4a6080;
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
+}
+.hint-btn.pregame {
+  background: #1a2535;
+  border: 1px solid #2a3a50;
+  color: #4a6080;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 .new-badge {
   display: inline-block;
@@ -929,6 +942,33 @@ html, body {
       color: var(--blue-light);
       margin-top: 6px;
     ">🏆 랭킹 확인</button>
+    <button onclick="document.getElementById('updateLog').style.display='flex'" style="
+      background:none; border:none; color:var(--muted);
+      font-size:11px; font-family:inherit; cursor:pointer;
+      margin-top:8px; text-decoration:underline;
+    ">📋 업데이트 내역 보기</button>
+  </div>
+</div>
+
+<!-- 업데이트 내역 팝업 -->
+<div class="overlay" id="updateLog" style="display:none">
+  <div class="overlay-card" style="max-height:80vh;overflow-y:auto;">
+    <div class="overlay-title" style="font-size:18px">📋 업데이트 내역</div>
+    <div style="margin-top:12px;text-align:left;">
+      <div style="font-size:12px;font-weight:700;color:#fbbf24;margin-bottom:8px;">🎮 게임플레이 개선</div>
+      <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:1.8;">
+        <li>✅ 직사각형 안에 빈칸 포함해도 숫자 합=10이면 클리어 가능</li>
+        <li>✅ 아이템(💣폭탄·⏰시계)은 탭 한 번으로 바로 발동</li>
+        <li>✅ 숫자 분포 균형 조정 (1↔9, 2↔8, 3↔7 보완쌍 균형)</li>
+        <li>✅ 고양이 🐱 매판 7개 고정</li>
+      </ul>
+      <div style="font-size:12px;font-weight:700;color:#f87171;margin:12px 0 8px;">🐛 버그 수정</div>
+      <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:1.8;">
+        <li>✅ 다시하기 시 타이머 중복 실행 버그 수정</li>
+        <li>✅ 고양이만 남았을 때 다음 판으로 안 넘어가는 버그 수정</li>
+      </ul>
+    </div>
+    <button class="action-btn" onclick="document.getElementById('updateLog').style.display='none'" style="margin-top:14px;">닫기</button>
   </div>
 </div>
 
@@ -1272,16 +1312,35 @@ function showItemPop(r, c, text, type) {
 
 function makeBoard() {
   board = [];
+  // 균형 분포: 보완쌍 맞게 (총 117칸 - 고양이7 = 110칸)
+  // 1↔9: 각12, 2↔8: 각12, 3↔7: 각12, 4↔6: 각13, 5: 12 = 110
+  const pool = [];
+  [1,9,2,8,3,7].forEach(n => { for(let i=0;i<12;i++) pool.push(n); });
+  [4,6].forEach(n => { for(let i=0;i<13;i++) pool.push(n); });
+  for(let i=0;i<12;i++) pool.push(5);
+  // 셔플
+  for(let i=pool.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [pool[i],pool[j]]=[pool[j],pool[i]];
+  }
+
+  // 고양이 7개 랜덤 위치
+  const total = ROWS * COLS;
+  const catPositions = new Set();
+  while(catPositions.size < 7) catPositions.add(Math.floor(Math.random()*total));
+
+  let poolIdx = 0;
   for (let r = 0; r < ROWS; r++) {
     board.push([]);
     for (let c = 0; c < COLS; c++) {
-      const rnd = Math.random();
-      let cell = { num: Math.floor(Math.random()*9)+1, cat:false, bomb:false, clock:false, hint:false, empty:false };
-      if (rnd < CAT_RATIO) cell.cat = true;
-      board[r].push(cell);
+      const pos = r * COLS + c;
+      if (catPositions.has(pos)) {
+        board[r].push({ num:1, cat:true, bomb:false, clock:false, hint:false, empty:false });
+      } else {
+        board[r].push({ num: pool[poolIdx++]||5, cat:false, bomb:false, clock:false, hint:false, empty:false });
+      }
     }
   }
-  // 힌트 사용 여부 리셋 (새 판) - UI 업데이트는 startGame에서 처리
   hintUsed = false;
 }
 
@@ -1319,7 +1378,41 @@ function onCellTap(e) {
   resumeAC();
   const r = +e.currentTarget.dataset.r;
   const c = +e.currentTarget.dataset.c;
-  if (board[r][c].empty) return;
+  const d = board[r][c];
+  if (d.empty) return;
+
+  // 아이템 셀 단독 탭으로 즉시 발동
+  if (d.bomb || d.clock) {
+    board[r][c].empty = true;
+    const el = cellEl(r, c);
+    if (el) el.classList.add('clearing');
+    sel1 = null;
+    if (d.bomb) {
+      playBomb();
+      showItemPop(r, c, '💣 폭발!', 'bomb');
+      setTimeout(() => {
+        const targets = [];
+        for (let rr = Math.max(0,r-1); rr <= Math.min(ROWS-1,r+1); rr++)
+          for (let cc = Math.max(0,c-2); cc <= Math.min(COLS-1,c+2); cc++)
+            if (!board[rr][cc].empty) targets.push({rr,cc});
+        targets.slice(0,6).forEach(({rr,cc}) => {
+          board[rr][cc].empty = true;
+          const el2 = cellEl(rr,cc);
+          if (el2) el2.classList.add('exploding');
+        });
+        setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350); }, 380);
+      }, 150);
+    }
+    if (d.clock) {
+      playClock();
+      timeLeft = Math.min(timeLeft + 8, 999);
+      updateTimer();
+      showItemPop(r, c, '⏰ +8초!', 'clock');
+      setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350); }, 380);
+    }
+    return;
+  }
+
   if (!sel1) {
     sel1 = {r, c};
     applyHighlights();
@@ -1396,7 +1489,12 @@ function tryRemove(sel2) {
 
   // 효과음
   if (totalCells >= 5) { playWow(); if (catCells > 0) playMeow(); }
-  else { if (combo > prevCombo && combo >= 2) playComboUp(combo); else playSuccess(catCells); if (catCells > 0) playMeow(); }
+  else {
+    if (combo >= 10) playCombo10();
+    else if (combo > prevCombo && combo >= 2) playComboUp(combo);
+    else playSuccess(catCells);
+    if (catCells > 0) playMeow();
+  }
 
   if (gained > 0) showScorePop(rMin, cMin, `+${gained}${combo > 1 ? ' ×'+combo : ''}`, catCells > 0);
 
@@ -1722,20 +1820,19 @@ let gameEnding = false; // endGame 중복 방지
 function showCombo10Pop() {
   const pop = document.createElement('div');
   pop.style.cssText = `
-    position:fixed; top:35%; left:50%;
+    position:fixed; top:30%; left:50%;
     transform:translate(-50%,-50%);
-    font-size:24px; font-weight:900; color:#fff;
+    font-size:18px; font-weight:900; color:#fff;
     background:linear-gradient(135deg,#f59e0b,#ef4444);
-    padding:16px 28px; border-radius:20px;
-    box-shadow:0 0 30px rgba(245,158,11,0.7);
-    text-align:center; line-height:1.4;
+    padding:10px 20px; border-radius:20px;
+    box-shadow:0 0 20px rgba(245,158,11,0.6);
     pointer-events:none; z-index:300;
-    animation:recordpop 2s ease forwards;
+    animation:recordpop 1.5s ease forwards;
     white-space:nowrap;
   `;
-  pop.innerHTML = `콤보 10 달성! 🔥<br><span style="font-size:16px">대단하다냥 🐱</span>`;
+  pop.textContent = '10combo 🔥';
   document.body.appendChild(pop);
-  setTimeout(() => pop.remove(), 2000);
+  setTimeout(() => pop.remove(), 1500);
 }
 
 function playCombo10() {
@@ -1834,9 +1931,13 @@ function showNewRecordPop() {
 function updateHintBtn() {
   const btn = document.getElementById('hintBtn');
   if (!btn) return;
-  if (!gameRunning) { btn.textContent = '💡 힌트'; btn.classList.add('used'); return; }
-  if (hintUsed) { btn.textContent = '💡 사용완료'; btn.classList.add('used'); }
-  else { btn.textContent = '💡 힌트 사용'; btn.classList.remove('used'); }
+  if (!gameRunning) {
+    btn.textContent = '💡 힌트';
+    btn.className = 'hint-btn pregame';
+    return;
+  }
+  if (hintUsed) { btn.textContent = '💡 사용완료'; btn.className = 'hint-btn used'; }
+  else { btn.textContent = '💡 힌트 사용'; btn.className = 'hint-btn'; }
 }
 
 function showAnswers() {
@@ -1907,64 +2008,77 @@ document.getElementById('startBtn').addEventListener('click', startGame);
 document.getElementById('startRankBtn').addEventListener('click', () => {
   document.getElementById('startOverlay').style.display = 'none';
   switchTab('rank');
+  // 게임탭 클릭시 startOverlay 다시 보여주기
+  document.getElementById('tabGame').addEventListener('click', function showOverlayOnce() {
+    if (!gameRunning) {
+      document.getElementById('startOverlay').style.display = 'flex';
+    }
+    document.getElementById('tabGame').removeEventListener('click', showOverlayOnce);
+  });
 });
 
 // ══════════════════════════════
 //  랭킹 렌더
 // ══════════════════════════════
 // 명예의전당 별도 저장 키 (한번 오르면 갱신 전까지 유지)
-const HALL_KEY = 'oeing_hall_v1';
+const HALL_KEY = 'oeing_hall_v2';
 
-async function loadHall() {
-  try { const r = localStorage.getItem(HALL_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
+function getWeekStart() {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = (day === 0 ? -6 : 1 - day);
+  const mon = new Date(now);
+  mon.setDate(now.getDate() + diff);
+  mon.setHours(0,0,0,0);
+  return mon.getTime();
 }
-async function saveHall(list) {
+
+async function getWeeklyBest() {
   try {
-    // 명예의전당: 기존 기록보다 높을 때만 갱신
-    const prev = await loadHall() || [];
-    const hall = [0,1,2].map(i => {
-      const cur = list[i];
-      const old = prev[i];
-      if (!cur) return old || null;
-      if (!old || cur.score > old.score) return cur;
-      return old;
-    });
-    localStorage.setItem(HALL_KEY, JSON.stringify(hall));
-    return hall;
-  } catch { return list.slice(0,3); }
+    const weekStart = getWeekStart();
+    const q = query(collection(db, 'rankings'), orderBy('score', 'desc'), limit(50));
+    const snap = await getDocs(q);
+    const entries = snap.docs.map(d => ({nickname: d.id, score: d.data().score, ts: d.data().ts || 0}));
+    const weekly = entries.filter(e => e.ts >= weekStart);
+    if (weekly.length > 0) return weekly.reduce((a,b) => b.score > a.score ? b : a);
+    if (entries.length > 0) return entries[0];
+  } catch {}
+  return null;
 }
 
 async function renderRanking() {
   const list = await loadRankings();
   const myNick = loadNickname();
+  const weeklyBest = await getWeeklyBest();
 
-  // 명예의전당 갱신
-  const hall = await saveHall(list);
-
-  // ── 명예의전당 렌더 ──
+  // ── 명예의전당 렌더 (주간 최고점 1명) ──
   const hallCards = document.getElementById('hallCards');
   hallCards.innerHTML = '';
-  const hallDefs = [
-    { cls: 'card-2nd', iconCls: 'card-icon-2', rankCls: 'card-rank-2', nickCls: 'card-nick-2', scoreCls: 'card-score-2', icon: '🎖️', rank: '2ND', order: 1 },
-    { cls: 'card-1st', iconCls: 'card-icon-1', rankCls: 'card-rank-1', nickCls: 'card-nick-1', scoreCls: 'card-score-1', icon: '👑', rank: '1ST', order: 0 },
-    { cls: 'card-3rd', iconCls: 'card-icon-3', rankCls: 'card-rank-3', nickCls: 'card-nick-3', scoreCls: 'card-score-3', icon: '🏅', rank: '3RD', order: 2 },
-  ];
-  hallDefs.forEach(d => {
-    const entry = hall[d.order];
-    const card = document.createElement('div');
-    card.className = d.cls;
-    card.innerHTML = entry ? `
-      <div class="${d.iconCls}">${d.icon}</div>
-      <div class="${d.rankCls}">${d.rank}</div>
-      <div class="${d.nickCls}">${entry.nickname}</div>
-      <div class="${d.scoreCls}">${entry.score}pt</div>
-    ` : `
-      <div class="${d.iconCls}">${d.icon}</div>
-      <div class="${d.rankCls}">${d.rank}</div>
-      <div class="card-empty">—</div>
-    `;
-    hallCards.appendChild(card);
-  });
+  const hallWrap = document.getElementById('hallWrap');
+  // hall-title 아래 설명 추가
+  let hallDesc = hallWrap.querySelector('.hall-desc');
+  if (!hallDesc) {
+    hallDesc = document.createElement('div');
+    hallDesc.className = 'hall-desc';
+    hallDesc.style.cssText = 'text-align:center;font-size:10px;color:#a78bfa;margin-bottom:8px;letter-spacing:1px;';
+    hallDesc.textContent = '이번 주 최고 점수';
+    hallWrap.insertBefore(hallDesc, hallCards);
+  }
+  const card = document.createElement('div');
+  card.className = 'card-1st';
+  card.style.margin = '0 auto';
+  card.style.maxWidth = '160px';
+  card.innerHTML = weeklyBest ? `
+    <div class="card-icon-1">👑</div>
+    <div class="card-rank-1">THIS WEEK</div>
+    <div class="card-nick-1">${weeklyBest.nickname}</div>
+    <div class="card-score-1">${weeklyBest.score}pt</div>
+  ` : `
+    <div class="card-icon-1">👑</div>
+    <div class="card-rank-1">THIS WEEK</div>
+    <div class="card-empty">아직 없어요</div>
+  `;
+  hallCards.appendChild(card);
 
   // ── 시상대 렌더 ──
   const podium = document.getElementById('podiumWrap');
