@@ -576,6 +576,7 @@ html, body {
   transition: all 0.2s; flex-shrink: 0;
   box-shadow: 0 3px 12px rgba(34,197,94,0.4);
   letter-spacing: 0.3px;
+  display: block;
 }
 .hint-btn:hover {
   background: linear-gradient(135deg, #15803d, #16a34a);
@@ -590,29 +591,13 @@ html, body {
   box-shadow: none;
   transform: none;
 }
+.new-badge {
   display: inline-block;
   font-size: 9px; font-weight: 700;
   background: #ef4444; color: white;
   padding: 1px 5px; border-radius: 4px;
   margin-left: 4px; vertical-align: middle;
   letter-spacing: 0.5px;
-}
-  padding: 4px 14px 0;
-  display: flex;
-  justify-content: flex-end;
-}
-.hint-btn {
-  background: linear-gradient(135deg, #1e5c1a, #2a7a24);
-  border: 1.5px solid #55cc33;
-  color: #aaffaa; font-family: inherit; font-size: 13px; font-weight: 700;
-  padding: 7px 18px; border-radius: 20px; cursor: pointer;
-  transition: all 0.2s; flex-shrink: 0;
-  box-shadow: 0 0 8px rgba(80,220,60,0.3);
-}
-.hint-btn:hover { background: linear-gradient(135deg, #2a7a24, #3a9a2e); box-shadow: 0 0 14px rgba(80,220,60,0.5); }
-.hint-btn.used {
-  background: var(--surface2); border-color: var(--border);
-  color: var(--muted); cursor: not-allowed; box-shadow: none;
 }
 
 /* 카운트다운 오버레이 */
@@ -1538,15 +1523,28 @@ function updateStats() {
   if (c2) c2.textContent = clearCount;
 }
 function updateComboUI() {
-  comboFill.style.width = (combo / MAX_COMBO * 100) + '%';
+  const pct = (combo / MAX_COMBO * 100) + '%';
+  comboFill.style.width = pct;
+  const fill2 = document.getElementById('comboFill2');
+  if (fill2) fill2.style.width = pct;
+
+  const val2 = document.getElementById('comboVal2');
   if (combo >= 7) {
-    comboFill.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+    const bg = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+    const txt = '×' + combo + (combo >= 10 ? ' 🔥' : '');
+    comboFill.style.background = bg;
+    if (fill2) fill2.style.background = bg;
     comboVal.style.color = '#fbbf24';
-    comboVal.textContent = '×' + combo + (combo >= 10 ? ' 🔥' : '');
+    comboVal.textContent = txt;
+    if (val2) { val2.style.color = '#fbbf24'; val2.textContent = txt; }
   } else {
-    comboFill.style.background = 'linear-gradient(90deg, var(--blue-mid), var(--blue-bright))';
+    const bg = 'linear-gradient(90deg, var(--blue-mid), var(--blue-bright))';
+    const txt = '×' + combo;
+    comboFill.style.background = bg;
+    if (fill2) fill2.style.background = bg;
     comboVal.style.color = 'var(--blue-bright)';
-    comboVal.textContent = '×' + combo;
+    comboVal.textContent = txt;
+    if (val2) { val2.style.color = 'var(--blue-bright)'; val2.textContent = txt; }
   }
 }
 function updateTimer() {
