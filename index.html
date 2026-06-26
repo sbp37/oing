@@ -1281,9 +1281,8 @@ function makeBoard() {
       board[r].push(cell);
     }
   }
-  // 힌트 사용 여부 리셋 (새 판)
+  // 힌트 사용 여부 리셋 (새 판) - UI 업데이트는 startGame에서 처리
   hintUsed = false;
-  updateHintBtn();
 }
 
 function renderGrid() {
@@ -1458,7 +1457,13 @@ function tryRemove(sel2) {
 
   setTimeout(() => {
     renderGrid();
-    if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); }, 350);
+    if (!hasValidMove()) setTimeout(() => {
+      resetCount++;
+      makeBoard();
+      renderGrid();
+      updateHintBtn();
+      updateHintBtn2();
+    }, 350);
   }, 340);
 }
 
@@ -1835,24 +1840,29 @@ function updateHintBtn() {
 }
 
 function showAnswers() {
-  // 합=10 되는 모든 조합 찾기
   const found = [];
   for (let r1 = 0; r1 < ROWS; r1++)
   for (let c1 = 0; c1 < COLS; c1++)
   for (let r2 = r1; r2 < ROWS; r2++)
   for (let c2 = c1; c2 < COLS; c2++) {
     const nums = [];
-    const coords = [];
+    // 빈칸/고양이/아이템 제외한 숫자만 합산
     for (let r = r1; r <= r2; r++)
       for (let c = c1; c <= c2; c++) {
         const d = board[r][c];
         if (d.empty || d.cat || d.bomb || d.clock || d.hint) continue;
         nums.push(d.num);
-        coords.push({r, c});
       }
     const sum = nums.reduce((a,b)=>a+b,0);
-    if (nums.length > 0 && sum === 10)
+    if (nums.length > 0 && sum === 10) {
+      // 직사각형 범위 내 비어있지 않은 셀 전체를 coords로 저장
+      const coords = [];
+      for (let r = r1; r <= r2; r++)
+        for (let c = c1; c <= c2; c++) {
+          if (!board[r][c].empty) coords.push({r, c});
+        }
       found.push(coords);
+    }
   }
   if (found.length === 0) return;
 
