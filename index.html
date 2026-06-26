@@ -270,7 +270,8 @@ html, body {
   25% { transform: translateX(-3px); background: #2a1010; }
   75% { transform: translateX(3px); background: #2a1010; }
 }
-.cell.empty { background: transparent; border-color: transparent; cursor: default; pointer-events: none; }
+.cell.empty { background: transparent; border-color: transparent; cursor: default; pointer-events: auto; }
+.cell.empty:active { transform: none; }
 
 /* ── 점수 팝업 ── */
 .score-pop {
@@ -574,20 +575,26 @@ html, body {
   flex-shrink: 0;
 }
 .hint-btn {
-  background: linear-gradient(135deg, #16a34a, #22c55e);
-  border: none;
-  color: white;
-  font-family: inherit; font-size: 14px; font-weight: 900;
+  background: var(--surface2);
+  border: 1.5px solid #22c55e;
+  color: #86efac;
+  font-family: inherit; font-size: 14px; font-weight: 700;
   padding: 7px 24px; border-radius: 24px; cursor: pointer;
-  transition: all 0.2s; flex-shrink: 0;
-  box-shadow: 0 2px 10px rgba(34,197,94,0.4);
+  transition: all 0.3s; flex-shrink: 0;
+  box-shadow: 0 0 6px rgba(34,197,94,0.25), inset 0 0 8px rgba(34,197,94,0.05);
   letter-spacing: 0.3px;
   display: block;
+  animation: hintglow 2.5s ease-in-out infinite;
+}
+@keyframes hintglow {
+  0%,100% { box-shadow: 0 0 5px rgba(34,197,94,0.2), inset 0 0 6px rgba(34,197,94,0.04); border-color: #16a34a; }
+  50%      { box-shadow: 0 0 12px rgba(34,197,94,0.45), inset 0 0 10px rgba(34,197,94,0.08); border-color: #22c55e; }
 }
 .hint-btn:hover {
-  background: linear-gradient(135deg, #15803d, #16a34a);
-  box-shadow: 0 3px 16px rgba(34,197,94,0.6);
+  border-color: #4ade80;
+  box-shadow: 0 0 16px rgba(34,197,94,0.55);
   transform: translateY(-1px);
+  animation: none;
 }
 .hint-btn.used {
   background: #1a2535;
@@ -596,6 +603,7 @@ html, body {
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
+  animation: none;
 }
 .hint-btn.pregame {
   background: #1a2535;
@@ -603,6 +611,7 @@ html, body {
   color: #4a6080;
   cursor: not-allowed;
   box-shadow: none;
+  animation: none;
 }
 .new-badge {
   display: inline-block;
@@ -724,14 +733,6 @@ html, body {
             top: 250px;
         }
 
-        .hint-btn.used {
-            display: none
-        }
-
-        .hint-btn {
-            height: 40px
-        }
-
         /* 오른쪽: 사이드패널 */
         .game-side-panel {
             width: 180px;
@@ -819,8 +820,7 @@ html, body {
         <span class="combo-label">콤보</span>
         <div class="combo-track">
           <div class="combo-fill" id="comboFill"></div>
-          <div class="combo-milestone" style="left:70%">×7</div>
-          <div class="combo-milestone" style="left:100%; transform:translateX(-100%)">×10</div>
+          <div class="combo-milestone" style="left:100%; transform:translateX(-100%)">×7</div>
         </div>
         <span class="combo-val" id="comboVal">×0</span>
       </div>
@@ -842,8 +842,7 @@ html, body {
           <div style="display:flex; align-items:center; gap:6px;">
             <div class="combo-track" style="flex:1">
               <div class="combo-fill" id="comboFill2"></div>
-              <div class="combo-milestone" style="left:70%">×7</div>
-              <div class="combo-milestone" style="left:100%;transform:translateX(-100%)">×10</div>
+              <div class="combo-milestone" style="left:100%;transform:translateX(-100%)">×7</div>
             </div>
             <span class="combo-val" id="comboVal2">×0</span>
           </div>
@@ -926,8 +925,8 @@ html, body {
       <li><div class="rule-num">1</div>두 셀을 탭해 직사각형 영역 선택</li>
       <li><div class="rule-num">2</div>선택한 숫자 합이 <strong>딱 10</strong>이면 클리어!</li>
       <li><div class="rule-num">3</div>🐱 고양이는 와일드카드 · 포함 시 +5 보너스</li>
-      <li><div class="rule-num">4</div>🐾 연속 클리어 → 콤보 UP (최대 ×10) <span class="new-badge">NEW</span></li>
-      <li><div class="rule-num">5</div>⚡️ 5개 이상 동시 클리어 or 콤보 ×7 달성 시 랜덤 아이템 생성 <span class="new-badge">NEW</span></li>
+      <li><div class="rule-num">4</div>🐾 연속 클리어 → 콤보 UP · ×7마다 아이템 생성! <span class="new-badge">NEW</span></li>
+      <li><div class="rule-num">5</div>⚡️ 5개 이상 동시 클리어 → WOW! 점수 보너스 <span class="new-badge">NEW</span></li>
       <li><div class="rule-num">6</div>💣 폭탄 — 주변 셀 추가 폭발 <span class="new-badge">NEW</span></li>
       <li><div class="rule-num">7</div>⏰ 시계 — +8초 추가 <span class="new-badge">NEW</span></li>
       <li><div class="rule-num">8</div>💡 힌트 — 판당 1회, 정답 잠깐 표시 <span class="new-badge">NEW</span></li>
@@ -952,23 +951,43 @@ html, body {
 
 <!-- 업데이트 내역 팝업 -->
 <div class="overlay" id="updateLog" style="display:none">
-  <div class="overlay-card" style="max-height:80vh;overflow-y:auto;">
-    <div class="overlay-title" style="font-size:18px">📋 업데이트 내역</div>
-    <div style="margin-top:12px;text-align:left;">
-      <div style="font-size:12px;font-weight:700;color:#fbbf24;margin-bottom:8px;">🎮 게임플레이 개선</div>
-      <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:1.8;">
-        <li>✅ 직사각형 안에 빈칸 포함해도 숫자 합=10이면 클리어 가능</li>
-        <li>✅ 아이템(💣폭탄·⏰시계)은 탭 한 번으로 바로 발동</li>
+  <div class="overlay-card" style="max-height:80vh; display:flex; flex-direction:column;">
+    <div class="overlay-title" style="font-size:18px; flex-shrink:0;">📋 업데이트 내역</div>
+    <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
+
+      <!-- v2.1 -->
+      <div style="font-size:11px;font-weight:700;color:#3b82f6;margin-bottom:6px;letter-spacing:1px;">v2.1</div>
+      <div style="font-size:12px;font-weight:700;color:#fbbf24;margin-bottom:5px;">🎮 밸런스 · 개선</div>
+      <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:1.9;margin-bottom:8px;">
+        <li>✅ 콤보 ×7 배수마다 랜덤 아이템 생성 (7, 14, 21...)</li>
+        <li>✅ WOW(5개↑ 동시 클리어) — 아이템 대신 점수 보너스로 변경</li>
+        <li>✅ 💣 폭탄 — 터진 셀 숫자값만큼 점수 획득 (고양이 포함)</li>
+        <li>✅ 직사각형 안 빈칸 포함해도 합=10이면 클리어 가능</li>
         <li>✅ 숫자 분포 균형 조정 (1↔9, 2↔8, 3↔7 보완쌍 균형)</li>
         <li>✅ 고양이 🐱 매판 7개 고정</li>
+        <li>✅ 명예의전당 — 주간 최고점 1명</li>
       </ul>
-      <div style="font-size:12px;font-weight:700;color:#f87171;margin:12px 0 8px;">🐛 버그 수정</div>
-      <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:1.8;">
+      <div style="font-size:12px;font-weight:700;color:#f87171;margin-bottom:5px;">🐛 버그 수정</div>
+      <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:1.9;margin-bottom:14px;">
         <li>✅ 다시하기 시 타이머 중복 실행 버그 수정</li>
-        <li>✅ 고양이만 남았을 때 다음 판으로 안 넘어가는 버그 수정</li>
+        <li>✅ 고양이만 남았을 때 다음 판 안 넘어가는 버그 수정</li>
+        <li>✅ 힌트 버튼 위치 이동 버그 수정</li>
+        <li>✅ 랭킹→게임 탭 전환 시 게임 안 뜨는 버그 수정</li>
+      </ul>
+
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
+
+      <!-- v2.0 -->
+      <div style="font-size:11px;font-weight:700;color:#3b82f6;margin-bottom:6px;letter-spacing:1px;">v2.0</div>
+      <div style="font-size:12px;font-weight:700;color:#fbbf24;margin-bottom:5px;">🎮 새 기능</div>
+      <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:1.9;">
+        <li>✅ 고양이 🐱 와일드카드 · 콤보 시스템</li>
+        <li>✅ 아이템 시스템 (💣폭탄 / ⏰시계 / 💡힌트)</li>
+        <li>✅ 글로벌 랭킹 · 명예의전당</li>
+        <li>✅ 다크/라이트 모드</li>
       </ul>
     </div>
-    <button class="action-btn" onclick="document.getElementById('updateLog').style.display='none'" style="margin-top:14px;">닫기</button>
+    <button class="action-btn" onclick="document.getElementById('updateLog').style.display='none'" style="margin-top:12px;flex-shrink:0;">닫기</button>
   </div>
 </div>
 
@@ -1213,7 +1232,7 @@ const CAT_RATIO   = 0.07;
 const BOMB_RATIO  = 0.025;
 const CLOCK_RATIO = 0.02;
 const HINT_RATIO  = 0.018;
-const MAX_COMBO = 10;
+const MAX_COMBO = 7;
 
 let board = [], score = 0, combo = 0, maxCombo = 0;
 let clearCount = 0, catBonus = 0, resetCount = 0;
@@ -1379,7 +1398,11 @@ function onCellTap(e) {
   const r = +e.currentTarget.dataset.r;
   const c = +e.currentTarget.dataset.c;
   const d = board[r][c];
-  if (d.empty) return;
+  // 빈칸: sel1 있으면 직사각형 두번째 꼭짓점으로 사용 가능
+  if (d.empty) {
+    if (sel1) { tryRemove({r, c}); }
+    return;
+  }
 
   // 아이템 셀 단독 탭으로 즉시 발동
   if (d.bomb || d.clock) {
@@ -1395,11 +1418,16 @@ function onCellTap(e) {
         for (let rr = Math.max(0,r-1); rr <= Math.min(ROWS-1,r+1); rr++)
           for (let cc = Math.max(0,c-2); cc <= Math.min(COLS-1,c+2); cc++)
             if (!board[rr][cc].empty) targets.push({rr,cc});
+        let bombScore = 0;
         targets.slice(0,6).forEach(({rr,cc}) => {
+          const bd = board[rr][cc];
+          if (bd.cat) bombScore += 5;
+          else if (!bd.bomb && !bd.clock && !bd.hint) bombScore += bd.num;
           board[rr][cc].empty = true;
           const el2 = cellEl(rr,cc);
           if (el2) el2.classList.add('exploding');
         });
+        if (bombScore > 0) { score += bombScore; updateStats(); showScorePop(r, c, '+' + bombScore + ' 💣', false); }
         setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350); }, 380);
       }, 150);
     }
@@ -1473,12 +1501,12 @@ function tryRemove(sel2) {
   }
 
   const prevCombo = combo;
-  combo = Math.min(combo + 1, MAX_COMBO);
+  combo++;
   if (combo > maxCombo) maxCombo = combo;
 
-  // 콤보 10 달성!
-  if (combo === 10 && prevCombo === 9) {
-    showCombo10Pop();
+  // 콤보 7 배수 달성 시 팝업 + 효과음
+  if (combo % 7 === 0) {
+    showComboMilestonePop(combo);
     playCombo10();
   }
 
@@ -1488,15 +1516,22 @@ function tryRemove(sel2) {
   score += gained; clearCount++; catBonus += cBonus;
 
   // 효과음
-  if (totalCells >= 5) { playWow(); if (catCells > 0) playMeow(); }
-  else {
-    if (combo >= 10) playCombo10();
-    else if (combo > prevCombo && combo >= 2) playComboUp(combo);
+  let wowBonus = 0;
+  if (totalCells >= 5) {
+    playWow();
+    // WOW 보너스: 5개 초과분마다 +10점
+    wowBonus = (totalCells - 4) * 10;
+    score += wowBonus;
+    if (catCells > 0) playMeow();
+  } else {
+    if (combo % 7 === 0 && combo > 0) playCombo10();
+    else if (combo > prevCombo && combo >= 2) playComboUp(Math.min(combo, 7));
     else playSuccess(catCells);
     if (catCells > 0) playMeow();
   }
 
-  if (gained > 0) showScorePop(rMin, cMin, `+${gained}${combo > 1 ? ' ×'+combo : ''}`, catCells > 0);
+  const wowStr = wowBonus > 0 ? ` WOW+${wowBonus}` : '';
+  if (gained > 0 || wowBonus > 0) showScorePop(rMin, cMin, `+${gained + wowBonus}${combo > 1 ? ' ×'+combo : ''}${wowStr}`, catCells > 0);
 
   // 기본 셀 제거
   highlightRange(rMin, rMax, cMin, cMax, 'clearing');
@@ -1511,18 +1546,29 @@ function tryRemove(sel2) {
     playBomb();
     showItemPop(rMin, cMin, '💣 폭발!', 'bomb');
     setTimeout(() => {
-      // 폭탄 위치 기준 주변 6칸만 (상하 1칸, 좌우 2칸)
       const targets = [];
       for (let r = Math.max(0,rMin-1); r <= Math.min(ROWS-1,rMax+1); r++)
         for (let c = Math.max(0,cMin-2); c <= Math.min(COLS-1,cMax+2); c++)
           targets.push({r,c});
-      // 빈칸 제외하고 최대 6칸
       const toExplode = targets.filter(({r,c}) => !board[r][c].empty).slice(0,6);
+      let bombScore = 0;
       toExplode.forEach(({r,c}) => {
+        const bd = board[r][c];
+        if (bd.cat) bombScore += 5;
+        else if (bd.num && !bd.bomb && !bd.clock && !bd.hint) bombScore += (bd.num || 0);
         board[r][c].empty = true;
         const el = cellEl(r,c);
         if (el) el.classList.add('exploding');
       });
+      if (bombScore > 0) {
+        score += bombScore;
+        updateStats();
+        const sEl = cellEl(rMin, cMin);
+        if (sEl) {
+          const rect = sEl.getBoundingClientRect();
+          showScorePop(rMin, cMin, '+' + bombScore + ' 💣', false);
+        }
+      }
     }, 150);
   }
 
@@ -1531,6 +1577,12 @@ function tryRemove(sel2) {
     timeLeft = Math.min(timeLeft + 8, 999);
     updateTimer();
     showItemPop(rMin, cMin, '⏰ +8초!', 'clock');
+    // timerDisp 강제 갱신
+    const t2 = document.getElementById('timerDisp2');
+    const m = Math.floor(timeLeft/60), s = timeLeft%60;
+    const txt = m+':'+String(s).padStart(2,'0');
+    document.getElementById('timerDisp').textContent = txt;
+    if (t2) t2.textContent = txt;
   }
 
   if (hasHint) {
@@ -1548,8 +1600,8 @@ function tryRemove(sel2) {
     }, 350);
   }
 
-  // WOW(5개이상) 또는 콤보7 달성 시 아이템 생성
-  if (totalCells >= 5 || combo === 7) {
+  // 콤보 7배수 달성 시에만 아이템 생성
+  if (combo % 7 === 0) {
     spawnRandomItem();
   }
 
@@ -1561,8 +1613,31 @@ function tryRemove(sel2) {
       renderGrid();
       updateHintBtn();
       updateHintBtn2();
+      // 판 갈이 보너스 +15초
+      timeLeft = Math.min(timeLeft + 15, 999);
+      updateTimer();
+      showBoardClearPop();
     }, 350);
   }, 340);
+}
+
+function showBoardClearPop() {
+  const pop = document.createElement('div');
+  pop.style.cssText = `
+    position:fixed; top:40%; left:50%;
+    transform:translate(-50%,-50%);
+    font-size:17px; font-weight:900; color:#fff;
+    background:rgba(30,60,30,0.92);
+    border:1.5px solid #22c55e;
+    padding:10px 22px; border-radius:20px;
+    box-shadow:0 0 16px rgba(34,197,94,0.4);
+    pointer-events:none; z-index:300;
+    animation:floatup 1.6s ease forwards;
+    white-space:nowrap;
+  `;
+  pop.textContent = '+15초 🎁';
+  document.body.appendChild(pop);
+  setTimeout(() => pop.remove(), 1600);
 }
 
 // WOW 아이템 랜덤 생성
@@ -1626,29 +1701,33 @@ function updateStats() {
   if (c2) c2.textContent = clearCount;
 }
 function updateComboUI() {
-  const pct = (combo / MAX_COMBO * 100) + '%';
+  // 7 미만이면 채워지고, 7 이상이면 항상 100% 유지
+  const stage = Math.floor(combo / 7);
+  const seg = combo % 7;
+  const pct = combo === 0 ? '0%' : combo < 7 ? (combo / 7 * 100) + '%' : '100%';
   comboFill.style.width = pct;
   const fill2 = document.getElementById('comboFill2');
   if (fill2) fill2.style.width = pct;
 
+  const colors = [
+    'linear-gradient(90deg, #2563a8, #3b82f6)',
+    'linear-gradient(90deg, #0891b2, #06b6d4)',
+    'linear-gradient(90deg, #16a34a, #22c55e)',
+    'linear-gradient(90deg, #ca8a04, #fbbf24)',
+    'linear-gradient(90deg, #dc2626, #f87171)',
+  ];
+  const valColors = ['var(--blue-bright)', '#06b6d4', '#22c55e', '#fbbf24', '#f87171'];
+  const idx = Math.min(stage, colors.length - 1);
+  const bg = colors[idx];
+  const col = valColors[idx];
+  const txt = '×' + combo;
+
+  comboFill.style.background = bg;
+  if (fill2) fill2.style.background = bg;
+  comboVal.style.color = col;
+  comboVal.textContent = txt;
   const val2 = document.getElementById('comboVal2');
-  if (combo >= 7) {
-    const bg = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
-    const txt = '×' + combo + (combo >= 10 ? ' 🔥' : '');
-    comboFill.style.background = bg;
-    if (fill2) fill2.style.background = bg;
-    comboVal.style.color = '#fbbf24';
-    comboVal.textContent = txt;
-    if (val2) { val2.style.color = '#fbbf24'; val2.textContent = txt; }
-  } else {
-    const bg = 'linear-gradient(90deg, var(--blue-mid), var(--blue-bright))';
-    const txt = '×' + combo;
-    comboFill.style.background = bg;
-    if (fill2) fill2.style.background = bg;
-    comboVal.style.color = 'var(--blue-bright)';
-    comboVal.textContent = txt;
-    if (val2) { val2.style.color = 'var(--blue-bright)'; val2.textContent = txt; }
-  }
+  if (val2) { val2.style.color = col; val2.textContent = txt; }
 }
 function updateTimer() {
   const m = Math.floor(timeLeft/60), s = timeLeft%60;
@@ -1760,7 +1839,9 @@ function startGame() {
     }
 
   makeBoard(); renderGrid(); updateStats(); updateComboUI(); updateTimer();
+  gameRunning = true; // 카운트다운 전에 임시 true로 힌트버튼 초록 표시
   updateHintBtn(); updateHintBtn2();
+  gameRunning = false; // 카운트다운 끝나면 다시 true로
 
   // 카운트다운
   const overlay = document.getElementById('countdownOverlay');
@@ -1817,22 +1898,21 @@ function startGame() {
 
 let gameEnding = false; // endGame 중복 방지
 
-function showCombo10Pop() {
+function showComboMilestonePop(n) {
   const pop = document.createElement('div');
   pop.style.cssText = `
-    position:fixed; top:30%; left:50%;
+    position:fixed; top:28%; left:50%;
     transform:translate(-50%,-50%);
-    font-size:18px; font-weight:900; color:#fff;
-    background:linear-gradient(135deg,#f59e0b,#ef4444);
-    padding:10px 20px; border-radius:20px;
-    box-shadow:0 0 20px rgba(245,158,11,0.6);
+    font-size:15px; font-weight:900;
+    color:#fbbf24;
+    text-shadow:0 0 12px rgba(245,158,11,0.8);
     pointer-events:none; z-index:300;
-    animation:recordpop 1.5s ease forwards;
+    animation:floatup 1.2s ease forwards;
     white-space:nowrap;
   `;
-  pop.textContent = '10combo 🔥';
+  pop.textContent = n + 'combo 🔥';
   document.body.appendChild(pop);
-  setTimeout(() => pop.remove(), 1500);
+  setTimeout(() => pop.remove(), 1200);
 }
 
 function playCombo10() {
@@ -1868,8 +1948,8 @@ async function endGame() {
   gameRunning = false; sel1 = null;
   playGameOver();
 
-  // 정답 표시 — 합=10 되는 최소 영역 초록으로
-  showAnswers();
+  // 게임 종료 정답 표시 — 겹치지 않게 최대한 많이
+  showAllAnswers();
 
   // 결과 패널 표시
   document.getElementById('finalScore').textContent = score;
@@ -1940,14 +2020,15 @@ function updateHintBtn() {
   else { btn.textContent = '💡 힌트 사용'; btn.className = 'hint-btn'; }
 }
 
-function showAnswers() {
+// 정답 조합 찾기 공통 함수
+function findAllAnswers() {
   const found = [];
+  const marked = Array.from({length: ROWS}, () => new Array(COLS).fill(false));
   for (let r1 = 0; r1 < ROWS; r1++)
   for (let c1 = 0; c1 < COLS; c1++)
   for (let r2 = r1; r2 < ROWS; r2++)
   for (let c2 = c1; c2 < COLS; c2++) {
     const nums = [];
-    // 빈칸/고양이/아이템 제외한 숫자만 합산
     for (let r = r1; r <= r2; r++)
       for (let c = c1; c <= c2; c++) {
         const d = board[r][c];
@@ -1956,23 +2037,47 @@ function showAnswers() {
       }
     const sum = nums.reduce((a,b)=>a+b,0);
     if (nums.length > 0 && sum === 10) {
-      // 직사각형 범위 내 비어있지 않은 셀 전체를 coords로 저장
       const coords = [];
       for (let r = r1; r <= r2; r++)
-        for (let c = c1; c <= c2; c++) {
+        for (let c = c1; c <= c2; c++)
           if (!board[r][c].empty) coords.push({r, c});
-        }
-      found.push(coords);
+      found.push({ r1, r2, c1, c2, coords, size: (r2-r1+1)*(c2-c1+1) });
     }
   }
-  if (found.length === 0) return;
+  return found;
+}
 
-  // 랜덤으로 하나만 선택
+// 힌트용: 랜덤 1개만
+function showAnswers() {
+  const found = findAllAnswers();
+  if (found.length === 0) return;
   const pick = found[Math.floor(Math.random() * found.length)];
-  pick.forEach(({r, c}) => {
+  pick.coords.forEach(({r, c}) => {
     const el = cellEl(r, c);
     if (el) el.classList.add('answer');
   });
+}
+
+// 게임 종료용: 겹치지 않게 최대한 많이 표시
+function showAllAnswers() {
+  const found = findAllAnswers();
+  if (found.length === 0) return;
+  found.sort((a, b) => a.size - b.size);
+  const marked = Array.from({length: ROWS}, () => new Array(COLS).fill(false));
+  for (const {r1, r2, c1, c2, coords} of found) {
+    let overlap = false;
+    for (let r = r1; r <= r2 && !overlap; r++)
+      for (let c = c1; c <= c2 && !overlap; c++)
+        if (marked[r][c]) overlap = true;
+    if (overlap) continue;
+    for (let r = r1; r <= r2; r++)
+      for (let c = c1; c <= c2; c++)
+        marked[r][c] = true;
+    coords.forEach(({r, c}) => {
+      const el = cellEl(r, c);
+      if (el) el.classList.add('answer');
+    });
+  }
 }
 
 // 힌트 버튼
@@ -2239,8 +2344,9 @@ if (hintBtn2) {
 function updateHintBtn2() {
   const btn = document.getElementById('hintBtn2');
   if (!btn) return;
-  if (hintUsed) { btn.textContent = '💡 사용완료'; btn.classList.add('used'); }
-  else { btn.textContent = '💡 힌트 사용'; btn.classList.remove('used'); }
+  if (!gameRunning) { btn.textContent = '💡 힌트'; btn.className = 'hint-btn pregame'; return; }
+  if (hintUsed) { btn.textContent = '💡 사용완료'; btn.className = 'hint-btn used'; }
+  else { btn.textContent = '💡 힌트 사용'; btn.className = 'hint-btn'; }
 }
 
 // 초기화
