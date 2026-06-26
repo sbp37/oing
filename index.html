@@ -97,7 +97,7 @@ html, body {
   border: none;
   color: var(--muted);
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   border-bottom: 2px solid transparent;
@@ -120,6 +120,14 @@ html, body {
 .tab-panel.active#panelGame {
   overflow: hidden;
   padding-bottom: 0;
+}
+
+.game-left {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ── 게임 탭 헤더 ── */
@@ -696,63 +704,67 @@ html, body {
 
    /* PC 가로 레이아웃 */
     @media (min-width: 700px) {
+        /* 앱 최대폭 */
+        .app { max-width: 960px; }
+
+        /* 게임 패널 가로 분할 */
         .tab-panel.active#panelGame {
             flex-direction: row;
             overflow: hidden;
             padding-bottom: 0;
         }
 
-        /* 왼쪽: 그리드 */
-        .grid-wrap {
+        /* 왼쪽: 헤더+그리드 영역 */
+        .game-left {
             flex: 1;
-            padding: 8px;
-            min-height: 0;
+            min-width: 0;
             display: flex;
-            align-items: stretch;
+            flex-direction: column;
+            overflow: hidden;
         }
 
+        /* 그리드 정사각형으로 꽉 차게 */
+        .grid-wrap {
+            flex: 1;
+            padding: 4px 8px 8px;
+            min-height: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
         .grid {
             display: grid;
             grid-template-columns: repeat(9, 1fr);
             grid-template-rows: repeat(13, 1fr);
             gap: 3px;
-            height: auto;
-            align-content: stretch;
+            flex: 1;
+            min-height: 0;
         }
+        .cell { font-size: clamp(13px, 1.6vw, 22px); }
+        .cell.cat { font-size: clamp(15px, 1.8vw, 24px); }
 
-        .game-header+.combo-wrap {
-            display: none
-        }
-
-        .game-side-panel .combo-wrap {
-            width: 170px;
-            box-sizing: border-box;
-            padding: 10px;
-            position: absolute;
-            right: 10px;
-            top: 250px;
-        }
+        /* 모바일 전용 요소 숨기기 */
+        .game-header { display: none; }
+        .hint-btn-wrap { display: none; }
+        /* combo-wrap은 game-left 안에서 표시 */
+        .tab-btn { font-size: 17px; padding: 12px 8px; }
+        .theme-btn { font-size: 14px; }
 
         /* 오른쪽: 사이드패널 */
         .game-side-panel {
-            width: 180px;
+            width: 190px;
             flex-shrink: 0;
-            display: flex;
+            display: flex !important;
             flex-direction: column;
-            padding: 10px 10px 10px 0;
-            gap: 8px;
+            padding: 12px 12px 12px 0;
+            gap: 10px;
             overflow-y: auto;
         }
-
-        .game-header {
-            display: none;
-        }
-
-        /* PC용 스탯을 사이드에 표시 */
-        .pc-stat-wrap {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+        .game-side-panel .hint-btn {
+            width: 100%;
+            border-radius: 12px;
+            padding: 10px;
+            font-size: 14px;
         }
     }
 
@@ -799,6 +811,7 @@ html, body {
 
     <!-- ══ 게임 탭 ══ -->
     <div class="tab-panel active" id="panelGame">
+      <div class="game-left">
       <div class="game-header">
         <div class="title-row">
           <span class="game-title">오잉게임 v2</span>
@@ -831,6 +844,7 @@ html, body {
       <div class="grid-wrap">
         <div class="grid" id="grid"></div>
       </div>
+      </div><!-- /game-left -->
 
       <!-- PC 사이드패널 -->
       <div class="game-side-panel" id="gameSidePanel" style="display:none">
@@ -2223,16 +2237,20 @@ async function renderRanking() {
   } else {
     rankEmpty.style.display = 'none';
 
-    // 이전 순위 저장/불러오기 (화살표용)
+    // 이전 순위 불러오기 (화살표용)
     let prevRanks = {};
     try { prevRanks = JSON.parse(localStorage.getItem('oeing_prev_ranks') || '{}'); } catch {}
+
+    // 현재 순위 먼저 저장 (다음번 비교용) - 단 prevRanks가 비어있으면 저장만 하고 화살표는 안 표시
     const newRanks = {};
     list.forEach((e, i) => { newRanks[e.nickname] = i + 1; });
+    const hasPrev = Object.keys(prevRanks).length > 0;
+    try { localStorage.setItem('oeing_prev_ranks', JSON.stringify(newRanks)); } catch {}
 
     list.slice(3).forEach((entry, i) => {
       const rank = i + 4;
       const isMe = myNick && entry.nickname === myNick;
-      const prev = prevRanks[entry.nickname];
+      const prev = hasPrev ? prevRanks[entry.nickname] : null;
       let arrowHtml = '<span class="arrow-same">—</span>';
       if (prev && prev > rank) arrowHtml = `<span class="arrow-up">▲${prev - rank}</span>`;
       else if (prev && prev < rank) arrowHtml = `<span class="arrow-down">▼${rank - prev}</span>`;
@@ -2248,9 +2266,6 @@ async function renderRanking() {
       `;
       rankList.appendChild(row);
     });
-
-    // 순위 저장
-    try { localStorage.setItem('oeing_prev_ranks', JSON.stringify(newRanks)); } catch {}
   }
 
   // 내 순위
