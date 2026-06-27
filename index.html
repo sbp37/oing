@@ -241,6 +241,20 @@ html, body {
   overflow: hidden;
 }
 
+/* 하단바 기본 스타일 (브라우저 모드) */
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 650px;
+  z-index: 70;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 8px 14px 10px;
+}
+
 /* 앱으로 설치된 경우 (standalone) — 정사각형 셀 */
 @media (display-mode: standalone) {
   .grid-wrap {
@@ -261,14 +275,14 @@ html, body {
     height: unset;
     aspect-ratio: 1;
   }
-  #bottomBar {
-    position: relative !important;
-    bottom: auto !important;
-    left: auto !important;
-    transform: none !important;
-    border-top: none !important;
-    background: transparent !important;
-    padding: 4px 0 !important;
+  .bottom-bar {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    transform: none;
+    border-top: none;
+    background: transparent;
+    padding: 4px 0;
   }
 }
 /* 라이트 셀 - 흰배경 진한글씨 */
@@ -535,43 +549,83 @@ body.light .hall-title { color: #5a3aaa; }
 /* ── 시상대 ── */
 .podium-wrap {
   display: flex; align-items: flex-end; justify-content: center;
-  gap: 14px; margin-bottom: 0;
+  gap: 10px; margin-bottom: 0;
 }
 .podium-item { display: flex; flex-direction: column; align-items: center; }
-.podium-item.rank1 { width: 90px; }
-.podium-item.rank2 { width: 74px; }
-.podium-item.rank3 { width: 62px; }
-.podium-trophy { font-size: 28px; margin-bottom: 4px; }
+.podium-item.rank1 { width: 110px; }
+.podium-item.rank2 { width: 88px; }
+.podium-item.rank3 { width: 76px; }
+.podium-trophy { font-size: 30px; margin-bottom: 3px; }
+
+/* 1~3등 랭크 배지 */
+.podium-rank-badge {
+  font-size: 10px; font-weight: 800; padding: 2px 8px;
+  border-radius: 20px; margin-bottom: 4px; white-space: nowrap;
+}
+.rank1 .podium-rank-badge { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #1a0a00; box-shadow: 0 0 8px rgba(251,191,36,0.6); }
+.rank2 .podium-rank-badge { background: linear-gradient(135deg, #94a3b8, #cbd5e1); color: #1a2030; }
+.rank3 .podium-rank-badge { background: linear-gradient(135deg, #b45309, #d97706); color: #fff8f0; }
+
 .podium-nick {
-  font-size: 13px; font-weight: 700; color: var(--text);
+  font-size: 14px; font-weight: 700; color: #ffffff;
   margin-bottom: 2px; text-align: center;
   width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.rank1 .podium-nick { font-size: 16px; font-weight: 800; }
 .podium-score { font-size: 13px; font-weight: 900; margin-bottom: 5px; }
-.rank1 .podium-score { color: #fbbf24; }
+.rank1 .podium-score { color: #fbbf24; font-size: 15px; }
 .rank2 .podium-score { color: #cbd5e1; }
 .rank3 .podium-score { color: #d97706; }
-.podium-base {
-  width: 100%; border-radius: 6px 6px 0 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px; font-weight: 900; color: rgba(255,255,255,0.4);
+
+/* shimmer 애니메이션 */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
 }
-.rank1 .podium-base { height: 120px; background: linear-gradient(180deg, #c8a010, #7a6008); }
-.rank2 .podium-base { height: 88px; background: linear-gradient(180deg, #8a9aaa, #546070); }
-.rank3 .podium-base { height: 64px; background: linear-gradient(180deg, #9a6240, #6a3e20); }
+@keyframes shimmer2 {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.podium-base {
+  width: 100%; border-radius: 8px 8px 0 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; font-weight: 900; color: rgba(255,255,255,0.55);
+  position: relative; overflow: hidden;
+}
+.rank1 .podium-base {
+  height: 130px;
+  background: linear-gradient(135deg, #b8860b, #ffd700, #b8860b, #ffd700);
+  background-size: 300% 100%;
+  animation: shimmer 2.8s linear infinite;
+  box-shadow: 0 0 18px rgba(255,215,0,0.45), inset 0 1px 0 rgba(255,255,255,0.2);
+}
+.rank2 .podium-base {
+  height: 96px;
+  background: linear-gradient(135deg, #546070, #a8b8c8, #546070, #a8b8c8);
+  background-size: 300% 100%;
+  animation: shimmer2 3.5s linear infinite;
+  box-shadow: 0 0 10px rgba(168,184,200,0.25);
+}
+.rank3 .podium-base {
+  height: 72px;
+  background: linear-gradient(135deg, #6a3e20, #c47a40, #6a3e20, #c47a40);
+  background-size: 300% 100%;
+  animation: shimmer 3.2s linear infinite;
+  box-shadow: 0 0 10px rgba(196,122,64,0.25);
+}
 .podium-empty .podium-nick { color: #3a5a7a; font-style: italic; font-weight: 400; font-size: 11px; }
 .podium-empty .podium-score { color: #3a5a7a; }
 .podium-floor {
-  display: flex; gap: 14px; justify-content: center; margin-bottom: 14px;
+  display: flex; gap: 10px; justify-content: center; margin-bottom: 14px;
 }
-.pf { height: 7px; border-radius: 0 0 5px 5px; }
-.pf-gold { background: #7a6008; width: 90px; }
-.pf-silver { background: #546070; width: 74px; }
-.pf-bronze { background: #6a3e20; width: 62px; }
+.pf { height: 6px; border-radius: 0 0 5px 5px; }
+.pf-gold   { background: #b8860b; width: 110px; box-shadow: 0 2px 8px rgba(255,215,0,0.3); }
+.pf-silver { background: #546070; width: 88px; }
+.pf-bronze { background: #6a3e20; width: 76px; }
 
 /* 화살표 */
-.arrow-up { font-size: 12px; color: #ef4444; font-weight: 900; }
-
+.arrow-up   { font-size: 12px; color: #ef4444; font-weight: 900; }
 .arrow-down { font-size: 12px; color: #3b82f6; font-weight: 900; }
 .arrow-same { font-size: 11px; color: #3a5a7a; }
 .rank-new-badge { font-size: 9px; font-weight: 700; background: #22c55e; color: white; padding: 1px 5px; border-radius: 4px; margin-left: 3px; vertical-align: middle; }
@@ -593,6 +647,25 @@ body.light .hall-title { color: #5a3aaa; }
 }
 .rank-empty { text-align: center; color: var(--muted); font-size: 14px; padding: 24px 0; }
 .my-rank-info { text-align: center; font-size: 13px; color: var(--muted); margin-top: 14px; }
+
+/* 탑10 배지 */
+.rank-badge {
+  font-size: 10px; font-weight: 800; padding: 2px 7px;
+  border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+}
+.rank-badge-top10 {
+  background: linear-gradient(135deg, #6c3fc4, #3b82f6);
+  color: white; box-shadow: 0 0 6px rgba(108,63,196,0.5);
+}
+/* 4~10위 행 왼쪽 컬러 바 */
+.rank-row.top10 {
+  border-left: 3px solid #6c3fc4;
+}
+.rank-row.top10 .rank-num {
+  color: #a78bfa;
+  font-weight: 800;
+}
+
 .my-rank-info strong { color: var(--blue-light); }
 .nick-change-wrap { text-align: center; margin-top: 14px; }
 .nick-change-btn {
@@ -957,13 +1030,7 @@ body.light .cell.cat.answer {
       </div>
       </div><!-- /game-left -->
       <!-- 하단 고정 바: 힌트 + 다시하기 -->
-      <div id="bottomBar" style="
-        position:fixed; bottom:0; left:50%; transform:translateX(-50%);
-        width:100%; max-width:650px; z-index:70;
-        background:var(--surface); border-top:1px solid var(--border);
-        padding:8px 14px 10px;
-        display:none; align-items:center; gap:8px;
-      ">
+      <div id="bottomBar" class="bottom-bar" style="display:none; align-items:center; gap:8px;">
         <button class="hint-btn" id="hintBtn" style="flex:1;">💡 힌트 사용</button>
         <button id="bottomRestartBtn" style="
           background:var(--surface2); border:1px solid var(--border);
@@ -1763,12 +1830,6 @@ function tryRemove(sel2) {
     timeLeft = Math.min(timeLeft + 8, 999);
     updateTimer();
     showItemPop(rMin, cMin, '⏰ +8초!', 'clock');
-    // timerDisp 강제 갱신
-    const t2 = document.getElementById('timerDisp2');
-    const m = Math.floor(timeLeft/60), s = timeLeft%60;
-    const txt = m+':'+String(s).padStart(2,'0');
-    document.getElementById('timerDisp').textContent = txt;
-    if (t2) t2.textContent = txt;
   }
 
   if (hasHint) {
@@ -2467,9 +2528,9 @@ async function renderRanking() {
   const podiumFloor = document.getElementById('podiumFloor');
   const displayOrder = [list[1], list[0], list[2]];
   const podiumDefs = [
-    { cls: 'rank2', trophy: '🥈', num: '2', floorCls: 'pf pf-silver' },
-    { cls: 'rank1', trophy: '🥇', num: '1', floorCls: 'pf pf-gold' },
-    { cls: 'rank3', trophy: '🥉', num: '3', floorCls: 'pf pf-bronze' },
+    { cls: 'rank2', trophy: '🥈', num: '2', floorCls: 'pf pf-silver', badge: '🥈 2nd' },
+    { cls: 'rank1', trophy: '🥇', num: '1', floorCls: 'pf pf-gold',   badge: '🏆 1st' },
+    { cls: 'rank3', trophy: '🥉', num: '3', floorCls: 'pf pf-bronze', badge: '🥉 3rd' },
   ];
   podium.innerHTML = '';
   podiumFloor.innerHTML = '';
@@ -2480,6 +2541,7 @@ async function renderRanking() {
     div.className = `podium-item ${p.cls}${entry ? '' : ' podium-empty'}`;
     div.innerHTML = `
       <div class="podium-trophy">${p.trophy}</div>
+      ${entry ? `<div class="podium-rank-badge">${p.badge}</div>` : ''}
       <div class="podium-nick">${entry ? (isMe ? '👤 ' : '') + entry.nickname : '—'}</div>
       <div class="podium-score">${entry ? entry.score + 'pt' : ''}</div>
       <div class="podium-base">${p.num}</div>
@@ -2508,14 +2570,22 @@ async function renderRanking() {
       const rank = i + 4;
       const isMe = myNick && entry.nickname === myNick;
       const isNew = justUpdated && entry.nickname === justUpdated;
+      const isTop10 = rank <= 10;
+
+      // 칭호
+      let badgeHtml = '';
+      if (isTop10) {
+        badgeHtml = `<span class="rank-badge rank-badge-top10">🔥 탑10</span>`;
+      }
 
       const row = document.createElement('div');
-      row.className = 'rank-row' + (isMe ? ' me' : '');
+      row.className = 'rank-row' + (isMe ? ' me' : '') + (isTop10 ? ' top10' : '');
       const titleCount2 = getHallTitle(entry.nickname);
       const titleHtml = titleCount2 > 0 ? `<span style="font-size:9px;color:#fbbf24;font-weight:700;margin-left:3px;">👑×${titleCount2}</span>` : '';
       row.innerHTML = `
         <span class="rank-num">${rank}</span>
         <span class="rank-nick">${isMe ? '👤 ' : ''}${entry.nickname}${titleHtml}</span>
+        ${badgeHtml}
         ${isMe ? '<span class="rank-me-badge">나</span>' : ''}
         ${isNew ? '<span class="rank-new-badge">NEW</span>' : ''}
         <span class="rank-pts">${entry.score}pt</span>
@@ -2655,31 +2725,6 @@ function updateHintBtn2() {
   if (hintUsed) { btn.textContent = '💡 사용완료'; btn.className = 'hint-btn used'; }
   else { btn.textContent = '💡 힌트 사용'; btn.className = 'hint-btn'; }
 }
-
-// standalone 앱 모드 감지 - 하단바를 grid-wrap 안으로 이동
-function adjustBottomBar() {
-  const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-  const bar = document.getElementById('bottomBar');
-  if (!bar) return;
-
-  if (isStandalone) {
-    // grid-wrap 안으로 이동 (position fixed 해제)
-    const gridWrap = document.querySelector('.grid-wrap');
-    if (gridWrap && bar.parentNode !== gridWrap) {
-      bar.style.position = 'relative';
-      bar.style.bottom = 'auto';
-      bar.style.left = 'auto';
-      bar.style.transform = 'none';
-      bar.style.width = '100%';
-      bar.style.maxWidth = '650px';
-      bar.style.margin = 'auto';
-      gridWrap.appendChild(bar);
-    }
-  }
-}
-
-window.addEventListener('resize', adjustBottomBar);
-setTimeout(adjustBottomBar, 100);
 
 // 초기화
 renderRanking();
