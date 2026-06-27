@@ -95,7 +95,8 @@ html, body {
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  z-index: 60;
+  z-index: 110;
+  position: relative;
 }
 .tab-btn {
   flex: 1;
@@ -280,14 +281,15 @@ html, body {
     align-items: center;
     justify-content: center;
   }
-  .grid {
+  /* 게임 실행 중일 때만 aspect-ratio 적용 */
+  body.game-active .grid {
     flex: none;
     min-height: unset;
     width: 100%;
     aspect-ratio: 9 / 13;
     grid-template-rows: unset;
   }
-  .cell {
+  body.game-active .cell {
     height: unset;
     aspect-ratio: 1;
   }
@@ -1189,7 +1191,7 @@ body.light .cell.cat.answer {
       background:none; border:none; color:var(--muted);
       font-size:11px; font-family:inherit; cursor:pointer;
       margin-top:8px; text-decoration:underline;
-    ">📋 업데이트 내역 보기</button>
+    ">📋 업데이트 내역 보기 <span style="color:#ef4444;font-weight:900;font-size:10px;">NEW</span></button>
   </div>
 </div>
 
@@ -1198,6 +1200,20 @@ body.light .cell.cat.answer {
   <div class="overlay-card" style="max-height:80vh; display:flex; flex-direction:column;">
     <div class="overlay-title" style="font-size:18px; flex-shrink:0;">📋 업데이트 내역</div>
     <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
+
+      <!-- v2.3 -->
+      <div style="font-size:11px;font-weight:700;color:#3b82f6;margin-bottom:6px;letter-spacing:1px;">v2.3</div>
+      <div style="font-size:12px;font-weight:700;color:#fbbf24;margin-bottom:5px;">🎮 개선</div>
+      <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:1.9;margin-bottom:8px;">
+        <li>🏗️ 시상대 대공사 — 금은동 반짝반짝, 1st/2nd/3rd 배지 발급</li>
+        <li>🏅 Top10 클럽 오픈 — 4~10위도 이제 뱃지 달고 다님</li>
+      </ul>
+      <div style="font-size:12px;font-weight:700;color:#f87171;margin-bottom:5px;">🐛 버그 수정</div>
+      <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:1.9;margin-bottom:8px;">
+        <li>🐛 ⏰ 시계 아이템 +8초가 두 번 먹히던 거 잡음</li>
+        <li>📐 앱 레이아웃 정비 — 설치 앱에서 화면 이상하던 거 수정</li>
+      </ul>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
 
       <!-- v2.2 -->
       <div style="font-size:11px;font-weight:700;color:#3b82f6;margin-bottom:6px;letter-spacing:1px;">v2.2</div>
@@ -2082,6 +2098,7 @@ let countdownId = 0; // 카운트다운 세션 ID (중복 방지)
 
 function startGame() {
   resumeAC();
+  document.body.classList.add('game-active'); // standalone aspect-ratio 활성화
 
   // 기존 타이머/카운트다운 완전 정리
   clearInterval(timerInterval);
@@ -2213,6 +2230,7 @@ async function endGame() {
   clearInterval(timerInterval);
   timerInterval = null;
   gameRunning = false; sel1 = null;
+  document.body.classList.remove('game-active'); // standalone aspect-ratio 비활성화
   document.getElementById('bottomBar').style.display = 'none';
   playGameOver();
 
