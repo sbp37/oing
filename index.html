@@ -204,30 +204,28 @@ html, body {
 /* ── 그리드 ── */
 .grid-wrap {
   flex: 1;
-  padding: 4px 12px 56px;
+  padding: 4px 8px 56px;
   min-height: 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
 }
 .grid {
   display: grid;
   grid-template-columns: repeat(9, 1fr);
+  grid-template-rows: repeat(13, 1fr);
   gap: 3px;
   border-radius: 10px;
-  padding: 4px;
-  /* 가로 폭 기준으로 정사각형 — 9:13 비율 */
+  padding: 3px;
   width: 100%;
-  aspect-ratio: 9 / 13;
+  flex: 1;
+  min-height: 0;
   background-color: #1e3a5f;
 }
 
 .cell {
-  aspect-ratio: 1;
   width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -241,6 +239,30 @@ html, body {
   transition: background 0.1s, border-color 0.1s, transform 0.1s;
   -webkit-user-select: none;
   overflow: hidden;
+}
+
+/* 앱으로 설치된 경우 (standalone) — 정사각형 셀 */
+@media (display-mode: standalone) {
+  .grid-wrap {
+    padding: 4px 12px 56px;
+    overflow-y: auto;
+    align-items: center;
+  }
+  .grid {
+    flex: none;
+    min-height: unset;
+    width: 100%;
+    aspect-ratio: 9 / 13;
+    grid-template-rows: unset;
+  }
+  .cell {
+    height: unset;
+    aspect-ratio: 1;
+  }
+  #bottomBar {
+    bottom: env(safe-area-inset-bottom, 16px) !important;
+    padding-bottom: max(env(safe-area-inset-bottom), 10px) !important;
+  }
 }
 /* 라이트 셀 - 흰배경 진한글씨 */
 body.light .cell {
@@ -2625,6 +2647,12 @@ function updateHintBtn2() {
   if (!gameRunning) { btn.textContent = '💡 힌트'; btn.className = 'hint-btn pregame'; return; }
   if (hintUsed) { btn.textContent = '💡 사용완료'; btn.className = 'hint-btn used'; }
   else { btn.textContent = '💡 힌트 사용'; btn.className = 'hint-btn'; }
+}
+
+// standalone 앱 모드 감지 - 하단바 위치 조정
+if (window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches) {
+  const bar = document.getElementById('bottomBar');
+  if (bar) bar.style.bottom = '20px';
 }
 
 // 초기화
