@@ -2648,18 +2648,9 @@ function dismissIOSPopup() {
   }
 })();
 
-// 안드로이드 PWA 설치 배너
-let deferredPrompt;
+// 안드로이드 PWA 자동 설치 배너 비활성화
 window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  // 자동으로 배너 띄우기
-  setTimeout(() => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
-    }
-  }, 2000);
+  e.preventDefault(); // 자동 배너 막기
 });
 
 </script>
