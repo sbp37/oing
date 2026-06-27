@@ -2650,10 +2650,23 @@ function updateHintBtn2() {
 }
 
 // standalone 앱 모드 감지 - 하단바 위치 조정
-if (window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches) {
+function adjustBottomBar() {
+  const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+  if (!isStandalone) return;
   const bar = document.getElementById('bottomBar');
-  if (bar) bar.style.bottom = '20px';
+  const grid = document.getElementById('grid');
+  if (!bar || !grid) return;
+  const gridBottom = grid.getBoundingClientRect().bottom;
+  const windowHeight = window.innerHeight;
+  const barHeight = bar.offsetHeight;
+  // 그리드 하단과 화면 하단 사이 중간
+  const gap = windowHeight - gridBottom;
+  const newBottom = Math.max(gap / 2 - barHeight / 2, 8);
+  bar.style.bottom = Math.round(newBottom) + 'px';
 }
+
+window.addEventListener('resize', adjustBottomBar);
+setTimeout(adjustBottomBar, 300);
 
 // 초기화
 renderRanking();
