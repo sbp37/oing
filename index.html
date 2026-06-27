@@ -197,7 +197,7 @@ html, body {
 /* ── 그리드 ── */
 .grid-wrap {
   flex: 1;
-  padding: 4px 8px 4px;
+  padding: 4px 8px 56px;
   min-height: 0;
   overflow: hidden;
   display: flex;
@@ -207,18 +207,13 @@ html, body {
   display: grid;
   grid-template-columns: repeat(9, 1fr);
   grid-template-rows: repeat(13, 1fr);
-  gap: 2px;
+  gap: 3px;
   border-radius: 10px;
   padding: 3px;
   width: 100%;
   flex: 1;
   min-height: 0;
-  background-color: #0a1628;
-  background-image:
-    linear-gradient(rgba(59,130,246,0.15) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59,130,246,0.15) 1px, transparent 1px);
-  background-size: calc((100% - 6px) / 9) calc((100% - 6px) / 13);
-  background-position: 3px 3px;
+  background-color: #1e3a5f; /* 다크: 파란 계열로 칸 구분선 */
 }
 
 .cell {
@@ -278,8 +273,13 @@ html, body {
   25% { transform: translateX(-3px); background: #2a1010; }
   75% { transform: translateX(3px); background: #2a1010; }
 }
-.cell.empty { background: transparent; border-color: transparent; cursor: default; pointer-events: auto; }
-.cell.empty:active { transform: none; }
+.cell.empty {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+  pointer-events: auto;
+  min-height: 20px; /* 아이폰 수축 방지 */
+}
 
 /* ── 점수 팝업 ── */
 .score-pop {
@@ -394,7 +394,7 @@ html, body {
 /* ── 명예의전당 ── */
 .hall-wrap {
   position: relative; border-radius: 16px;
-  padding: 14px 12px 12px; overflow: hidden;
+  padding: 10px 12px 10px; overflow: hidden;
   background: #0a0c14; border: 1px solid #3a2a6a; margin-bottom: 6px;
 }
 .hall-wrap::before {
@@ -410,8 +410,8 @@ html, body {
   background: linear-gradient(90deg, transparent, #a78bfa, #fbbf24, #a78bfa, transparent);
 }
 .hall-title {
-  text-align: center; font-size: 12px; font-weight: 700;
-  color: #c4b5fd; letter-spacing: 4px; margin-bottom: 12px; position: relative;
+  text-align: center; font-size: 15px; font-weight: 700;
+  color: #c4b5fd; letter-spacing: 4px; margin-bottom: 4px; position: relative;
 }
 .cards-row { display: flex; gap: 7px; align-items: flex-end; }
 
@@ -514,6 +514,7 @@ html, body {
 
 /* 화살표 */
 .arrow-up { font-size: 12px; color: #ef4444; font-weight: 900; }
+
 .arrow-down { font-size: 12px; color: #3b82f6; font-weight: 900; }
 .arrow-same { font-size: 11px; color: #3a5a7a; }
 .rank-new-badge { font-size: 9px; font-weight: 700; background: #22c55e; color: white; padding: 1px 5px; border-radius: 4px; margin-left: 3px; vertical-align: middle; }
@@ -578,7 +579,7 @@ html, body {
 
 /* 힌트 버튼 */
 .hint-btn-wrap {
-  padding: 2px 14px 3px;
+  padding: 2px 14px 2px;
   display: flex;
   justify-content: center;
   flex-shrink: 0;
@@ -587,8 +588,8 @@ html, body {
   background: var(--surface2);
   border: 1.5px solid #22c55e;
   color: #86efac;
-  font-family: inherit; font-size: 14px; font-weight: 700;
-  padding: 7px 24px; border-radius: 24px; cursor: pointer;
+  font-family: inherit; font-size: 12px; font-weight: 700;
+  padding: 5px 18px; border-radius: 20px; cursor: pointer;
   transition: all 0.3s; flex-shrink: 0;
   box-shadow: 0 0 6px rgba(34,197,94,0.25), inset 0 0 8px rgba(34,197,94,0.05);
   letter-spacing: 0.3px;
@@ -817,11 +818,7 @@ html, body {
         <div class="title-row">
           <span class="game-title">오잉게임 v2</span>
           <span class="game-sub">합이 10 → 제거!</span>
-          <button id="restartBtn" style="
-            margin-left:auto; background:var(--surface2); border:1px solid var(--border);
-            color:var(--muted); font-family:inherit; font-size:11px; font-weight:700;
-            padding:5px 10px; border-radius:7px; cursor:pointer; flex-shrink:0;
-          ">🔄 다시하기</button>
+
         </div>
         <div class="stat-row">
           <div class="stat-box"><div class="stat-label">점수</div><div class="stat-val" id="scoreDisp">0</div></div>
@@ -838,14 +835,28 @@ html, body {
         </div>
         <span class="combo-val" id="comboVal">×0</span>
       </div>
-      <div class="hint-btn-wrap">
-        <button class="hint-btn" id="hintBtn">💡 힌트 사용</button>
-      </div>
+
 
       <div class="grid-wrap">
         <div class="grid" id="grid"></div>
       </div>
       </div><!-- /game-left -->
+      <!-- 하단 고정 바: 힌트 + 다시하기 -->
+      <div id="bottomBar" style="
+        position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+        width:100%; max-width:650px; z-index:70;
+        background:var(--surface); border-top:1px solid var(--border);
+        padding:8px 14px 10px;
+        display:none; align-items:center; gap:8px;
+      ">
+        <button class="hint-btn" id="hintBtn" style="flex:1;">💡 힌트 사용</button>
+        <button id="bottomRestartBtn" style="
+          background:var(--surface2); border:1px solid var(--border);
+          color:var(--muted); font-family:inherit; font-size:11px; font-weight:700;
+          padding:6px 12px; border-radius:20px; cursor:pointer; flex-shrink:0;
+          white-space:nowrap;
+        ">🔄 다시하기</button>
+      </div>
 
       <!-- PC 사이드패널 -->
       <div class="game-side-panel" id="gameSidePanel" style="display:none">
@@ -874,6 +885,7 @@ html, body {
         <div class="hall-wrap" id="hallWrap">
           <div class="hall-title">✦ 명예의 전당 ✦</div>
           <div class="cards-row" id="hallCards"></div>
+
         </div>
 
         <!-- 현재 랭킹 구분선 -->
@@ -894,6 +906,13 @@ html, body {
         <div class="my-rank-info" id="myRankInfo"></div>
         <div class="nick-change-wrap">
           <button class="nick-change-btn" id="nickChangeWrapBtn">닉네임 변경</button>
+        </div>
+        <div style="text-align:center; margin-top:10px; padding-bottom:8px;">
+          <a href="https://open.kakao.com/o/spD6cpBi" target="_blank" style="
+            font-size:11px; color:var(--muted); text-decoration:none;
+            border:1px solid var(--border); border-radius:8px;
+            padding:5px 12px; display:inline-block;
+          ">💬 버그 신고 · 의견 남기기</a>
         </div>
       </div>
     </div>
@@ -979,6 +998,18 @@ html, body {
     <div class="overlay-title" style="font-size:18px; flex-shrink:0;">📋 업데이트 내역</div>
     <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
 
+      <!-- v2.2 -->
+      <div style="font-size:11px;font-weight:700;color:#3b82f6;margin-bottom:6px;letter-spacing:1px;">v2.2</div>
+      <div style="font-size:12px;font-weight:700;color:#fbbf24;margin-bottom:5px;">🎮 개선</div>
+      <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:1.9;margin-bottom:8px;">
+        <li>✅ 명예의전당 — 매주 1등 경험 횟수 👑×N 누적 표시</li>
+        <li>✅ 칭호 시스템 — 명전 오른 횟수 👑×N 표시</li>
+        <li>✅ 판 클리어 시 +15초 보너스</li>
+        <li>✅ 하단 바 — 힌트+다시하기 통합</li>
+        <li>✅ 버그 신고/의견 링크 추가</li>
+      </ul>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
+
       <!-- v2.1 -->
       <div style="font-size:11px;font-weight:700;color:#3b82f6;margin-bottom:6px;letter-spacing:1px;">v2.1</div>
       <div style="font-size:12px;font-weight:700;color:#fbbf24;margin-bottom:5px;">🎮 밸런스 · 개선</div>
@@ -1030,7 +1061,7 @@ html, body {
 //  FIREBASE 초기화
 // ══════════════════════════════
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, orderBy, query, limit }
+import { getFirestore, collection, getDocs, doc, setDoc, getDoc, orderBy, query, limit }
   from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -1879,6 +1910,7 @@ function startGame() {
     }
 
   makeBoard(); renderGrid(); updateStats(); updateComboUI(); updateTimer();
+  document.getElementById('bottomBar').style.display = 'flex';
   gameRunning = true; // 카운트다운 전에 임시 true로 힌트버튼 초록 표시
   updateHintBtn(); updateHintBtn2();
   gameRunning = false; // 카운트다운 끝나면 다시 true로
@@ -1986,6 +2018,7 @@ async function endGame() {
   clearInterval(timerInterval);
   timerInterval = null;
   gameRunning = false; sel1 = null;
+  document.getElementById('bottomBar').style.display = 'none';
   playGameOver();
 
   // 게임 종료 정답 표시 — 겹치지 않게 최대한 많이
@@ -2167,27 +2200,85 @@ document.getElementById('startRankBtn').addEventListener('click', () => {
 //  랭킹 렌더
 // ══════════════════════════════
 // 명예의전당 별도 저장 키 (한번 오르면 갱신 전까지 유지)
+
+// 명예의전당 칭호
+const HALL_TITLE_KEY = 'oeing_hall_titles';
+function getHallTitle(nickname) {
+  // Firebase에서 가져온 데이터 우선
+  if (window._champCounts && window._champCounts[nickname]) {
+    return window._champCounts[nickname];
+  }
+  try {
+    const data = JSON.parse(localStorage.getItem(HALL_TITLE_KEY) || '{}');
+    return data[nickname] || 0;
+  } catch { return 0; }
+}
+function addHallTitle(nickname) {
+  try {
+    const data = JSON.parse(localStorage.getItem(HALL_TITLE_KEY) || '{}');
+    data[nickname] = (data[nickname] || 0) + 1;
+    localStorage.setItem(HALL_TITLE_KEY, JSON.stringify(data));
+    return data[nickname];
+  } catch { return 1; }
+}
+function getTitleBadge(count) {
+  if (!count || count < 1) return '';
+  return `<span style="font-size:10px;color:#fbbf24;font-weight:700;">👑×${count}</span>`;
+}
 const HALL_KEY = 'oeing_hall_v2';
 
 function getWeekStart() {
   const now = new Date();
   const day = now.getDay();
-  const diff = (day === 0 ? -6 : 1 - day);
+  const diff = day === 0 ? -6 : 1 - day;
   const mon = new Date(now);
   mon.setDate(now.getDate() + diff);
-  mon.setHours(0,0,0,0);
+  mon.setHours(0, 0, 0, 0);
   return mon.getTime();
 }
 
-async function getWeeklyBest() {
+// 이번 주 1등 뽑아서 weekly_champs에 기록
+async function recordWeeklyChamp() {
   try {
     const weekStart = getWeekStart();
-    const q = query(collection(db, 'rankings'), orderBy('score', 'desc'), limit(50));
+    const weekKey = 'week_' + weekStart;
+    // 이미 이번 주 기록됐으면 스킵
+    const champRef = doc(db, 'weekly_champs', weekKey);
+    const existing = await getDoc(champRef);
+    if (existing.exists()) return existing.data();
+    // 이번 주 최고점자 찾기
+    const q = query(collection(db, 'rankings'), orderBy('score', 'desc'), limit(1));
     const snap = await getDocs(q);
-    const entries = snap.docs.map(d => ({nickname: d.id, score: d.data().score, ts: d.data().ts || 0}));
-    const weekly = entries.filter(e => e.ts >= weekStart);
-    if (weekly.length > 0) return weekly.reduce((a,b) => b.score > a.score ? b : a);
-    if (entries.length > 0) return entries[0];
+    if (snap.empty) return null;
+    const top = snap.docs[0];
+    const champ = { nickname: top.id, score: top.data().score, weekStart };
+    await setDoc(champRef, champ);
+    return champ;
+  } catch { return null; }
+}
+
+// 역대 weekly_champs에서 닉네임별 횟수 집계
+async function getChampCounts() {
+  try {
+    const snap = await getDocs(collection(db, 'weekly_champs'));
+    const counts = {};
+    snap.docs.forEach(d => {
+      const nick = d.data().nickname;
+      if (nick) counts[nick] = (counts[nick] || 0) + 1;
+    });
+    return counts;
+  } catch { return {}; }
+}
+
+// 이번 주 1등
+async function getAllTimeBest() {
+  try {
+    const q = query(collection(db, 'rankings'), orderBy('score', 'desc'), limit(1));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const d = snap.docs[0];
+      return { nickname: d.id, score: d.data().score };
+    }
   } catch {}
   return null;
 }
@@ -2195,7 +2286,21 @@ async function getWeeklyBest() {
 async function renderRanking() {
   const list = await loadRankings();
   const myNick = loadNickname();
-  const weeklyBest = await getWeeklyBest();
+  const weeklyBest = await getAllTimeBest();
+  // 주간 챔피언 기록 (매주 자동 갱신)
+  await recordWeeklyChamp();
+  // 역대 챔피언 횟수
+  const champCounts = await getChampCounts();
+  // champCounts를 전역으로 저장 (모든 칭호 표시에 사용)
+  window._champCounts = champCounts;
+  // localStorage도 동기화 (오프라인 대비)
+  Object.keys(champCounts).forEach(nick => {
+    try {
+      const data = JSON.parse(localStorage.getItem(HALL_TITLE_KEY) || '{}');
+      data[nick] = champCounts[nick];
+      localStorage.setItem(HALL_TITLE_KEY, JSON.stringify(data));
+    } catch {}
+  });
 
   // ── 명예의전당 렌더 (주간 최고점 1명) ──
   const hallCards = document.getElementById('hallCards');
@@ -2207,23 +2312,39 @@ async function renderRanking() {
     hallDesc = document.createElement('div');
     hallDesc.className = 'hall-desc';
     hallDesc.style.cssText = 'text-align:center;font-size:10px;color:#a78bfa;margin-bottom:8px;letter-spacing:1px;';
-    hallDesc.textContent = '이번 주 최고 점수';
+    hallDesc.innerHTML = '매주 월요일 기준 · 1등 경험 횟수 👑×N';
     hallWrap.insertBefore(hallDesc, hallCards);
   }
   const card = document.createElement('div');
   card.className = 'card-1st';
   card.style.margin = '0 auto';
   card.style.maxWidth = '160px';
-  card.innerHTML = weeklyBest ? `
-    <div class="card-icon-1">👑</div>
-    <div class="card-rank-1">THIS WEEK</div>
-    <div class="card-nick-1">${weeklyBest.nickname}</div>
-    <div class="card-score-1">${weeklyBest.score}pt</div>
-  ` : `
-    <div class="card-icon-1">👑</div>
-    <div class="card-rank-1">THIS WEEK</div>
-    <div class="card-empty">아직 없어요</div>
-  `;
+  if (weeklyBest) {
+    // 명전 오른 횟수 - 역대 1등이 바뀔 때마다 카운트
+    const prevHall = localStorage.getItem('oeing_prev_hall');
+    if (prevHall !== weeklyBest.nickname) {
+      addHallTitle(weeklyBest.nickname);
+      localStorage.setItem('oeing_prev_hall', weeklyBest.nickname);
+    }
+    // 처음 로드 시 1등이 있으면 최소 1회 보장
+    if (getHallTitle(weeklyBest.nickname) === 0) {
+      addHallTitle(weeklyBest.nickname);
+      localStorage.setItem('oeing_prev_hall', weeklyBest.nickname);
+    }
+    const titleCount = getHallTitle(weeklyBest.nickname);
+    card.innerHTML = `
+      <div class="card-icon-1" style="font-size:32px;margin-bottom:2px;">👑</div>
+      <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:4px;">역대 최고점</div>
+      <div class="card-nick-1" style="font-size:22px;margin-bottom:2px;">${getTitleBadge(titleCount)} ${weeklyBest.nickname}</div>
+      <div class="card-score-1" style="font-size:22px;">${weeklyBest.score}pt</div>
+    `;
+  } else {
+    card.innerHTML = `
+      <div class="card-icon-1">👑</div>
+      <div class="card-rank-1">THIS WEEK</div>
+      <div class="card-empty">아직 없어요</div>
+    `;
+  }
   hallCards.appendChild(card);
 
   // ── 시상대 렌더 ──
@@ -2275,9 +2396,11 @@ async function renderRanking() {
 
       const row = document.createElement('div');
       row.className = 'rank-row' + (isMe ? ' me' : '');
+      const titleCount2 = getHallTitle(entry.nickname);
+      const titleHtml = titleCount2 > 0 ? `<span style="font-size:9px;color:#fbbf24;font-weight:700;margin-left:3px;">👑×${titleCount2}</span>` : '';
       row.innerHTML = `
         <span class="rank-num">${rank}</span>
-        <span class="rank-nick">${isMe ? '👤 ' : ''}${entry.nickname}</span>
+        <span class="rank-nick">${isMe ? '👤 ' : ''}${entry.nickname}${titleHtml}</span>
         ${isMe ? '<span class="rank-me-badge">나</span>' : ''}
         ${isNew ? '<span class="rank-new-badge">NEW</span>' : ''}
         <span class="rank-pts">${entry.score}pt</span>
@@ -2335,7 +2458,11 @@ document.getElementById('tabGame').addEventListener('click', () => {
 });
 document.getElementById('tabRank').addEventListener('click', () => switchTab('rank'));
 document.getElementById('themeBtn').addEventListener('click', toggleTheme);
-document.getElementById('restartBtn').addEventListener('click', confirmRestart);
+// restartBtn 제거됨
+document.getElementById('bottomRestartBtn').addEventListener('click', () => {
+  if (!gameRunning) { startGame(); return; }
+  if (confirm('다시 하시겠습니까?\n현재 게임이 종료됩니다.')) startGame();
+});
 document.getElementById('nickChangeWrapBtn').addEventListener('click', changeNickname);
 document.getElementById('resultRestartBtn').addEventListener('click', () => {
   switchTab('game');
