@@ -257,12 +257,28 @@ html, body {
 
 /* 앱으로 설치된 경우 (standalone) — 정사각형 셀 */
 @media (display-mode: standalone) {
+  /* 게임 패널 전체를 세로 flex로 */
+  #panelGame {
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  /* game-left가 남은 공간 차지 */
+  .game-left {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
   .grid-wrap {
-    padding: 4px 12px 8px;
-    overflow-y: auto;
+    flex: 1;
+    padding: 4px 10px 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
   }
   .grid {
     flex: none;
@@ -275,14 +291,17 @@ html, body {
     height: unset;
     aspect-ratio: 1;
   }
+  /* bottomBar: 그리드 아래, 홈바 여백 확보 */
   .bottom-bar {
     position: relative;
     bottom: auto;
     left: auto;
     transform: none;
-    border-top: none;
-    background: transparent;
-    padding: 4px 0;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+    padding: 10px 14px 28px;
+    flex-shrink: 0;
+    margin-top: 8px;
   }
 }
 /* 라이트 셀 - 흰배경 진한글씨 */
@@ -579,12 +598,12 @@ body.light .hall-title { color: #5a3aaa; }
 
 /* shimmer 애니메이션 */
 @keyframes shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position: 200% center; }
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
 }
 @keyframes shimmer2 {
-  0%   { background-position: -200% center; }
-  100% { background-position: 200% center; }
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
 }
 
 .podium-base {
@@ -595,23 +614,23 @@ body.light .hall-title { color: #5a3aaa; }
 }
 .rank1 .podium-base {
   height: 130px;
-  background: linear-gradient(135deg, #b8860b, #ffd700, #b8860b, #ffd700);
+  background: linear-gradient(90deg, #a07800 0%, #ffe566 30%, #ffd700 50%, #ffe566 70%, #a07800 100%);
   background-size: 300% 100%;
-  animation: shimmer 2.8s linear infinite;
+  animation: shimmer 3.5s ease-in-out infinite alternate;
   box-shadow: 0 0 18px rgba(255,215,0,0.45), inset 0 1px 0 rgba(255,255,255,0.2);
 }
 .rank2 .podium-base {
   height: 96px;
-  background: linear-gradient(135deg, #546070, #a8b8c8, #546070, #a8b8c8);
+  background: linear-gradient(90deg, #4a5a6a 0%, #b0bec8 35%, #d0dde8 50%, #b0bec8 65%, #4a5a6a 100%);
   background-size: 300% 100%;
-  animation: shimmer2 3.5s linear infinite;
+  animation: shimmer2 4s ease-in-out infinite alternate;
   box-shadow: 0 0 10px rgba(168,184,200,0.25);
 }
 .rank3 .podium-base {
   height: 72px;
-  background: linear-gradient(135deg, #6a3e20, #c47a40, #6a3e20, #c47a40);
+  background: linear-gradient(90deg, #5a3010 0%, #b06828 35%, #d08840 50%, #b06828 65%, #5a3010 100%);
   background-size: 300% 100%;
-  animation: shimmer 3.2s linear infinite;
+  animation: shimmer 4.5s ease-in-out infinite alternate;
   box-shadow: 0 0 10px rgba(196,122,64,0.25);
 }
 .podium-empty .podium-nick { color: #3a5a7a; font-style: italic; font-weight: 400; font-size: 11px; }
