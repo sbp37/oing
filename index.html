@@ -213,7 +213,7 @@ html, body {
   width: 100%;
   flex: 1;
   min-height: 0;
-  background-color: #1e3a5f; /* 다크: 파란 계열로 칸 구분선 */
+  background-color: #1e3a5f;
 }
 
 .cell {
@@ -233,6 +233,14 @@ html, body {
   -webkit-user-select: none;
   overflow: hidden;
 }
+/* 라이트 셀 - 흰배경 진한글씨 */
+body.light .cell {
+  background: #ffffff;
+  border-color: #b8cce8;
+  color: #1a3060;
+}
+body.light .grid { background-color: #9ab8d8; }
+body.light .cell.cat { background: #fffbeb; border-color: #f59e0b; }
 .cell:active { transform: scale(0.85); }
 
 .cell.cat {
@@ -278,7 +286,12 @@ html, body {
   border-color: transparent;
   cursor: default;
   pointer-events: auto;
-  min-height: 20px; /* 아이폰 수축 방지 */
+  min-height: 20px;
+}
+/* 라이트 빈칸 - 투명 */
+body.light .cell.empty {
+  background: transparent;
+  border-color: transparent;
 }
 
 /* ── 점수 팝업 ── */
@@ -397,6 +410,12 @@ html, body {
   padding: 10px 12px 10px; overflow: hidden;
   background: #0a0c14; border: 1px solid #3a2a6a; margin-bottom: 6px;
 }
+body.light .hall-wrap {
+  background: linear-gradient(145deg, #e8e0ff, #f0ebff);
+  border-color: #9a80d8;
+  box-shadow: 0 0 16px rgba(130,100,220,0.15);
+}
+body.light .hall-title { color: #5a3aaa; }
 .hall-wrap::before {
   content: ''; position: absolute; inset: 0;
   background:
@@ -623,6 +642,10 @@ html, body {
   box-shadow: none;
   animation: none;
 }
+body.light .hall-wrap .hall-desc { color: #7a5ab8 !important; }
+body.light .hint-btn { color: #15803d; border-color: #16a34a; background: #f0fff4; }
+body.light .hint-btn.used { background: #f5f5f5; border-color: #d0d0d0; color: #999; }
+body.light .hint-btn.pregame { background: #f5f5f5; border-color: #d0d0d0; color: #999; }
 .new-badge {
   display: inline-block;
   font-size: 9px; font-weight: 700;
@@ -701,6 +724,17 @@ html, body {
 .cell.cat.answer {
   background: #0a2e1a !important;
   border-color: #16a34a !important;
+}
+body.light .cell.answer {
+  background: #ffffff !important;
+  border-color: #16a34a !important;
+  color: #1a3060 !important;
+  box-shadow: 0 0 0 2px #16a34a !important;
+}
+body.light .cell.cat.answer {
+  background: #fffbeb !important;
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 2px #16a34a !important;
 }
 
 
