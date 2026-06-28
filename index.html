@@ -256,28 +256,8 @@ html, body {
 
 /* 앱으로 설치된 경우 (standalone) — 정사각형 셀 */
 @media (display-mode: standalone) {
-  /* 게임 패널 전체를 세로 flex로 */
-  #panelGame {
-    display: flex !important;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  /* game-left가 남은 공간 차지 */
-  .game-left {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
   .grid-wrap {
-    flex: 1;
     padding: 4px 10px 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
   }
   /* 게임 실행 중일 때만 aspect-ratio 적용 */
   body.game-active .grid {
@@ -291,7 +271,7 @@ html, body {
     height: unset;
     aspect-ratio: 1;
   }
-  /* bottomBar: 그리드 아래, 홈바 여백 확보 */
+  /* bottomBar: 홈바 여백 확보 */
   .bottom-bar {
     position: relative;
     bottom: auto;
@@ -2671,11 +2651,6 @@ function switchTab(tab) {
     const panel = document.getElementById('panelRank');
     panel.classList.add('active');
     document.getElementById('tabRank').classList.add('active');
-    // 로딩 표시 후 렌더
-    const rankList = document.getElementById('rankList');
-    if (rankList) {
-      rankList.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">⏳ 불러오는 중...</div>';
-    }
     renderRanking();
   }
 }
