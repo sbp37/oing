@@ -2668,8 +2668,14 @@ function switchTab(tab) {
     document.getElementById('panelGame').classList.add('active');
     document.getElementById('tabGame').classList.add('active');
   } else {
-    document.getElementById('panelRank').classList.add('active');
+    const panel = document.getElementById('panelRank');
+    panel.classList.add('active');
     document.getElementById('tabRank').classList.add('active');
+    // 로딩 표시 후 렌더
+    const rankList = document.getElementById('rankList');
+    if (rankList) {
+      rankList.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">⏳ 불러오는 중...</div>';
+    }
     renderRanking();
   }
 }
@@ -2689,8 +2695,7 @@ document.getElementById('tabRank').addEventListener('click', () => switchTab('ra
 document.getElementById('themeBtn').addEventListener('click', toggleTheme);
 // restartBtn 제거됨
 document.getElementById('bottomRestartBtn').addEventListener('click', () => {
-  if (!gameRunning) { startGame(); return; }
-  if (confirm('다시 하시겠습니까?\n현재 게임이 종료됩니다.')) startGame();
+  startGame();
 });
 document.getElementById('nickChangeWrapBtn').addEventListener('click', changeNickname);
 document.getElementById('resultRestartBtn').addEventListener('click', () => {
@@ -2744,8 +2749,7 @@ document.getElementById('nickChangeBtn').addEventListener('click', async () => {
 });
 
 function confirmRestart() {
-  if (!gameRunning) { startGame(); return; }
-  if (confirm('진행 중인 게임을 종료하고 다시 시작할까요?')) startGame();
+  startGame();
 }
 
 // 초기화 — 테스트 닉네임 삭제
@@ -2807,8 +2811,9 @@ function setTabAreaHeight() {
 setTabAreaHeight();
 window.addEventListener('resize', setTabAreaHeight);
 
-// 초기화
-renderRanking();
+// 초기화 — Firebase 준비 후 renderRanking 실행
+// 웹앱(standalone) 첫 로드시 Firebase SDK 로드 타이밍 보장
+setTimeout(() => renderRanking(), 300);
 
 // iOS 홈화면 추가 안내
 function dismissIOSPopup() {
