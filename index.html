@@ -2894,7 +2894,11 @@ document.getElementById('submitScore').addEventListener('click', async () => {
   const nick = document.getElementById('nickInput').value.trim();
   if (!nick) { document.getElementById('nickInput').focus(); return; }
   saveNickname(nick);
-  await addScore(nick, score);
+  const playTimeSeconds = Math.round((Date.now() - gameStartTime) / 1000);
+  await Promise.all([
+    addScore(nick, score),
+    updateUserStats(nick, playTimeSeconds, score),
+  ]);
   document.getElementById('nickSection2').style.display = 'none';
   const nickDone = document.getElementById('nickDone');
   nickDone.style.display = 'block';
