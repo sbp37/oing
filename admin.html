@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오잉게임 관리자</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d1b2a; --surface: #152535; --surface2: #1e3448;
+  --border: #2a4a6a; --blue: #3b82f6; --blue-light: #93c5fd;
+  --gold: #fbbf24; --green: #34d399; --red: #f87171;
+  --muted: #94a3b8; --text: #e2e8f0; --text2: #cbd5e1;
+}
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; font-size: 15px; }
+
+/* 대시보드 */
+#dashboard { display:block; }
+.header { background:var(--surface); border-bottom:1px solid var(--border); padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
+.header h1 { font-size:18px; font-weight:900; color:var(--blue-light); }
+.header-right { display:flex; align-items:center; gap:12px; }
+#lastUpdated { font-size:13px; color:var(--muted); }
+.refresh-btn { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:8px 16px; border-radius:10px; font-size:14px; cursor:pointer; }
+
+.main { padding:16px; max-width:960px; margin:0 auto; }
+
+/* 특별 카드 (MVP, 최장시간 등) */
+.highlight-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px; margin-bottom:16px; }
+.highlight-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; }
+.highlight-card .hl-label { font-size:12px; color:var(--muted); margin-bottom:6px; }
+.highlight-card .hl-name { font-size:18px; font-weight:900; color:var(--text); margin-bottom:2px; }
+.highlight-card .hl-sub { font-size:13px; color:var(--text2); }
+.highlight-card.gold-card { border-color:#f59e0b55; background:linear-gradient(135deg, #1a1500, #152535); }
+.highlight-card.green-card { border-color:#34d39955; background:linear-gradient(135deg, #001a0d, #152535); }
+.highlight-card.blue-card { border-color:#3b82f655; background:linear-gradient(135deg, #001533, #152535); }
+.highlight-card.online-card { border-color:#34d39988; background:linear-gradient(135deg, #001a0d, #152535); }
+
+/* 요약 카드 */
+.summary-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:16px; }
+.summary-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }
+.summary-card .label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+.summary-card .value { font-size:26px; font-weight:900; color:var(--blue-light); }
+.summary-card .value.gold { color:var(--gold); }
+.summary-card .value.green { color:var(--green); }
+
+/* 섹션 */
+.section { background:var(--surface); border:1px solid var(--border); border-radius:14px; margin-bottom:16px; overflow:hidden; }
+.section-header { padding:14px 16px; border-bottom:1px solid var(--border); font-size:15px; font-weight:800; color:var(--blue-light); display:flex; align-items:center; gap:6px; }
+
+/* 유저 테이블 */
+.user-table { width:100%; border-collapse:collapse; }
+.user-table th { padding:10px 14px; font-size:12px; color:var(--text2); text-align:left; border-bottom:1px solid var(--border); font-weight:700; }
+.user-table td { padding:12px 14px; font-size:15px; border-bottom:1px solid rgba(42,74,106,0.4); color:var(--text2); }
+.user-table tr:last-child td { border-bottom:none; }
+.user-table tr:hover td { background:var(--surface2); }
+.nick-cell { font-weight:800; color:var(--text) !important; font-size:16px !important; }
+.score-cell { color:var(--gold) !important; font-weight:700; }
+.count-cell { color:var(--green) !important; font-weight:700; }
+.time-cell { color:var(--blue-light) !important; }
+.last-cell { color:var(--muted) !important; font-size:13px !important; }
+
+.badge { display:inline-block; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:800; margin-left:5px; }
+.badge-new { background:#1a4a20; color:#34d399; }
+.badge-active { background:#1a2a4a; color:#60a5fa; }
+.badge-online { background:#0a3a1a; color:#34d399; animation:pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+/* 시간대 차트 */
+.hour-chart { padding:16px; display:flex; align-items:flex-end; gap:3px; height:100px; }
+.hour-bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; gap:4px; }
+.hour-bar { width:100%; background:var(--blue); border-radius:3px 3px 0 0; min-height:2px; opacity:0.75; }
+.hour-label { font-size:9px; color:var(--muted); }
+
+/* 활동 */
+.activity-list { padding:4px 0; }
+.activity-item { padding:12px 16px; display:flex; align-items:center; gap:12px; border-bottom:1px solid rgba(42,74,106,0.3); }
+.activity-item:last-child { border-bottom:none; }
+.activity-time { color:var(--text2); font-size:13px; min-width:72px; }
+.activity-nick { font-weight:800; font-size:15px; color:var(--text); }
+.activity-info { color:var(--muted); font-size:13px; }
+.activity-score { color:var(--gold); margin-left:auto; font-weight:800; font-size:15px; }
+
+.loading { text-align:center; padding:32px; color:var(--muted); font-size:15px; }
+
+.sort-btn { background:none; border:1px solid var(--border); color:var(--muted); font-size:12px; cursor:pointer; font-weight:700; padding:4px 10px; border-radius:6px; }
+.sort-btn.active { color:var(--blue-light); border-color:var(--blue); }
+
+.online-dot { display:inline-block; width:8px; height:8px; background:#34d399; border-radius:50%; margin-right:4px; animation:pulse 1.5s infinite; }
+</style>
+</head>
+<body>
+
+<div id="dashboard">
+  <div class="header">
+    <h1>🎮 오잉게임 관리자</h1>
+    <div class="header-right">
+      <span id="lastUpdated"></span>
+      <button class="refresh-btn" onclick="loadAll()">🔄 새로고침</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- 하이라이트 -->
+    <div class="highlight-grid">
+      <div class="highlight-card gold-card">
+        <div class="hl-label">🏆 최고 점수</div>
+        <div class="hl-name" id="hlTopScore">-</div>
+        <div class="hl-sub" id="hlTopScoreSub">-</div>
+      </div>
+      <div class="highlight-card green-card">
+        <div class="hl-label">🏃 오늘의 MVP</div>
+        <div class="hl-name" id="hlMvp">-</div>
+        <div class="hl-sub" id="hlMvpSub">-</div>
+      </div>
+      <div class="highlight-card blue-card">
+        <div class="hl-label">⏱ 가장 오래 한 유저</div>
+        <div class="hl-name" id="hlLongest">-</div>
+        <div class="hl-sub" id="hlLongestSub">-</div>
+      </div>
+      <div class="highlight-card online-card">
+        <div class="hl-label"><span class="online-dot"></span>최근 접속 (5분)</div>
+        <div class="hl-name" id="hlOnline">-</div>
+        <div class="hl-sub" id="hlOnlineSub">-</div>
+      </div>
+    </div>
+
+    <!-- 요약 -->
+    <div class="summary-grid">
+      <div class="summary-card"><div class="label">전체 유저</div><div class="value" id="statTotal">-</div></div>
+      <div class="summary-card"><div class="label">오늘 플레이</div><div class="value green" id="statToday">-</div></div>
+      <div class="summary-card"><div class="label">총 플레이</div><div class="value" id="statPlays">-</div></div>
+      <div class="summary-card"><div class="label">총 플레이 시간</div><div class="value" id="statTime">-</div></div>
+      <div class="summary-card"><div class="label">최고 점수</div><div class="value gold" id="statBest">-</div></div>
+      <div class="summary-card"><div class="label">평균 점수</div><div class="value" id="statAvg">-</div></div>
+    </div>
+
+    <!-- 유저 목록 -->
+    <div class="section">
+      <div class="section-header">
+        👥 유저 현황
+        <span style="margin-left:auto;display:flex;gap:6px;">
+          <button class="sort-btn active" id="sortScore" onclick="sortBy('score')">점수순</button>
+          <button class="sort-btn" id="sortPlay" onclick="sortBy('play')">플레이순</button>
+          <button class="sort-btn" id="sortTime" onclick="sortBy('time')">시간순</button>
+          <button class="sort-btn" id="sortLast" onclick="sortBy('last')">최근순</button>
+        </span>
+      </div>
+      <div id="userTableWrap"><div class="loading">불러오는 중...</div></div>
+    </div>
+
+    <!-- 시간대 -->
+    <div class="section">
+      <div class="section-header">🕐 시간대별 플레이</div>
+      <div class="hour-chart" id="hourChart"><div class="loading">불러오는 중...</div></div>
+    </div>
+
+    <!-- 최근 활동 -->
+    <div class="section">
+      <div class="section-header">⚡ 최근 플레이 기록</div>
+      <div class="activity-list" id="activityList"><div class="loading">불러오는 중...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const PROJECT = 'oing-game';
+const API_KEY = 'AIzaSyBzDEJyVEUtrbIeAqwTwbF9FszEmtAw0jg';
+
+async function fsGet(colName) {
+  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/${colName}?key=${API_KEY}&pageSize=300`;
+  const res = await fetch(url);
+  const json = await res.json();
+  if (!json.documents) return [];
+  return json.documents.map(d => {
+    const id = d.name.split('/').pop();
+    const out = { _id: id };
+    for (const [k, v] of Object.entries(d.fields || {})) {
+      if (v.integerValue !== undefined) out[k] = Number(v.integerValue);
+      else if (v.doubleValue  !== undefined) out[k] = Number(v.doubleValue);
+      else if (v.stringValue  !== undefined) out[k] = v.stringValue;
+      else if (v.booleanValue !== undefined) out[k] = v.booleanValue;
+    }
+    return out;
+  });
+}
+
+function fmtTime(secs) {
+  if (!secs || secs <= 0) return '-';
+  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60);
+  if (h > 0) return `${h}시간 ${m}분`;
+  if (m > 0) return `${m}분`;
+  return `${secs}초`;
+}
+
+function fmtAgo(ts) {
+  if (!ts) return '-';
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000), h = Math.floor(diff / 3600000), d = Math.floor(diff / 86400000);
+  if (m < 1) return '방금';
+  if (m < 60) return `${m}분 전`;
+  if (h < 24) return `${h}시간 전`;
+  if (d < 7) return `${d}일 전`;
+  return new Date(ts).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+}
+
+// 바로 대시보드 표시 — 페이지 로드 후 데이터 가져오기
+window.addEventListener('load', () => window.loadAll());
+
+let allUsers = [], currentSort = 'score';
+
+window.sortBy = function(key) {
+  currentSort = key;
+  ['Score','Play','Time','Last'].forEach(k =>
+    document.getElementById('sort'+k).classList.toggle('active', k.toLowerCase() === key)
+  );
+  renderUserTable();
+};
+
+window.loadAll = async function() {
+  document.getElementById('lastUpdated').textContent = '로딩 중...';
+  try {
+    const [rankings, stats] = await Promise.all([fsGet('rankings'), fsGet('user_stats')]);
+    const statsMap = {};
+    stats.forEach(s => { statsMap[s._id] = s; });
+
+    allUsers = rankings.map(r => {
+      const st = statsMap[r._id] || {};
+      return {
+        nick: r._id, score: r.score || 0, ts: r.ts || 0,
+        playCount: st.playCount || 0, totalPlayTime: st.totalPlayTime || 0,
+        lastPlayed: st.lastPlayed || r.ts || 0, firstPlayed: st.firstPlayed || r.ts || 0,
+        lastScore: st.lastScore || r.score || 0,
+      };
+    });
+
+    stats.forEach(s => {
+      if (!allUsers.find(u => u.nick === s._id)) {
+        allUsers.push({
+          nick: s._id, score: s.bestScore || 0, ts: s.lastPlayed || 0,
+          playCount: s.playCount || 0, totalPlayTime: s.totalPlayTime || 0,
+          lastPlayed: s.lastPlayed || 0, firstPlayed: s.firstPlayed || 0, lastScore: s.lastScore || 0,
+        });
+      }
+    });
+
+    renderHighlights();
+    renderSummary();
+    renderUserTable();
+    renderHourChart();
+    renderActivity();
+
+    const now = new Date();
+    document.getElementById('lastUpdated').textContent =
+      `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} 업데이트`;
+  } catch(e) {
+    document.getElementById('lastUpdated').textContent = '로드 실패: ' + e.message;
+    console.error(e);
+  }
+};
+
+function renderHighlights() {
+  const now = Date.now();
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const fiveMinAgo = now - 5 * 60 * 1000;
+
+  // 최고점수
+  const topScore = [...allUsers].sort((a,b) => b.score - a.score)[0];
+  if (topScore) {
+    document.getElementById('hlTopScore').textContent = topScore.nick;
+    document.getElementById('hlTopScoreSub').textContent = topScore.score.toLocaleString() + '점';
+  }
+
+  // 오늘의 MVP (오늘 플레이 중 가장 많이 한 사람)
+  const todayPlayers = allUsers.filter(u => u.lastPlayed >= todayStart.getTime() && u.playCount > 0);
+  const mvp = todayPlayers.sort((a,b) => b.playCount - a.playCount)[0];
+  if (mvp) {
+    document.getElementById('hlMvp').textContent = mvp.nick;
+    document.getElementById('hlMvpSub').textContent = `오늘 ${mvp.playCount}회 플레이`;
+  } else {
+    document.getElementById('hlMvp').textContent = '아직 없음';
+    document.getElementById('hlMvpSub').textContent = '오늘 첫 플레이어를 기다리는 중';
+  }
+
+  // 가장 오래 한 유저
+  const longest = [...allUsers].filter(u => u.totalPlayTime > 0).sort((a,b) => b.totalPlayTime - a.totalPlayTime)[0];
+  if (longest) {
+    document.getElementById('hlLongest').textContent = longest.nick;
+    document.getElementById('hlLongestSub').textContent = `총 ${fmtTime(longest.totalPlayTime)}`;
+  } else {
+    document.getElementById('hlLongest').textContent = '-';
+    document.getElementById('hlLongestSub').textContent = '아직 기록 없음';
+  }
+
+  // 최근 5분 접속
+  const onlineUsers = allUsers.filter(u => u.lastPlayed >= fiveMinAgo);
+  document.getElementById('hlOnline').textContent = onlineUsers.length + '명';
+  if (onlineUsers.length > 0) {
+    document.getElementById('hlOnlineSub').textContent = onlineUsers.map(u => u.nick).join(', ');
+  } else {
+    document.getElementById('hlOnlineSub').textContent = '현재 접속자 없음';
+  }
+}
+
+function renderSummary() {
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const todayCount = allUsers.filter(u => u.lastPlayed >= todayStart.getTime()).length;
+  const totalPlays = allUsers.reduce((s,u) => s + u.playCount, 0);
+  const totalSecs = allUsers.reduce((s,u) => s + u.totalPlayTime, 0);
+  const bestScore = Math.max(...allUsers.map(u => u.score), 0);
+  const avgScore = allUsers.length ? Math.round(allUsers.reduce((s,u) => s+u.score, 0) / allUsers.length) : 0;
+
+  document.getElementById('statTotal').textContent = allUsers.length;
+  document.getElementById('statToday').textContent = todayCount;
+  document.getElementById('statPlays').textContent = totalPlays > 0 ? totalPlays.toLocaleString() : '-';
+  document.getElementById('statTime').textContent = fmtTime(totalSecs);
+  document.getElementById('statBest').textContent = bestScore.toLocaleString();
+  document.getElementById('statAvg').textContent = avgScore.toLocaleString();
+}
+
+function renderUserTable() {
+  const now = Date.now();
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const weekAgo = now - 7*24*3600*1000;
+  const fiveMinAgo = now - 5*60*1000;
+
+  const sorted = [...allUsers].sort((a,b) => {
+    if (currentSort === 'score') return b.score - a.score;
+    if (currentSort === 'play')  return b.playCount - a.playCount;
+    if (currentSort === 'time')  return b.totalPlayTime - a.totalPlayTime;
+    if (currentSort === 'last')  return b.lastPlayed - a.lastPlayed;
+    return 0;
+  });
+
+  let html = `<table class="user-table"><thead><tr>
+    <th>#</th><th>닉네임</th><th>최고점수</th><th>플레이</th><th>총 시간</th><th>마지막 접속</th>
+  </tr></thead><tbody>`;
+
+  sorted.forEach((u, i) => {
+    const isOnline = u.lastPlayed >= fiveMinAgo;
+    const isToday  = u.lastPlayed >= todayStart.getTime();
+    const isNew    = u.firstPlayed >= weekAgo && !isToday;
+    const badge = isOnline
+      ? '<span class="badge badge-online">🟢 접속중</span>'
+      : isToday
+        ? '<span class="badge badge-active">오늘</span>'
+        : isNew ? '<span class="badge badge-new">신규</span>' : '';
+
+    html += `<tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td class="nick-cell">${u.nick}${badge}</td>
+      <td class="score-cell">${u.score.toLocaleString()}</td>
+      <td class="count-cell">${u.playCount > 0 ? u.playCount+'회' : '-'}</td>
+      <td class="time-cell">${u.totalPlayTime > 0 ? fmtTime(u.totalPlayTime) : '-'}</td>
+      <td class="last-cell">${u.lastPlayed ? fmtAgo(u.lastPlayed) : '-'}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('userTableWrap').innerHTML = html;
+}
+
+function renderHourChart() {
+  const counts = new Array(24).fill(0);
+  allUsers.forEach(u => { if (u.lastPlayed) counts[new Date(u.lastPlayed).getHours()]++; });
+  const max = Math.max(...counts, 1);
+  let html = '';
+  for (let h = 0; h < 24; h++) {
+    const pct = Math.round((counts[h] / max) * 100);
+    html += `<div class="hour-bar-wrap" title="${h}시: ${counts[h]}명">
+      <div class="hour-bar" style="height:${Math.max(pct,2)}%"></div>
+      <div class="hour-label">${h % 6 === 0 ? h+'시' : ''}</div>
+    </div>`;
+  }
+  document.getElementById('hourChart').innerHTML = html;
+}
+
+function renderActivity() {
+  const sorted = [...allUsers].filter(u => u.lastPlayed > 0).sort((a,b) => b.lastPlayed - a.lastPlayed).slice(0, 20);
+  if (!sorted.length) {
+    document.getElementById('activityList').innerHTML = '<div class="loading">아직 기록이 없어요</div>';
+    return;
+  }
+  let html = '';
+  sorted.forEach(u => {
+    html += `<div class="activity-item">
+      <span class="activity-time">${fmtAgo(u.lastPlayed)}</span>
+      <span class="activity-nick">${u.nick}</span>
+      <span class="activity-info">${u.playCount > 0 ? u.playCount+'회째' : ''}</span>
+      <span class="activity-score">${u.lastScore > 0 ? u.lastScore.toLocaleString()+'점' : ''}</span>
+    </div>`;
+  });
+  document.getElementById('activityList').innerHTML = html;
+}
+</script>
+</body>
+</html>
