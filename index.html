@@ -2732,15 +2732,21 @@ async function endGame() {
     nickDone.textContent = `🎉 ${savedNick} 등록 중...`;
 
     try {
-      // Firebase 작업에 5초 타임아웃
-      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000));
+      // Firebase 작업에 10초 타임아웃
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000));
+      const playTimeSeconds = Math.round((Date.now() - gameStartTime) / 1000);
+
       const work = (async () => {
-        const playTimeSeconds = Math.round((Date.now() - gameStartTime) / 1000);
+        // addScore와 updateUserStats를 병렬 실행
         const prevList = await loadRankings();
         const prevBest = prevList.find(e => e.nickname === savedNick);
         const isNewRecord = !prevBest || score > prevBest.score;
-        await addScore(savedNick, score);
-        await updateUserStats(savedNick, playTimeSeconds, score);
+
+        await Promise.all([
+          addScore(savedNick, score),
+          updateUserStats(savedNick, playTimeSeconds, score),
+        ]);
+
         renderRanking();
         if (isNewRecord && score > 0) {
           try { sessionStorage.setItem('oeing_just_updated', savedNick); } catch {}
