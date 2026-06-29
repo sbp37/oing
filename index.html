@@ -1384,9 +1384,38 @@ async function loadRankings() {
   }
 }
 
+async function updateUserStats(nickname, playTimeSeconds, score) {
+  try {
+    const docRef = doc(db, 'user_stats', nickname);
+    const snap = await getDoc(docRef);
+    const now = Date.now();
+    if (snap.exists()) {
+      const d = snap.data();
+      await setDoc(docRef, {
+        playCount: (d.playCount || 0) + 1,
+        totalPlayTime: (d.totalPlayTime || 0) + playTimeSeconds,
+        lastPlayed: now,
+        firstPlayed: d.firstPlayed || now,
+        lastScore: score,
+        bestScore: Math.max(d.bestScore || 0, score),
+      });
+    } else {
+      await setDoc(docRef, {
+        playCount: 1,
+        totalPlayTime: playTimeSeconds,
+        lastPlayed: now,
+        firstPlayed: now,
+        lastScore: score,
+        bestScore: score,
+      });
+    }
+  } catch (e) {
+    console.warn('통계 저장 실패:', e);
+  }
+}
+
 async function addScore(nickname, newScore) {
   try {
-    const docRef = doc(db, 'rankings', nickname);
     const snap = await getDocs(query(collection(db, 'rankings'), orderBy('score', 'desc'), limit(MAX_RANKS)));
     const existing = snap.docs.find(d => d.id === nickname);
     if (!existing || newScore > existing.data().score) {
@@ -2706,10 +2735,12 @@ async function endGame() {
       // Firebase 작업에 5초 타임아웃
       const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000));
       const work = (async () => {
+        const playTimeSeconds = Math.round((Date.now() - gameStartTime) / 1000);
         const prevList = await loadRankings();
         const prevBest = prevList.find(e => e.nickname === savedNick);
         const isNewRecord = !prevBest || score > prevBest.score;
         await addScore(savedNick, score);
+        await updateUserStats(savedNick, playTimeSeconds, score);
         renderRanking();
         if (isNewRecord && score > 0) {
           try { sessionStorage.setItem('oeing_just_updated', savedNick); } catch {}
