@@ -1385,33 +1385,31 @@ async function loadRankings() {
 }
 
 async function updateUserStats(nickname, playTimeSeconds, score) {
-  try {
-    const docRef = doc(db, 'user_stats', nickname);
-    const snap = await getDoc(docRef);
-    const now = Date.now();
-    if (snap.exists()) {
-      const d = snap.data();
-      await setDoc(docRef, {
-        playCount: (d.playCount || 0) + 1,
-        totalPlayTime: (d.totalPlayTime || 0) + playTimeSeconds,
-        lastPlayed: now,
-        firstPlayed: d.firstPlayed || now,
-        lastScore: score,
-        bestScore: Math.max(d.bestScore || 0, score),
-      });
-    } else {
-      await setDoc(docRef, {
-        playCount: 1,
-        totalPlayTime: playTimeSeconds,
-        lastPlayed: now,
-        firstPlayed: now,
-        lastScore: score,
-        bestScore: score,
-      });
-    }
-  } catch (e) {
-    console.warn('통계 저장 실패:', e);
+  // 에러를 던져서 호출부에서 잡을 수 있게 함
+  const docRef = doc(db, 'user_stats', nickname);
+  const snap = await getDoc(docRef);
+  const now = Date.now();
+  if (snap.exists()) {
+    const d = snap.data();
+    await setDoc(docRef, {
+      playCount: (d.playCount || 0) + 1,
+      totalPlayTime: (d.totalPlayTime || 0) + playTimeSeconds,
+      lastPlayed: now,
+      firstPlayed: d.firstPlayed || now,
+      lastScore: score,
+      bestScore: Math.max(d.bestScore || 0, score),
+    });
+  } else {
+    await setDoc(docRef, {
+      playCount: 1,
+      totalPlayTime: playTimeSeconds,
+      lastPlayed: now,
+      firstPlayed: now,
+      lastScore: score,
+      bestScore: score,
+    });
   }
+  return true;
 }
 
 async function addScore(nickname, newScore) {
@@ -2737,23 +2735,28 @@ async function endGame() {
       const playTimeSeconds = Math.round((Date.now() - gameStartTime) / 1000);
 
       const work = (async () => {
-        // addScore와 updateUserStats를 병렬 실행
         const prevList = await loadRankings();
         const prevBest = prevList.find(e => e.nickname === savedNick);
         const isNewRecord = !prevBest || score > prevBest.score;
 
-        await Promise.all([
-          addScore(savedNick, score),
-          updateUserStats(savedNick, playTimeSeconds, score),
-        ]);
+        await addScore(savedNick, score);
+
+        // 통계 저장 (실패해도 결과 표시)
+        let statsMsg = '';
+        try {
+          await updateUserStats(savedNick, playTimeSeconds, score);
+          statsMsg = ' 📊✓';
+        } catch (se) {
+          statsMsg = ' 📊✗';
+        }
 
         renderRanking();
         if (isNewRecord && score > 0) {
           try { sessionStorage.setItem('oeing_just_updated', savedNick); } catch {}
-          nickDone.innerHTML = `🎉 ${savedNick} 자동 등록 완료!<br><span style="color:#fbbf24;font-size:15px;font-weight:900;">최고점수 등극! 대단하다냥🐱</span>`;
+          nickDone.innerHTML = `🎉 ${savedNick} 자동 등록 완료!${statsMsg}<br><span style="color:#fbbf24;font-size:15px;font-weight:900;">최고점수 등극! 대단하다냥🐱</span>`;
           showNewRecordPop();
         } else {
-          nickDone.textContent = `🎉 ${savedNick} 자동 등록 완료!`;
+          nickDone.textContent = `🎉 ${savedNick} 자동 등록 완료!${statsMsg}`;
         }
       })();
       await Promise.race([work, timeout]);
@@ -2895,14 +2898,24 @@ document.getElementById('submitScore').addEventListener('click', async () => {
   if (!nick) { document.getElementById('nickInput').focus(); return; }
   saveNickname(nick);
   const playTimeSeconds = Math.round((Date.now() - gameStartTime) / 1000);
-  await Promise.all([
-    addScore(nick, score),
-    updateUserStats(nick, playTimeSeconds, score),
-  ]);
   document.getElementById('nickSection2').style.display = 'none';
   const nickDone = document.getElementById('nickDone');
   nickDone.style.display = 'block';
-  nickDone.textContent = `🎉 ${nick} 으로 등록 완료!`;
+
+  let statsMsg = '';
+  try {
+    await addScore(nick, score);
+  } catch (e) {
+    statsMsg += ' (점수저장 실패)';
+  }
+  try {
+    await updateUserStats(nick, playTimeSeconds, score);
+    statsMsg += ' 📊✓';
+  } catch (e) {
+    statsMsg += ' 📊✗ ' + e.message;
+  }
+
+  nickDone.textContent = `🎉 ${nick} 등록 완료!${statsMsg}`;
   renderRanking();
 });
 
