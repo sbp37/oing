@@ -1825,15 +1825,18 @@ function onCellTap(e) {
       board[r][c].empty = true;
       showItemPop(r, c, '🍀 힌트!', 'hint');
       playHint();
-      showAnswers(); // 랜덤 정답 하나 하이라이트
       setTimeout(() => {
-        for (let rr = 0; rr < ROWS; rr++)
-          for (let cc = 0; cc < COLS; cc++) {
-            const el2 = cellEl(rr, cc);
-            if (el2) el2.classList.remove('answer');
-          }
-      }, 2000);
-      setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350); }, 380);
+        renderGrid();
+        showAnswers(); // renderGrid 후에 붙여야 DOM이 살아있음
+        setTimeout(() => {
+          for (let rr = 0; rr < ROWS; rr++)
+            for (let cc = 0; cc < COLS; cc++) {
+              const el2 = cellEl(rr, cc);
+              if (el2) el2.classList.remove('answer');
+            }
+        }, 1600);
+        if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350);
+      }, 380);
     }
 
     return;
@@ -1874,21 +1877,25 @@ function tryRemove(sel2) {
 
   const cells = []; let catCells = 0;
   let hasBomb = false, hasClock = false, hasHint = false;
+  let hasMegabomb = false, hasFreeze = false, hasLucky = false;
 
   for (let r = rMin; r <= rMax; r++)
     for (let c = cMin; c <= cMax; c++) {
       const d = board[r][c];
       if (d.empty) continue;
-      if (d.cat)   { catCells++; continue; }
-      if (d.bomb)  { hasBomb  = true; continue; }
-      if (d.clock) { hasClock = true; continue; }
-      if (d.hint)  { hasHint  = true; continue; }
+      if (d.cat)      { catCells++; continue; }
+      if (d.bomb)     { hasBomb     = true; continue; }
+      if (d.clock)    { hasClock    = true; continue; }
+      if (d.hint)     { hasHint     = true; continue; }
+      if (d.megabomb) { hasMegabomb = true; continue; }
+      if (d.freeze)   { hasFreeze   = true; continue; }
+      if (d.lucky)    { hasLucky    = true; continue; }
       cells.push(d);
     }
 
   const sum = cells.reduce((a, d) => a + d.num, 0);
   const onlyCat = cells.length === 0 && catCells > 0;
-  const onlyItem = cells.length === 0 && !catCells && (hasBomb || hasClock || hasHint);
+  const onlyItem = cells.length === 0 && !catCells && (hasBomb || hasClock || hasHint || hasMegabomb || hasFreeze || hasLucky);
   const valid = onlyCat || onlyItem || sum === 10;
 
   if (!valid) {
@@ -1928,12 +1935,10 @@ function tryRemove(sel2) {
     if (catCells > 0) playMeow();
   }
 
-  const wowStr = wowBonus > 0 ? ` WOW+${wowBonus}` : '';
   if (gained > 0 || wowBonus > 0) {
     if (wowBonus > 0) {
-      // WOW! 노란색 크게 + 작은 점수 따로
       showScorePop(rMin, cMin, `WOW!`, false, 'wow');
-      setTimeout(() => showScorePop(rMin, cMin, `+${gained + wowBonus}${combo > 1 ? ' ×'+combo : ''}`, catCells > 0), 120);
+      setTimeout(() => showScorePop(rMin, cMin, `+${gained + wowBonus}${combo > 1 ? ' ×'+combo : ''}`, catCells > 0), 180);
     } else {
       showScorePop(rMin, cMin, `+${gained}${combo > 1 ? ' ×'+combo : ''}`, catCells > 0);
     }
@@ -1989,6 +1994,7 @@ function tryRemove(sel2) {
     playHint();
     showItemPop(rMin, cMin, '💡 힌트!', 'hint');
     setTimeout(() => {
+      renderGrid();
       showAnswers();
       setTimeout(() => {
         for (let r = 0; r < ROWS; r++)
@@ -1996,8 +2002,59 @@ function tryRemove(sel2) {
             const el = cellEl(r, c);
             if (el) el.classList.remove('answer');
           }
-      }, 800);
-    }, 350);
+      }, 1600);
+      if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350);
+    }, 380);
+  }
+
+  if (hasMegabomb) {
+    playBomb();
+    showItemPop(rMin, cMin, '💥 메가폭발!', 'bomb');
+    setTimeout(() => {
+      const targets = [];
+      for (let r = Math.max(0,rMin-2); r <= Math.min(ROWS-1,rMax+2); r++)
+        for (let c = Math.max(0,cMin-3); c <= Math.min(COLS-1,cMax+3); c++)
+          if (!board[r][c].empty) targets.push({r,c});
+      let bombScore = 0;
+      targets.slice(0,12).forEach(({r,c}) => {
+        const bd = board[r][c];
+        if (bd.cat) bombScore += 5;
+        else if (!bd.bomb && !bd.clock && !bd.hint && !bd.megabomb && !bd.freeze && !bd.lucky) bombScore += bd.num;
+        board[r][c].empty = true;
+        const el = cellEl(r,c);
+        if (el) el.classList.add('exploding');
+      });
+      bombScore += 40;
+      score += bombScore;
+      updateStats();
+      showScorePop(rMin, cMin, '+' + bombScore + ' 💥', false, 'megabomb');
+      combo++; if (combo > maxCombo) maxCombo = combo;
+      updateComboUI(combo % 7 === 0);
+      if (combo % 7 === 0) spawnRandomItem();
+      setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350); }, 380);
+    }, 150);
+  }
+
+  if (hasFreeze) {
+    activateFreeze(15);
+  }
+
+  if (hasLucky) {
+    // 드래그로 클로버 선택 시: 셀 지우는 activateLucky 대신 힌트만 표시
+    playHint();
+    showItemPop(rMin, cMin, '🍀 힌트!', 'hint');
+    setTimeout(() => {
+      renderGrid();
+      showAnswers();
+      setTimeout(() => {
+        for (let r = 0; r < ROWS; r++)
+          for (let c = 0; c < COLS; c++) {
+            const el = cellEl(r, c);
+            if (el) el.classList.remove('answer');
+          }
+      }, 1600);
+      if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350);
+    }, 380);
   }
 
   // 콤보 7배수 달성 시에만 아이템 생성
@@ -2044,51 +2101,53 @@ function showBoardClearPop() {
 let freezeActive = false;
 let itemActive = false; // 아이템 동시 발동 방지
 function activateFreeze(secs) {
-  if (freezeActive) return; // 이미 발동 중이면 무시
+  if (freezeActive) return;
   freezeActive = true;
   playClock();
 
   // 기존 팝업 제거
   document.querySelectorAll('.freeze-text-pop').forEach(el => el.remove());
 
-  // 텍스트 팝업 - 크고 잘 보이게, 3초 유지
+  // 글씨만, 배경 없이, 빠르게
   const pop = document.createElement('div');
   pop.className = 'freeze-text-pop';
   pop.style.cssText = `
-    position:fixed; top:38%; left:50%; transform:translate(-50%,-50%);
+    position:fixed; top:36%; left:50%; transform:translate(-50%,-50%);
     text-align:center; pointer-events:none; z-index:400;
-    background:rgba(0,20,40,0.88);
-    border:2px solid #00eeff;
-    border-radius:20px;
-    padding:14px 28px 16px;
-    box-shadow:0 0 32px rgba(0,212,255,0.5), 0 0 64px rgba(0,212,255,0.2);
-    animation: freezePopIn 0.3s ease, freezePopOut 0.5s ease 1.5s forwards;
+    animation: freezePopIn 0.25s ease, freezePopOut 0.4s ease 1.1s forwards;
   `;
   pop.innerHTML = `
-    <div style="font-size:36px;line-height:1;margin-bottom:6px;">❄️</div>
-    <div style="font-size:22px;font-weight:900;color:#00eeff;letter-spacing:3px;text-shadow:0 0 16px #00d4ff;">TIME FREEZE</div>
-    <div style="font-size:15px;color:#80dfff;font-weight:800;margin-top:6px;letter-spacing:1px;">⏸ ${secs}초간 시간 정지!</div>
-    <div style="font-size:12px;color:#60c0ff;font-weight:600;margin-top:4px;opacity:0.8;">타이머가 멈춰있어요</div>
+    <div style="font-size:20px;font-weight:900;color:#00eeff;letter-spacing:2px;text-shadow:0 0 12px #00d4ff,0 0 24px rgba(0,212,255,0.4);">TIME FREEZE</div>
+    <div style="font-size:15px;color:#80dfff;font-weight:700;margin-top:3px;letter-spacing:1px;">${secs}초 멈춤</div>
   `;
 
-  // keyframes 추가 (없으면)
   if (!document.getElementById('freezeKeyframes')) {
     const style = document.createElement('style');
     style.id = 'freezeKeyframes';
     style.textContent = `
-      @keyframes freezePopIn { from { opacity:0; transform:translate(-50%,-50%) scale(0.7); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }
-      @keyframes freezePopOut { from { opacity:1; } to { opacity:0; transform:translate(-50%,-60%) scale(0.9); } }
+      @keyframes freezePopIn { from { opacity:0; transform:translate(-50%,-50%) scale(0.85); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }
+      @keyframes freezePopOut { from { opacity:1; } to { opacity:0; transform:translate(-50%,-58%) scale(0.95); } }
     `;
     document.head.appendChild(style);
   }
 
   document.body.appendChild(pop);
-  setTimeout(() => pop.remove(), 2000);
+  setTimeout(() => pop.remove(), 1500);
 
-  // secs초 후 프리즈 해제 + 종료시각 미룸
+  // 타이머에 ❄️ 추가
+  const timerEl = document.getElementById('timerDisp');
+  const timerEl2 = document.getElementById('timerDisp2');
+  if (timerEl) timerEl.dataset.freeze = '1';
+  if (timerEl2) timerEl2.dataset.freeze = '1';
+
+  // secs초 후 프리즈 해제
   setTimeout(() => {
     freezeActive = false;
-    gameEndTime += secs * 1000; // 멈춘 만큼 종료 시각 미룸
+    gameEndTime += secs * 1000;
+    // ❄️ 제거
+    if (timerEl) delete timerEl.dataset.freeze;
+    if (timerEl2) delete timerEl2.dataset.freeze;
+    updateTimer();
   }, secs * 1000);
 }
 
@@ -2133,10 +2192,11 @@ function spawnRandomItem() {
 
   const tier = combo >= 21 ? 3 : combo >= 14 ? 2 : 1;
 
+  // lucky 확률 낮춤 - 풀에 덜 넣어서 가중치 조절
   const pools = {
-    1: ['bomb','clock','lucky'],
-    2: ['bomb','clock','freeze','lucky'],
-    3: ['megabomb','clock','freeze','lucky'],
+    1: ['bomb','bomb','clock','clock','lucky'],       // lucky 20%
+    2: ['bomb','bomb','clock','clock','freeze','lucky'], // lucky 17%
+    3: ['megabomb','megabomb','clock','freeze','lucky'], // lucky 20%
   };
   const pick = pools[tier][Math.floor(Math.random() * pools[tier].length)];
 
@@ -2280,9 +2340,10 @@ function updateComboUI(milestone) {
 function updateTimer() {
   const m = Math.floor(timeLeft/60), s = timeLeft%60;
   const txt = m+':'+String(s).padStart(2,'0');
-  timerDisp.textContent = txt;
+  const freezeSuffix = timerDisp.dataset.freeze ? ' ❄️' : '';
+  timerDisp.textContent = txt + freezeSuffix;
   const t2 = document.getElementById('timerDisp2');
-  if (t2) t2.textContent = txt;
+  if (t2) t2.textContent = txt + (t2.dataset.freeze ? ' ❄️' : '');
   if (timeLeft <= 10) {
     timerDisp.classList.add('danger-pulse');
     if (t2) t2.classList.add('danger-pulse');
@@ -2435,7 +2496,7 @@ function startGame() {
           gameEndTime = Date.now() + timeLeft * 1000;
           timerInterval = setInterval(() => {
             if (!gameRunning) { clearInterval(timerInterval); timerInterval = null; return; }
-            if (freezeActive) return; // 타임프리즈 중엔 차감 안 함
+            if (freezeActive) { updateTimer(); return; } // 프리즈 중엔 차감 안 하되 ❄️ 표시는 유지
             timeLeft = Math.max(0, Math.round((gameEndTime - Date.now()) / 1000));
             updateTimer();
             if (timeLeft <= 0) {
@@ -2448,7 +2509,7 @@ function startGame() {
       }, 650);
     }
   }
-  tick();
+  setTimeout(tick, 80); // 첫 "3" 소리 잘림 방지: AudioContext resume 대기
 }
 
 let gameEnding = false; // endGame 중복 방지
@@ -2609,7 +2670,7 @@ function findAllAnswers() {
   return found;
 }
 
-// 힌트용: 랜덤 1개만
+// 힌트용: 랜덤 1개
 function showAnswers() {
   const found = findAllAnswers();
   if (found.length === 0) return;
