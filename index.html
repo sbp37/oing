@@ -236,7 +236,7 @@ html, body {
 /* ── 그리드 ── */
 .grid-wrap {
   flex: 1;
-  padding: 4px 8px 56px;
+  padding: 4px 8px 76px;
   min-height: 0;
   overflow: hidden;
   display: flex;
@@ -281,7 +281,7 @@ html, body {
 /* 하단바 기본 스타일 (브라우저 모드) */
 .bottom-bar {
   position: fixed;
-  bottom: 0;
+  bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
@@ -290,6 +290,7 @@ html, body {
   background: var(--surface);
   border-top: 1px solid var(--border);
   padding: 8px 14px 10px;
+  border-radius: 16px 16px 0 0;
 }
 
 /* 앱으로 설치된 경우 (standalone) — 정사각형 셀 */
@@ -343,6 +344,28 @@ body.light .cell.cat { background: #fffbeb; border-color: #f59e0b; }
   .cell { font-size: clamp(14px, 2.5vw, 22px); }
   .cell.cat { font-size: clamp(16px, 3vw, 24px); }
 }
+
+/* 갤럭시 폴드 펼침 등 가로 넓은 화면 대응 */
+@media (min-width: 600px) and (max-height: 900px) {
+  .app {
+    max-width: 100%;
+  }
+  .grid-wrap {
+    padding: 4px 16px 76px;
+    align-items: center;
+  }
+  .grid {
+    width: 72vw;
+    max-height: calc(100vh - 220px);
+    aspect-ratio: 9 / 13;
+  }
+  .cell { font-size: clamp(13px, 2.2vw, 22px); }
+  .cell.cat { font-size: clamp(14px, 2.4vw, 24px); }
+  .bottom-bar {
+    max-width: 100%;
+  }
+}
+
 .cell.sel {
   background: var(--blue-mid);
   border-color: var(--blue-bright);
@@ -2651,11 +2674,11 @@ async function endGame() {
   timerInterval = null;
   stopComboDecay();
   gameRunning = false; sel1 = null;
-  document.body.classList.remove('game-active'); // standalone aspect-ratio 비활성화
+  document.body.classList.remove('game-active');
   document.getElementById('bottomBar').style.display = 'none';
   playGameOver();
 
-  // 게임 종료 정답 표시 — 겹치지 않게 최대한 많이
+  // 게임 종료 정답 표시
   showAllAnswers();
 
   // 답지가 resultPanel에 안 가려지게 grid-wrap에 여백 추가
@@ -2667,36 +2690,45 @@ async function endGame() {
   document.getElementById('resClear2').textContent = `클리어 ${clearCount}회`;
   document.getElementById('resCombo2').textContent = `최고 콤보 ×${maxCombo}`;
 
+  // resultPanel은 Firebase 결과와 무관하게 무조건 600ms 후 표시
+  setTimeout(() => {
+    document.getElementById('resultPanel').style.display = 'block';
+  }, 600);
+
   const savedNick = loadNickname();
   if (savedNick) {
     document.getElementById('nickSection2').style.display = 'none';
     const nickDone = document.getElementById('nickDone');
     nickDone.style.display = 'block';
+    nickDone.textContent = `🎉 ${savedNick} 등록 중...`;
 
-    // 최고점 갱신 여부 체크
-    const prevList = await loadRankings();
-    const prevBest = prevList.find(e => e.nickname === savedNick);
-    const isNewRecord = !prevBest || score > prevBest.score;
-
-    await addScore(savedNick, score);
-    renderRanking();
-
-    if (isNewRecord && score > 0) {
-      try { sessionStorage.setItem('oeing_just_updated', savedNick); } catch {}
-      nickDone.innerHTML = `🎉 ${savedNick} 자동 등록 완료!<br><span style="color:#fbbf24;font-size:15px;font-weight:900;">최고점수 등극! 대단하다냥🐱</span>`;
-      showNewRecordPop();
-    } else {
-      nickDone.textContent = `🎉 ${savedNick} 자동 등록 완료!`;
+    try {
+      // Firebase 작업에 5초 타임아웃
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000));
+      const work = (async () => {
+        const prevList = await loadRankings();
+        const prevBest = prevList.find(e => e.nickname === savedNick);
+        const isNewRecord = !prevBest || score > prevBest.score;
+        await addScore(savedNick, score);
+        renderRanking();
+        if (isNewRecord && score > 0) {
+          try { sessionStorage.setItem('oeing_just_updated', savedNick); } catch {}
+          nickDone.innerHTML = `🎉 ${savedNick} 자동 등록 완료!<br><span style="color:#fbbf24;font-size:15px;font-weight:900;">최고점수 등극! 대단하다냥🐱</span>`;
+          showNewRecordPop();
+        } else {
+          nickDone.textContent = `🎉 ${savedNick} 자동 등록 완료!`;
+        }
+      })();
+      await Promise.race([work, timeout]);
+    } catch (e) {
+      // Firebase 실패해도 결과창은 이미 떠있음
+      document.getElementById('nickDone').textContent = `🎉 ${savedNick} (점수 저장 실패)`;
     }
   } else {
     document.getElementById('nickSection2').style.display = 'block';
     document.getElementById('nickDone').style.display = 'none';
     document.getElementById('nickInput').value = '';
   }
-
-  setTimeout(() => {
-    document.getElementById('resultPanel').style.display = 'block';
-  }, 600);
 }
 
 function showNewRecordPop() {
@@ -3143,12 +3175,17 @@ function switchTab(tab) {
 document.getElementById('tabGame').addEventListener('click', () => {
   switchTab('game');
   clearAnswerHighlights();
-  if (!gameRunning && !gameEnding) {
-    // 결과 패널 닫고 바로 시작
+  if (!gameRunning) {
+    // 결과 패널 열려있으면 닫고 시작
     const rp = document.getElementById('resultPanel');
     if (rp && rp.style.display !== 'none') {
       rp.style.display = 'none';
+      gameEnding = false;
       startGame();
+    } else if (gameEnding) {
+      // gameEnding stuck 상태 — 강제 초기화 후 startOverlay 표시
+      gameEnding = false;
+      document.getElementById('startOverlay').style.display = 'flex';
     }
   }
 });
