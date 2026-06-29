@@ -1133,7 +1133,7 @@ body.light .cell.cat.answer {
                 background:none; border:none; color:var(--muted);
                 font-size:11px; font-family:inherit; cursor:pointer;
                 margin-top:8px; text-decoration:underline;
-              ">📋 업데이트 내역 보기</button>
+              ">📋 업데이트 내역 보기 <span id="updateLogBtnNew" style="display:none;background:#ef4444;color:white;font-size:9px;font-weight:900;padding:1px 5px;border-radius:8px;">NEW</span></button>
             </div>
           </div>
         </div>
@@ -1227,6 +1227,17 @@ body.light .cell.cat.answer {
   <div class="overlay-card" style="max-height:80vh; display:flex; flex-direction:column;">
     <div class="overlay-title" style="font-size:18px; flex-shrink:0;">📋 업데이트 내역</div>
     <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
+
+      <!-- v2.5 -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <div style="font-size:11px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v2.5</div>
+        <span id="newBadge" style="display:none;background:#ef4444;color:white;font-size:9px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
+      </div>
+      <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:2;margin-bottom:8px;">
+        <li>🎯 아이템 밸런스 조정 — 콤보 구간별 등장 아이템 개편</li>
+        <li>🍀 클로버 — 게임 중반 이후 희귀 등장</li>
+      </ul>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
 
       <!-- v2.4 -->
       <div style="font-size:11px;font-weight:700;color:#3b82f6;margin-bottom:6px;letter-spacing:1px;">v2.4</div>
@@ -1383,7 +1394,23 @@ function saveNickname(nick) {
 //  AUDIO
 // ══════════════════════════════
 const AC = new (window.AudioContext || window.webkitAudioContext)();
-function resumeAC() { if (AC.state === 'suspended') AC.resume(); }
+function resumeAC() {
+  if (AC.state === 'suspended') AC.resume();
+  else if (AC.state === 'closed') {
+    // Android에서 드물게 closed되는 경우 — 페이지 새로고침 유도하지 않고 무시
+  }
+}
+
+// iOS/Android: 백그라운드 갔다 돌아올 때 AudioContext resume
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    resumeAC();
+  }
+});
+
+// iOS Safari: 터치 이벤트로 AudioContext unlock
+document.addEventListener('touchstart', () => { resumeAC(); }, { passive: true, once: false });
+document.addEventListener('touchend',   () => { resumeAC(); }, { passive: true, once: false });
 
 function playMeow() {
   resumeAC();
@@ -1563,6 +1590,7 @@ const MAX_COMBO = 7;
 let board = [], score = 0, combo = 0, maxCombo = 0;
 let clearCount = 0, catBonus = 0, resetCount = 0;
 let timeLeft = 120, timerInterval = null, gameRunning = false;
+let gameStartTime = 0;
 let gameEndTime = 0; // Date.now 기반 종료 시각
 let sel1 = null;
 let hintUsed = false; // 판당 힌트 사용 여부
@@ -1908,6 +1936,7 @@ function tryRemove(sel2) {
   const prevCombo = combo;
   combo++;
   if (combo > maxCombo) maxCombo = combo;
+  startComboDecay(); // no-op
 
   // 콤보 7 배수 달성 시 팝업 + 효과음
   if (combo % 7 === 0) {
@@ -1935,10 +1964,29 @@ function tryRemove(sel2) {
     if (catCells > 0) playMeow();
   }
 
+  // 팝업
   if (gained > 0 || wowBonus > 0) {
     if (wowBonus > 0) {
+      // 큰 WOW! 노란색
       showScorePop(rMin, cMin, `WOW!`, false, 'wow');
-      setTimeout(() => showScorePop(rMin, cMin, `+${gained + wowBonus}${combo > 1 ? ' ×'+combo : ''}`, catCells > 0), 180);
+      // 작은 점수 — item-pop 스타일로 (폭탄처럼)
+      setTimeout(() => {
+        const el = cellEl(rMin, cMin);
+        if (!el) return;
+        const rect2 = el.getBoundingClientRect();
+        const sp = document.createElement('div');
+        sp.style.cssText = `
+          position:fixed; pointer-events:none; z-index:250; white-space:nowrap;
+          font-size:13px; font-weight:900; padding:4px 10px; border-radius:14px;
+          left:${rect2.left + rect2.width/2 - 40}px;
+          top:${rect2.top - 10}px;
+          animation: floatup 1.4s ease forwards;
+          background:#1a4a20; color:#86efac;
+        `;
+        sp.textContent = `+${gained + wowBonus}${combo > 1 ? ' ×'+combo : ''}`;
+        document.body.appendChild(sp);
+        setTimeout(() => sp.remove(), 1400);
+      }, 220);
     } else {
       showScorePop(rMin, cMin, `+${gained}${combo > 1 ? ' ×'+combo : ''}`, catCells > 0);
     }
@@ -2191,14 +2239,29 @@ function spawnRandomItem() {
   const {r, c} = empties[Math.floor(Math.random() * empties.length)];
 
   const tier = combo >= 21 ? 3 : combo >= 14 ? 2 : 1;
+  const elapsed = Date.now() - gameStartTime;
+  const cloverAllowed = timeLeft <= 40;
 
-  // lucky 확률 낮춤 - 풀에 덜 넣어서 가중치 조절
-  const pools = {
-    1: ['bomb','bomb','clock','clock','lucky'],       // lucky 20%
-    2: ['bomb','bomb','clock','clock','freeze','lucky'], // lucky 17%
-    3: ['megabomb','megabomb','clock','freeze','lucky'], // lucky 20%
-  };
-  const pick = pools[tier][Math.floor(Math.random() * pools[tier].length)];
+  // 티어1: 폭탄60% 시계40%
+  // 티어2: 폭탄40% 시계40% 메가폭탄20%
+  // 티어3: 시계50% 메가폭탄30% 프리즈20%
+  // 클로버: 1분 이후 전 티어 ~17% 추가
+  let pool;
+  if (tier === 1) {
+    pool = cloverAllowed
+      ? ['bomb','bomb','bomb','clock','clock','lucky']
+      : ['bomb','bomb','bomb','clock','clock'];
+  } else if (tier === 2) {
+    pool = cloverAllowed
+      ? ['bomb','bomb','clock','clock','megabomb','lucky']
+      : ['bomb','bomb','clock','clock','megabomb'];
+  } else {
+    // 티어3: 시계50% 메가폭탄25% 프리즈25% (클로버 추가시 ~17%)
+    pool = cloverAllowed
+      ? ['clock','clock','clock','megabomb','megabomb','freeze','lucky']
+      : ['clock','clock','clock','clock','megabomb','megabomb','freeze','freeze'];
+  }
+  const pick = pool[Math.floor(Math.random() * pool.length)];
 
   board[r][c] = { num:1, cat:false, bomb:false, clock:false, hint:false,
                   megabomb:false, freeze:false, lucky:false, empty:false };
@@ -2290,6 +2353,10 @@ function updateStats() {
   if (s2) s2.textContent = score;
   if (c2) c2.textContent = '×' + maxCombo;
 }
+// ── 콤보 decay 없음 (시간제한 제거) ──
+function startComboDecay() {} // no-op
+function stopComboDecay() {}  // no-op
+
 function updateComboUI(milestone) {
   const seg = combo % 7;
   const pct = combo === 0 ? '0%' : (seg === 0 ? '100%' : (seg / 7 * 100) + '%');
@@ -2304,13 +2371,13 @@ function updateComboUI(milestone) {
     'linear-gradient(90deg, #0891b2, #06b6d4)',
     'linear-gradient(90deg, #16a34a, #22c55e)',
     'linear-gradient(90deg, #ca8a04, #fbbf24)',
-    'linear-gradient(90deg, #dc2626, #f87171)',
+    'linear-gradient(90deg, #d97706, #f59e0b)',
   ];
   const idx = Math.min(stage, colors.length - 1);
   comboFill.style.background = colors[idx];
   if (fill2) fill2.style.background = colors[idx];
 
-  // 아이템까지 카운트
+  // 게이지 텍스트 — 아이템까지 N + 티어
   const nextIn = seg === 0 ? 7 : 7 - seg;
   const nextCombo = combo + nextIn;
   const tier = nextCombo >= 21 ? ' ✦✦' : nextCombo >= 14 ? ' ✦' : '';
@@ -2318,7 +2385,7 @@ function updateComboUI(milestone) {
   function setNext(el) {
     if (!el) return;
     if (seg === 0 && combo > 0) {
-      el.textContent = '🎁 아이템!';
+      el.textContent = `아이템!${tier}`;
       el.className = 'combo-next milestone';
     } else {
       el.textContent = `아이템까지 ${nextIn}${tier}`;
@@ -2439,6 +2506,7 @@ function startGame() {
   clearCount = 0; catBonus = 0; resetCount = 0;
   timeLeft = 120; sel1 = null; gameRunning = false;
   hintUsed = false;
+  stopComboDecay();
 
   timerDisp.classList.remove('danger-pulse');
   document.getElementById('startOverlay').style.display = 'none';
@@ -2490,6 +2558,7 @@ function startGame() {
           if (myId !== countdownId) return;
           overlay.style.display = 'none';
           gameRunning = true;
+          gameStartTime = Date.now();
           clearInterval(timerInterval);
           timerInterval = null;
           // Date.now 기반: 백그라운드 갔다 와도 실제 흐른 시간 반영 (캡처 방지)
@@ -2531,6 +2600,25 @@ function showComboMilestonePop(n) {
   setTimeout(() => pop.remove(), 1200);
 }
 
+function showBonusPop(msg) {
+  document.querySelectorAll('.bonus-pop').forEach(el => el.remove());
+  const pop = document.createElement('div');
+  pop.className = 'bonus-pop';
+  pop.style.cssText = `
+    position:fixed; top:32%; left:50%;
+    transform:translate(-50%,-50%);
+    font-size:16px; font-weight:900;
+    color:#fb923c;
+    text-shadow:0 0 14px rgba(251,146,60,0.8);
+    pointer-events:none; z-index:310;
+    animation:floatup 2s ease forwards;
+    white-space:nowrap;
+  `;
+  pop.textContent = msg;
+  document.body.appendChild(pop);
+  setTimeout(() => pop.remove(), 2000);
+}
+
 function playCombo10() {
   resumeAC();
   const now = AC.currentTime;
@@ -2561,6 +2649,7 @@ async function endGame() {
   gameEnding = true;
   clearInterval(timerInterval);
   timerInterval = null;
+  stopComboDecay();
   gameRunning = false; sel1 = null;
   document.body.classList.remove('game-active'); // standalone aspect-ratio 비활성화
   document.getElementById('bottomBar').style.display = 'none';
@@ -2670,11 +2759,23 @@ function findAllAnswers() {
   return found;
 }
 
-// 힌트용: 랜덤 1개
+// 클로버용: 숫자 셀 3개 이상 조합만 랜덤 1개
 function showAnswers() {
   const found = findAllAnswers();
   if (found.length === 0) return;
-  const pick = found[Math.floor(Math.random() * found.length)];
+  // 숫자 셀 3개 이상인 조합만 필터
+  const filtered = found.filter(ans => {
+    let numCount = 0;
+    for (let r = ans.r1; r <= ans.r2; r++)
+      for (let c = ans.c1; c <= ans.c2; c++) {
+        const d = board[r][c];
+        if (!d.empty && !d.cat && !d.bomb && !d.clock && !d.hint && !d.megabomb && !d.freeze && !d.lucky) numCount++;
+      }
+    return numCount >= 3;
+  });
+  // 3개 이상 없으면 전체에서 선택
+  const pool = filtered.length > 0 ? filtered : found;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
   pick.coords.forEach(({r, c}) => {
     const el = cellEl(r, c);
     if (el) el.classList.add('answer');
@@ -3210,11 +3311,27 @@ document.addEventListener('mouseup', () => {
 });
 
 // 업데이트 내역 팝업
-const UPDATE_VERSION = 'v2.3';
+const UPDATE_VERSION = 'v2.5';
+const SEEN_KEY = 'seenUpdate_v2.5';
+
 function openUpdateLog() {
   document.getElementById('updateLog').style.display = 'flex';
+  // NEW 뱃지 숨기기 + 본 것으로 저장
+  localStorage.setItem(SEEN_KEY, '1');
+  const badge = document.getElementById('newBadge');
+  if (badge) badge.style.display = 'none';
+  const btnBadge = document.getElementById('updateLogBtnNew');
+  if (btnBadge) btnBadge.style.display = 'none';
 }
 document.getElementById('updateLogBtn').addEventListener('click', openUpdateLog);
+
+// 최초 방문 시 NEW 뱃지 표시
+if (!localStorage.getItem(SEEN_KEY)) {
+  const badge = document.getElementById('newBadge');
+  if (badge) badge.style.display = 'inline';
+  const btnBadge = document.getElementById('updateLogBtnNew');
+  if (btnBadge) btnBadge.style.display = 'inline';
+}
 
 // startOverlay 탭바 투명 영역 높이 설정
 function setTabAreaHeight() {
