@@ -1177,14 +1177,6 @@ body.light .cell.cat.answer {
             padding:5px 12px; display:inline-block;
           ">💬 버그 신고 · 의견 남기기</a>
         </div>
-        <!-- 관리자 초기화 버튼 (사용 후 삭제) -->
-        <div style="text-align:center; margin-top:16px; padding-bottom:16px;">
-          <button id="adminResetBtn" style="
-            background:none; border:1px solid #3a2a2a; color:#4a3030;
-            font-family:inherit; font-size:11px;
-            padding:6px 14px; border-radius:8px; cursor:pointer;
-          ">🔧 관리자: 랭킹 초기화</button>
-        </div>
       </div>
     </div>
 
@@ -3197,26 +3189,7 @@ function dismissIOSPopup() {
 
 // 안드로이드 PWA 자동 설치 배너 비활성화
 window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault(); // 자동 배너 막기
-});
-
-// 관리자 랭킹 초기화
-document.getElementById('adminResetBtn').addEventListener('click', async () => {
-  if (!confirm('rankings + weekly_champs 전체 삭제할까요?')) return;
-  try {
-    const [rankSnap, champSnap] = await Promise.all([
-      getDocs(collection(db, 'rankings')),
-      getDocs(collection(db, 'weekly_champs')),
-    ]);
-    const deletes = [];
-    rankSnap.forEach(d => deletes.push(deleteDoc(d.ref)));
-    champSnap.forEach(d => deletes.push(deleteDoc(d.ref)));
-    await Promise.all(deletes);
-    alert(`완료! rankings ${rankSnap.size}개, weekly_champs ${champSnap.size}개 삭제됨`);
-    renderRanking();
-  } catch(e) {
-    alert('오류: ' + e.message);
-  }
+  e.preventDefault();
 });
 
 </script>
