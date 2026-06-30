@@ -347,7 +347,7 @@ body.light .cell.cat { background: #fffbeb; border-color: #f59e0b; }
 
 /* 갤럭시 폴드 펼침 등 가로 넓은 화면 대응 */
 @media (min-width: 600px) and (max-height: 900px) {
-  .app {
+  .app, .overlay {
     max-width: 100%;
   }
   .grid-wrap {
@@ -364,6 +364,17 @@ body.light .cell.cat { background: #fffbeb; border-color: #f59e0b; }
   .bottom-bar {
     max-width: 100%;
   }
+}
+
+/* 아이패드 등 세로형 태블릿 (폴드 조건 미충족, 650px보다 넓은 화면) */
+@media (min-width: 650px) {
+  .app, .overlay, .bottom-bar {
+    max-width: 100%;
+  }
+}
+@media (min-width: 650px) and (max-width: 1100px) {
+  .cell { font-size: clamp(18px, 3.2vw, 30px); }
+  .cell.cat { font-size: clamp(20px, 3.5vw, 32px); }
 }
 
 .cell.sel {
@@ -1190,8 +1201,9 @@ body.light .cell.cat.answer {
         <div class="rank-empty" id="rankEmpty" style="display:none">아직 기록이 없어요<br>🐾 첫 번째 도전자가 되어보세요!</div>
 
         <div class="my-rank-info" id="myRankInfo"></div>
-        <div class="nick-change-wrap">
+        <div class="nick-change-wrap" style="display:flex; gap:8px; justify-content:center;">
           <button class="nick-change-btn" id="nickChangeWrapBtn">닉네임 변경</button>
+          <button class="nick-change-btn" id="pinCheckBtn">🔑 내 핀번호</button>
         </div>
         <div style="text-align:center; margin-top:10px; padding-bottom:8px;">
           <a href="https://open.kakao.com/o/spD6cpBi" target="_blank" style="
@@ -1345,6 +1357,36 @@ body.light .cell.cat.answer {
   </div>
 </div>
 
+<!-- 내 핀번호 확인 오버레이 -->
+<div class="overlay" id="pinShowOverlay" style="display:none">
+  <div class="overlay-card">
+    <div class="overlay-title">🔑 내 핀번호</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">
+      다른 기기(폰, PC, 태블릿)에서<br>같은 닉네임으로 이어서 플레이하려면<br>이 핀번호가 필요해요!
+    </div>
+    <div id="pinDisplayValue" style="
+      font-size:36px; font-weight:900; letter-spacing:8px;
+      color:var(--gold); background:var(--surface2);
+      border-radius:14px; padding:16px; margin-bottom:14px;
+    ">----</div>
+    <button class="action-btn secondary" onclick="document.getElementById('pinShowOverlay').style.display='none'">닫기</button>
+  </div>
+</div>
+
+<!-- 타기기 핀번호 입력 오버레이 (중복 닉네임 본인확인) -->
+<div class="overlay" id="pinVerifyOverlay" style="display:none">
+  <div class="overlay-card">
+    <div class="overlay-title">🔑 본인 확인</div>
+    <div id="pinVerifyDesc" style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">
+      이미 사용 중인 닉네임이에요.<br>본인이라면 다른 기기에서 확인한<br>핀번호 4자리를 입력해주세요.
+    </div>
+    <input class="nick-input" id="pinVerifyInput" type="tel" maxlength="4" placeholder="핀번호 4자리" style="text-align:center; letter-spacing:8px; font-size:20px;">
+    <div id="pinVerifyError" style="font-size:12px;color:#f87171;margin:4px 0 8px;display:none;">핀번호가 일치하지 않아요</div>
+    <button class="action-btn" id="pinVerifyConfirmBtn">확인</button>
+    <button class="action-btn secondary" id="pinVerifyCancelBtn">취소</button>
+  </div>
+</div>
+
 <script type="module">
 // ══════════════════════════════
 //  FIREBASE 초기화
@@ -1439,6 +1481,57 @@ function loadNickname() {
 }
 function saveNickname(nick) {
   try { localStorage.setItem(NICK_KEY, nick); } catch {}
+}
+
+// ══════════════════════════════
+//  PIN (기기 간 닉네임 이어쓰기 본인확인)
+// ══════════════════════════════
+const PIN_KEY = 'oeing_pin_v1';
+
+function generatePin() {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+function loadMyPin() {
+  try { return localStorage.getItem(PIN_KEY) || null; } catch { return null; }
+}
+function saveMyPin(pin) {
+  try { localStorage.setItem(PIN_KEY, pin); } catch {}
+}
+
+// 닉네임 문서의 핀을 가져오거나, 없으면 새로 발급해서 저장 (기존 유저 대응)
+async function getOrCreatePin(nickname) {
+  try {
+    const docRef = doc(db, 'rankings', nickname);
+    const snap = await getDoc(docRef);
+    if (snap.exists() && snap.data().pin) {
+      return snap.data().pin;
+    }
+    // 핀이 없으면 새로 발급 (기존 유저 첫 접속 시 자동 부여)
+    const newPin = generatePin();
+    await setDoc(docRef, { ...(snap.exists() ? snap.data() : {}), pin: newPin }, { merge: true });
+    return newPin;
+  } catch (e) {
+    return null;
+  }
+}
+
+// 닉네임이 이미 존재하는지 + 핀 확인
+async function checkNicknameOwnership(nickname, inputPin) {
+  try {
+    const docRef = doc(db, 'rankings', nickname);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return { exists: false, ok: true };
+    const data = snap.data();
+    if (!data.pin) {
+      // 핀이 없는 옛 기록 — 발급
+      const newPin = generatePin();
+      await setDoc(docRef, { ...data, pin: newPin }, { merge: true });
+      return { exists: true, ok: inputPin === newPin };
+    }
+    return { exists: true, ok: inputPin === data.pin };
+  } catch (e) {
+    return { exists: false, ok: true }; // 네트워크 실패 시 통과 (폴백)
+  }
 }
 
 // ══════════════════════════════
@@ -2893,6 +2986,84 @@ document.getElementById('hintBtn').addEventListener('click', () => {
   }, 1600);
 });
 
+// ── 닉네임 등록 공통 로직 (PIN 검증 포함) ──
+// 성공 시 true, 실패(차단)시 false 반환
+async function registerNicknameWithPinCheck(nick, statusEl) {
+  const ownership = await checkNicknameOwnership(nick, null);
+  if (ownership.exists) {
+    const myNick = loadNickname();
+    const myPin = loadMyPin();
+    // 이미 내가 쓰던 닉네임이고 핀도 내가 가진 핀이면 통과
+    if (myNick === nick && myPin) {
+      const recheck = await checkNicknameOwnership(nick, myPin);
+      if (recheck.ok) return true;
+    }
+    // 본인 확인 필요 — 핀 입력 팝업
+    const verifiedPin = await askPinVerification(nick);
+    if (!verifiedPin) return false; // 취소 또는 실패
+    saveMyPin(verifiedPin);
+    return true;
+  } else {
+    // 신규 닉네임 — 핀 자동 발급
+    const newPin = generatePin();
+    saveMyPin(newPin);
+    try {
+      const docRef = doc(db, 'rankings', nick);
+      await setDoc(docRef, { score: 0, ts: Date.now(), pin: newPin });
+    } catch (e) {}
+    return true;
+  }
+}
+
+// 핀 입력 팝업을 띄우고 Promise로 결과 반환 (성공시 핀 문자열, 실패/취소시 null)
+function askPinVerification(nickname) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('pinVerifyOverlay');
+    const input = document.getElementById('pinVerifyInput');
+    const errorEl = document.getElementById('pinVerifyError');
+    const confirmBtn = document.getElementById('pinVerifyConfirmBtn');
+    const cancelBtn = document.getElementById('pinVerifyCancelBtn');
+    const descEl = document.getElementById('pinVerifyDesc');
+
+    descEl.innerHTML = `'<b style="color:var(--blue-light)">${nickname}</b>'은 이미 사용 중인 닉네임이에요.<br>본인이라면 다른 기기에서 확인한<br>핀번호 4자리를 입력해주세요.`;
+    input.value = '';
+    errorEl.style.display = 'none';
+    overlay.style.display = 'flex';
+    input.focus();
+
+    const cleanup = () => {
+      overlay.style.display = 'none';
+      confirmBtn.onclick = null;
+      cancelBtn.onclick = null;
+    };
+
+    confirmBtn.onclick = async () => {
+      const pin = input.value.trim();
+      if (pin.length !== 4) {
+        errorEl.textContent = '4자리 숫자를 입력해주세요';
+        errorEl.style.display = 'block';
+        return;
+      }
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = '확인 중...';
+      const result = await checkNicknameOwnership(nickname, pin);
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = '확인';
+      if (result.ok) {
+        cleanup();
+        resolve(pin);
+      } else {
+        errorEl.textContent = '핀번호가 일치하지 않아요';
+        errorEl.style.display = 'block';
+      }
+    };
+    cancelBtn.onclick = () => {
+      cleanup();
+      resolve(null);
+    };
+  });
+}
+
 // 점수 등록
 document.getElementById('submitScore').addEventListener('click', async () => {
   const nick = document.getElementById('nickInput').value.trim();
@@ -2903,25 +3074,11 @@ document.getElementById('submitScore').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = '확인 중...';
 
-  // 중복 닉네임 체크
-  try {
-    const existing = await loadRankings();
-    const isDuplicate = existing.some(e => e.nickname === nick);
-    if (isDuplicate) {
-      // 본인이 이미 쓰던 닉네임인지 확인
-      const myNick = loadNickname();
-      if (myNick !== nick) {
-        // 다른 사람이 쓰는 닉네임
-        input.style.borderColor = '#f87171';
-        input.value = '';
-        input.placeholder = `'${nick}'은 이미 사용 중이에요. 다른 이름을 써줘요!`;
-        btn.disabled = false;
-        btn.textContent = '🏆 점수 등록하기';
-        return;
-      }
-    }
-  } catch (e) {
-    // 체크 실패시 그냥 진행
+  const passed = await registerNicknameWithPinCheck(nick);
+  if (!passed) {
+    btn.disabled = false;
+    btn.textContent = '🏆 점수 등록하기';
+    return;
   }
 
   input.style.borderColor = '';
@@ -2944,6 +3101,8 @@ document.getElementById('submitScore').addEventListener('click', async () => {
     statsMsg += ' 📊✗';
   }
 
+  btn.disabled = false;
+  btn.textContent = '🏆 점수 등록하기';
   nickDone.textContent = `🎉 ${nick} 등록 완료!${statsMsg}`;
   renderRanking();
 });
@@ -3279,6 +3438,24 @@ document.getElementById('bottomRestartBtn').addEventListener('click', () => {
   startGame();
 });
 document.getElementById('nickChangeWrapBtn').addEventListener('click', changeNickname);
+document.getElementById('pinCheckBtn').addEventListener('click', async () => {
+  const myNick = loadNickname();
+  const display = document.getElementById('pinDisplayValue');
+  if (!myNick) {
+    display.textContent = '----';
+    document.getElementById('pinShowOverlay').style.display = 'flex';
+    return;
+  }
+  display.textContent = '확인 중...';
+  document.getElementById('pinShowOverlay').style.display = 'flex';
+  const pin = await getOrCreatePin(myNick);
+  if (pin) {
+    saveMyPin(pin);
+    display.textContent = pin;
+  } else {
+    display.textContent = '오류';
+  }
+});
 document.getElementById('resultRestartBtn').addEventListener('click', () => {
   switchTab('game');
   startGame();
@@ -3330,29 +3507,23 @@ document.getElementById('nickChangeBtn').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = '확인 중...';
 
-  // 중복 체크
-  try {
-    const existing = await loadRankings();
-    const isDuplicate = existing.some(e => e.nickname === nick);
-    if (isDuplicate) {
-      input.style.borderColor = '#f87171';
-      input.value = '';
-      input.placeholder = `'${nick}'은 이미 사용 중이에요!`;
-      btn.disabled = false;
-      btn.textContent = '변경하기';
-      return;
-    }
-  } catch (e) {}
+  const passed = await registerNicknameWithPinCheck(nick);
+  if (!passed) {
+    btn.disabled = false;
+    btn.textContent = '변경하기';
+    return;
+  }
 
-  // 기존 닉네임 점수 삭제
-  if (oldNick) {
+  // 핀 확인을 통과했다면 "이미 내 닉네임이었던 것을 이어쓰는 경우" — 점수 보존
+  // 완전히 새로 만든 닉네임으로 바꾸는 경우만 기존 점수 삭제
+  const ownership = await checkNicknameOwnership(nick, loadMyPin());
+  const isTakeover = ownership.exists; // 기존에 존재하던 닉네임(본인 확인 통과한 것)
+  if (oldNick && !isTakeover) {
     await deleteOldScore(oldNick);
   }
 
-  // 새 닉네임으로 저장
   saveNickname(nick);
 
-  // 현재 점수가 있으면 Firebase에 바로 등록
   try {
     const currentScore = score || 0;
     await addScore(nick, currentScore);
