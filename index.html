@@ -3319,11 +3319,47 @@ document.getElementById('nickChangeBtn').addEventListener('click', async () => {
   const nick = document.getElementById('nickChangeInput').value.trim();
   if (!nick) return;
   const oldNick = loadNickname();
-  // 닉네임이 실제로 바뀌는 경우만 기존 점수 삭제
-  if (oldNick && oldNick !== nick) {
+  if (oldNick === nick) {
+    document.getElementById('nickOverlay').style.display = 'none';
+    return;
+  }
+
+  const btn = document.getElementById('nickChangeBtn');
+  const input = document.getElementById('nickChangeInput');
+  btn.disabled = true;
+  btn.textContent = '확인 중...';
+
+  // 중복 체크
+  try {
+    const existing = await loadRankings();
+    const isDuplicate = existing.some(e => e.nickname === nick);
+    if (isDuplicate) {
+      input.style.borderColor = '#f87171';
+      input.value = '';
+      input.placeholder = `'${nick}'은 이미 사용 중이에요!`;
+      btn.disabled = false;
+      btn.textContent = '변경하기';
+      return;
+    }
+  } catch (e) {}
+
+  // 기존 닉네임 점수 삭제
+  if (oldNick) {
     await deleteOldScore(oldNick);
   }
+
+  // 새 닉네임으로 저장
   saveNickname(nick);
+
+  // 현재 점수가 있으면 Firebase에 바로 등록
+  try {
+    const currentScore = score || 0;
+    await addScore(nick, currentScore);
+  } catch (e) {}
+
+  btn.disabled = false;
+  btn.textContent = '변경하기';
+  input.style.borderColor = '';
   document.getElementById('nickOverlay').style.display = 'none';
   renderRanking();
 });
