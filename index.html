@@ -1368,7 +1368,7 @@ const db = getFirestore(fbApp);
 //  STORAGE
 // ══════════════════════════════
 const NICK_KEY = 'oeing_nickname_v1';
-const MAX_RANKS = 50;
+const MAX_RANKS = 500;
 
 async function loadRankings() {
   try {
@@ -1414,9 +1414,10 @@ async function updateUserStats(nickname, playTimeSeconds, score) {
 
 async function addScore(nickname, newScore) {
   try {
-    const snap = await getDocs(query(collection(db, 'rankings'), orderBy('score', 'desc'), limit(MAX_RANKS)));
-    const existing = snap.docs.find(d => d.id === nickname);
-    if (!existing || newScore > existing.data().score) {
+    const docRef = doc(db, 'rankings', nickname);
+    const snap = await getDoc(docRef);
+    const existingScore = snap.exists() ? snap.data().score : null;
+    if (existingScore === null || newScore > existingScore) {
       await setDoc(docRef, { score: newScore, ts: Date.now() });
     }
   } catch (e) {
@@ -1428,7 +1429,7 @@ async function addScore(nickname, newScore) {
       if (idx !== -1) { if (newScore > list[idx].score) { list[idx].score = newScore; list[idx].ts = Date.now(); } }
       else list.push({ nickname, score: newScore, ts: Date.now() });
       list.sort((a,b) => b.score - a.score);
-      localStorage.setItem('oeing_rankings_v1', JSON.stringify(list.slice(0, MAX_RANKS)));
+      localStorage.setItem('oeing_rankings_v1', JSON.stringify(list));
     } catch {}
   }
 }
