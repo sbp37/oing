@@ -1204,6 +1204,11 @@ body.light .cell.cat.answer {
                 font-size:11px; font-family:inherit; cursor:pointer;
                 margin-top:8px; text-decoration:underline;
               ">📋 업데이트 내역 보기 <span id="updateLogBtnNew" style="display:none;background:#ef4444;color:white;font-size:9px;font-weight:900;padding:1px 5px;border-radius:8px;">NEW</span></button>
+              <button id="contactBtnGame" style="
+                background:none; border:none; color:var(--muted);
+                font-size:11px; font-family:inherit; cursor:pointer;
+                margin-top:14px; text-decoration:underline;
+              ">💌 문의하기</button>
             </div>
           </div>
         </div>
@@ -1238,6 +1243,12 @@ body.light .cell.cat.answer {
           <button id="adminHallSyncBtn" style="width:100%; padding:5px; font-size:10px; font-weight:700; color:#93c5fd; background:rgba(59,130,246,0.12); border:1px solid #3b82f6; border-radius:8px;">현재 1등을 챔피언으로 동기화</button>
         </div>
 
+        <!-- 관리자 전용: 피드백 게시판 관리 -->
+        <div id="adminFeedbackPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:300px; background:rgba(59,130,246,0.08); border:1px solid #3b82f6; border-radius:10px; text-align:left;">
+          <div style="font-size:10px; color:#93c5fd; font-weight:700; margin-bottom:6px; text-align:center;">💌 피드백 관리</div>
+          <div id="adminFeedbackList" style="display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto;"></div>
+        </div>
+
         <!-- 시상대 -->
         <div class="podium-wrap" id="podiumWrap"></div>
         <div class="podium-floor" id="podiumFloor"></div>
@@ -1252,15 +1263,64 @@ body.light .cell.cat.answer {
           <button class="nick-change-btn" id="pinCheckBtn">🔑 내 핀번호</button>
         </div>
         <div style="text-align:center; margin-top:10px; padding-bottom:8px;">
-          <a href="https://open.kakao.com/o/spD6cpBi" target="_blank" style="
+          <button id="contactBtnRank" style="
             font-size:11px; color:var(--muted); text-decoration:none;
             border:1px solid var(--border); border-radius:8px;
-            padding:5px 12px; display:inline-block;
-          ">💬 버그 신고 · 의견 남기기</a>
+            padding:5px 12px; display:inline-block; background:none; font-family:inherit; cursor:pointer;
+          ">💌 문의하기</button>
         </div>
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- 문의하기 선택 오버레이 -->
+<div id="contactOverlay" class="overlay" style="display:none;">
+  <div class="overlay-card" style="max-width:300px;">
+    <div class="overlay-title" style="font-size:17px;">💌 문의하기</div>
+    <div style="display:flex; flex-direction:column; gap:8px; margin-top:14px;">
+      <a href="https://open.kakao.com/o/spD6cpBi" target="_blank" class="action-btn" style="text-decoration:none; display:block; text-align:center;">💬 오픈채팅으로 말하기</a>
+      <button id="contactWriteBtn" class="action-btn" style="background:var(--surface2); border:1px solid var(--border2); color:var(--blue-light);">✍️ 글 남기기</button>
+      <button id="contactBoardBtn" style="background:none; border:1px solid var(--border); color:var(--muted); border-radius:10px; padding:10px; font-family:inherit; font-size:12px;">📋 지난 글 보기</button>
+      <button id="contactCloseBtn" style="background:none; border:none; color:var(--muted); font-size:12px; margin-top:4px; padding:6px;">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 피드백 게시판 오버레이 -->
+<div id="feedbackBoardOverlay" class="overlay" style="display:none;">
+  <div class="overlay-card" style="max-width:320px; max-height:75vh; display:flex; flex-direction:column;">
+    <div class="overlay-title" style="font-size:16px; flex-shrink:0;">📋 피드백 게시판</div>
+    <div id="feedbackBoard" style="display:flex; flex-direction:column; gap:6px; margin-top:10px; overflow-y:auto; flex:1;"></div>
+    <button id="feedbackBoardCloseBtn" style="width:100%; margin-top:12px; flex-shrink:0; background:var(--surface2); border:1px solid var(--border2); color:var(--muted); border-radius:10px; padding:10px; font-family:inherit;">닫기</button>
+  </div>
+</div>
+
+<!-- 피드백 글쓰기 오버레이 -->
+<div id="feedbackWriteOverlay" class="overlay" style="display:none;">
+  <div class="overlay-card" style="max-width:320px;">
+    <div class="overlay-title" style="font-size:17px;">✍️ 글 남기기</div>
+    <div style="font-size:11px; color:var(--muted); margin:6px 0 10px;">닉네임이 같이 저장돼요. 목록엔 비밀글로만 보이고, 개발자만 볼 수 있어요.</div>
+    <textarea id="feedbackText" maxlength="500" rows="5" placeholder="하고 싶은 말을 적어주세요 (최대 500자)" style="width:100%; box-sizing:border-box; padding:10px; border-radius:10px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:inherit; font-size:13px; resize:none;"></textarea>
+    <div style="text-align:right; font-size:10px; color:var(--muted); margin-top:2px;"><span id="feedbackCharCount">0</span>/500</div>
+    <div style="display:flex; gap:8px; margin-top:10px;">
+      <button id="feedbackCancelBtn" style="flex:1; background:var(--surface2); border:1px solid var(--border2); color:var(--muted); border-radius:10px; padding:10px; font-family:inherit;">취소</button>
+      <button id="feedbackSubmitBtn" class="action-btn" style="flex:1; margin:0;">제출</button>
+    </div>
+  </div>
+</div>
+
+<!-- 내 글 답글 보기 오버레이 -->
+<div id="myFeedbackOverlay" class="overlay" style="display:none;">
+  <div class="overlay-card" style="max-width:320px;">
+    <div class="overlay-title" style="font-size:16px;">💬 내가 쓴 글</div>
+    <div id="myFeedbackContent" style="margin-top:10px; font-size:13px; color:var(--text); line-height:1.6; white-space:pre-wrap;"></div>
+    <div id="myFeedbackReplyWrap" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
+      <div style="font-size:11px; color:#fbbf24; font-weight:700; margin-bottom:4px;">↳ 개발자 답글</div>
+      <div id="myFeedbackReply" style="font-size:13px; color:var(--text); line-height:1.6; white-space:pre-wrap;"></div>
+    </div>
+    <button id="myFeedbackCloseBtn" style="width:100%; margin-top:14px; background:var(--surface2); border:1px solid var(--border2); color:var(--muted); border-radius:10px; padding:10px; font-family:inherit;">닫기</button>
   </div>
 </div>
 
@@ -3728,6 +3788,160 @@ if (!localStorage.getItem(SEEN_KEY)) {
   if (btnBadge) btnBadge.style.display = 'inline';
 }
 
+// ══════════════════════════════
+//  문의하기 / 피드백 게시판
+// ══════════════════════════════
+function openContactOverlay() {
+  document.getElementById('contactOverlay').style.display = 'flex';
+}
+function closeContactOverlay() {
+  document.getElementById('contactOverlay').style.display = 'none';
+}
+document.getElementById('contactBtnGame').addEventListener('click', openContactOverlay);
+document.getElementById('contactBtnRank').addEventListener('click', openContactOverlay);
+document.getElementById('contactCloseBtn').addEventListener('click', closeContactOverlay);
+document.getElementById('contactBoardBtn').addEventListener('click', () => {
+  closeContactOverlay();
+  document.getElementById('feedbackBoardOverlay').style.display = 'flex';
+  renderFeedbackBoard();
+});
+document.getElementById('feedbackBoardCloseBtn').addEventListener('click', () => {
+  document.getElementById('feedbackBoardOverlay').style.display = 'none';
+});
+
+const feedbackTextEl = document.getElementById('feedbackText');
+const feedbackCharCountEl = document.getElementById('feedbackCharCount');
+feedbackTextEl.addEventListener('input', () => {
+  feedbackCharCountEl.textContent = feedbackTextEl.value.length;
+});
+
+document.getElementById('contactWriteBtn').addEventListener('click', () => {
+  closeContactOverlay();
+  feedbackTextEl.value = '';
+  feedbackCharCountEl.textContent = '0';
+  document.getElementById('feedbackWriteOverlay').style.display = 'flex';
+});
+document.getElementById('feedbackCancelBtn').addEventListener('click', () => {
+  document.getElementById('feedbackWriteOverlay').style.display = 'none';
+});
+
+document.getElementById('feedbackSubmitBtn').addEventListener('click', async () => {
+  const content = feedbackTextEl.value.trim();
+  if (!content) { alert('내용을 입력해주세요.'); return; }
+  const nick = loadNickname() || '닉네임없음';
+  const submitBtn = document.getElementById('feedbackSubmitBtn');
+  submitBtn.disabled = true;
+  try {
+    await setDoc(doc(collection(db, 'feedback')), {
+      nickname: nick, content, ts: Date.now(), reply: null
+    });
+    document.getElementById('feedbackWriteOverlay').style.display = 'none';
+    alert('잘 전달됐어요. 읽어볼게요 🙏');
+    renderFeedbackBoard();
+  } catch (e) {
+    alert('전송 실패: ' + e.message);
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+document.getElementById('myFeedbackCloseBtn').addEventListener('click', () => {
+  document.getElementById('myFeedbackOverlay').style.display = 'none';
+});
+
+function formatFeedbackDate(ts) {
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}.${d.getDate()}`;
+}
+
+async function renderFeedbackBoard() {
+  const boardEl = document.getElementById('feedbackBoard');
+  if (!boardEl) return;
+  const myNick = loadNickname();
+  try {
+    const q = query(collection(db, 'feedback'), orderBy('ts', 'desc'), limit(30));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      boardEl.innerHTML = '<div style="text-align:center;font-size:11px;color:var(--muted);padding:10px;">아직 등록된 글이 없어요</div>';
+      return;
+    }
+    boardEl.innerHTML = '';
+    snap.docs.forEach(d => {
+      const data = d.data();
+      const isMine = myNick && data.nickname === myNick;
+      const row = document.createElement('div');
+      row.style.cssText = `display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);font-size:12px;${isMine ? 'border-color:var(--blue-bright);background:var(--blue-dim);cursor:pointer;' : ''}`;
+      const replyMark = data.reply ? ' 💬' : '';
+      row.innerHTML = `
+        <span style="color:${isMine ? 'var(--blue-light)' : 'var(--muted)'};">🔒 비밀글입니다${isMine ? ' (내 글)' + replyMark : ''}</span>
+        <span style="color:var(--muted);font-size:10px;">${formatFeedbackDate(data.ts)}</span>
+      `;
+      if (isMine) {
+        row.addEventListener('click', () => {
+          document.getElementById('myFeedbackContent').textContent = data.content;
+          const replyWrap = document.getElementById('myFeedbackReplyWrap');
+          if (data.reply) {
+            document.getElementById('myFeedbackReply').textContent = data.reply;
+            replyWrap.style.display = 'block';
+          } else {
+            replyWrap.style.display = 'none';
+          }
+          document.getElementById('myFeedbackOverlay').style.display = 'flex';
+        });
+      }
+      boardEl.appendChild(row);
+    });
+  } catch (e) {
+    boardEl.innerHTML = '<div style="text-align:center;font-size:11px;color:var(--muted);padding:10px;">목록을 불러올 수 없어요</div>';
+  }
+}
+
+async function renderAdminFeedbackList() {
+  const listEl = document.getElementById('adminFeedbackList');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="font-size:11px;color:var(--muted);text-align:center;">불러오는 중...</div>';
+  try {
+    const q = query(collection(db, 'feedback'), orderBy('ts', 'desc'), limit(50));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      listEl.innerHTML = '<div style="font-size:11px;color:var(--muted);text-align:center;">아직 등록된 글이 없어요</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    snap.docs.forEach(d => {
+      const data = d.data();
+      const item = document.createElement('div');
+      item.style.cssText = 'padding:8px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);';
+      item.innerHTML = `
+        <div style="font-size:11px;font-weight:700;color:var(--blue-light);margin-bottom:2px;">${data.nickname} <span style="color:var(--muted);font-weight:400;">· ${formatFeedbackDate(data.ts)}</span></div>
+        <div style="font-size:12px;color:var(--text);white-space:pre-wrap;margin-bottom:6px;">${data.content}</div>
+        <textarea class="adminReplyInput" data-id="${d.id}" placeholder="답글 작성..." rows="2" style="width:100%;box-sizing:border-box;font-size:11px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;resize:none;">${data.reply || ''}</textarea>
+        <button class="adminReplySaveBtn" data-id="${d.id}" style="width:100%;margin-top:4px;padding:4px;font-size:10px;font-weight:700;color:#93c5fd;background:rgba(59,130,246,0.12);border:1px solid #3b82f6;border-radius:6px;">답글 저장</button>
+      `;
+      listEl.appendChild(item);
+    });
+    listEl.querySelectorAll('.adminReplySaveBtn').forEach(saveBtn => {
+      saveBtn.addEventListener('click', async () => {
+        const id = saveBtn.getAttribute('data-id');
+        const textarea = listEl.querySelector(`.adminReplyInput[data-id="${id}"]`);
+        const replyText = textarea.value.trim();
+        saveBtn.disabled = true;
+        try {
+          await setDoc(doc(db, 'feedback', id), { reply: replyText || null }, { merge: true });
+          saveBtn.textContent = '저장됨 ✓';
+          setTimeout(() => { saveBtn.textContent = '답글 저장'; }, 1500);
+        } catch (e) {
+          alert('저장 실패: ' + e.message);
+        } finally {
+          saveBtn.disabled = false;
+        }
+      });
+    });
+  } catch (e) {
+    listEl.innerHTML = '<div style="font-size:11px;color:var(--muted);">불러오기 실패</div>';
+  }
+}
+
 // startOverlay 탭바 투명 영역 높이 설정
 function setTabAreaHeight() {
   const tabBar = document.querySelector('.tab-bar');
@@ -3745,6 +3959,7 @@ window.addEventListener('resize', setTabAreaHeight);
   const titleEl = document.getElementById('rankTitleTap');
   const btn = document.getElementById('adminResetBtn');
   const hallPanel = document.getElementById('adminHallPanel');
+  const feedbackPanel = document.getElementById('adminFeedbackPanel');
   const refreshBtn = document.getElementById('rankRefreshBtn');
   if (refreshBtn) {
     refreshBtn.addEventListener('click', async (e) => {
@@ -3769,6 +3984,10 @@ window.addEventListener('resize', setTabAreaHeight);
       const show = btn.style.display === 'none';
       btn.style.display = show ? 'block' : 'none';
       if (hallPanel) hallPanel.style.display = show ? 'block' : 'none';
+      if (feedbackPanel) {
+        feedbackPanel.style.display = show ? 'block' : 'none';
+        if (show) renderAdminFeedbackList();
+      }
     }
   });
 
