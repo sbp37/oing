@@ -3977,25 +3977,38 @@ window.addEventListener('resize', setTabAreaHeight);
 
   let tapCount = 0;
   let tapTimer = null;
+  let adminUnlocked = false;
   titleEl.addEventListener('click', () => {
     tapCount++;
     clearTimeout(tapTimer);
     tapTimer = setTimeout(() => { tapCount = 0; }, 1500);
     if (tapCount >= 5) {
       tapCount = 0;
-      const show = btn.style.display === 'none';
-      btn.style.display = show ? 'block' : 'none';
-      if (hallPanel) hallPanel.style.display = show ? 'block' : 'none';
+      if (adminUnlocked) {
+        // 이미 인증된 상태면 그냥 토글
+        const show = btn.style.display === 'none';
+        btn.style.display = show ? 'block' : 'none';
+        if (hallPanel) hallPanel.style.display = show ? 'block' : 'none';
+        if (feedbackPanel) {
+          feedbackPanel.style.display = show ? 'block' : 'none';
+          if (show) renderAdminFeedbackList();
+        }
+        return;
+      }
+      const code = prompt('🔒 관리자 로그인\n암호를 입력하세요');
+      if (code === null) return; // 취소
+      if (code !== 'oing-admin-7x9qz-2026') { alert('암호가 틀렸습니다.'); return; }
+      adminUnlocked = true;
+      btn.style.display = 'block';
+      if (hallPanel) hallPanel.style.display = 'block';
       if (feedbackPanel) {
-        feedbackPanel.style.display = show ? 'block' : 'none';
-        if (show) renderAdminFeedbackList();
+        feedbackPanel.style.display = 'block';
+        renderAdminFeedbackList();
       }
     }
   });
 
   btn.addEventListener('click', async () => {
-    const code = prompt('관리자 암호를 입력하세요');
-    if (code !== 'oing-admin-7x9qz-2026') { if (code !== null) alert('암호가 틀렸습니다.'); return; }
     const ok = confirm('정말 점수 랭킹을 전체 초기화할까요?\n(명예의전당/👑 기록은 유지됩니다)\n이 작업은 되돌릴 수 없습니다.');
     if (!ok) return;
     const ok2 = confirm('마지막 확인입니다.\n모든 유저의 점수가 0부터 다시 시작됩니다.\n진행할까요?');
