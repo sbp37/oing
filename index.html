@@ -2896,6 +2896,34 @@ document.getElementById('hintBtn').addEventListener('click', () => {
 document.getElementById('submitScore').addEventListener('click', async () => {
   const nick = document.getElementById('nickInput').value.trim();
   if (!nick) { document.getElementById('nickInput').focus(); return; }
+
+  const btn = document.getElementById('submitScore');
+  const input = document.getElementById('nickInput');
+  btn.disabled = true;
+  btn.textContent = '확인 중...';
+
+  // 중복 닉네임 체크
+  try {
+    const existing = await loadRankings();
+    const isDuplicate = existing.some(e => e.nickname === nick);
+    if (isDuplicate) {
+      // 본인이 이미 쓰던 닉네임인지 확인
+      const myNick = loadNickname();
+      if (myNick !== nick) {
+        // 다른 사람이 쓰는 닉네임
+        input.style.borderColor = '#f87171';
+        input.value = '';
+        input.placeholder = `'${nick}'은 이미 사용 중이에요. 다른 이름을 써줘요!`;
+        btn.disabled = false;
+        btn.textContent = '🏆 점수 등록하기';
+        return;
+      }
+    }
+  } catch (e) {
+    // 체크 실패시 그냥 진행
+  }
+
+  input.style.borderColor = '';
   saveNickname(nick);
   const playTimeSeconds = Math.round((Date.now() - gameStartTime) / 1000);
   document.getElementById('nickSection2').style.display = 'none';
@@ -2912,7 +2940,7 @@ document.getElementById('submitScore').addEventListener('click', async () => {
     await updateUserStats(nick, playTimeSeconds, score);
     statsMsg += ' 📊✓';
   } catch (e) {
-    statsMsg += ' 📊✗ ' + e.message;
+    statsMsg += ' 📊✗';
   }
 
   nickDone.textContent = `🎉 ${nick} 등록 완료!${statsMsg}`;
