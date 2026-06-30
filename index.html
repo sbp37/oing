@@ -739,8 +739,8 @@ body.light .hall-title { color: #5a3aaa; }
   border-radius: 11px; padding: 12px 14px;
 }
 .rank-row.me { border-color: var(--blue-bright); background: var(--blue-dim); }
-.rank-num { font-size: 14px; font-weight: 700; color: var(--muted); min-width: 24px; }
-.rank-change { font-size: 11px; font-weight: 800; min-width: 26px; }
+.rank-num { font-size: 14px; font-weight: 700; color: var(--muted); min-width: 28px; max-width: 28px; text-align: right; flex-shrink: 0; }
+.rank-change { font-size: 11px; font-weight: 800; min-width: 34px; max-width: 34px; text-align: center; flex-shrink: 0; }
 .rank-change.up { color: #22c55e; text-shadow: 0 0 3px rgba(0,0,0,0.5); }
 .rank-change.down { color: #f87171; text-shadow: 0 0 3px rgba(0,0,0,0.5); }
 .rank-change.same { color: var(--muted); font-size: 12px; }
@@ -3429,8 +3429,8 @@ async function saveRankSnapshot(ranks) {
 // prevRank: 어제(또는 마지막 스냅샷) 순위, currentRank: 지금 순위
 function rankChangeHtml(prevRank, currentRank, podium) {
   const cls = podium ? 'podium-rank-change' : 'rank-change';
-  if (prevRank == null) return ''; // 신규 진입 — 비교 기준 없음
-  const diff = prevRank - currentRank; // 양수=상승(번호가 작아짐), 음수=하락
+  if (prevRank == null) return `<span class="rank-change" style="display:inline-flex;align-items:center;justify-content:center;"><span style="font-size:8px;font-weight:700;background:#22c55e;color:white;padding:1px 4px;border-radius:4px;">NEW</span></span>`;
+  const diff = prevRank - currentRank;
   if (diff === 0) return `<span class="${cls} same">－</span>`;
   if (diff > 0) return `<span class="${cls} up">▲${diff}</span>`;
   return `<span class="${cls} down">▼${Math.abs(diff)}</span>`;
