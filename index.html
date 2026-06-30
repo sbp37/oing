@@ -2178,6 +2178,7 @@ function tryRemove(sel2) {
   if (hasClock) {
     playClock();
     timeLeft = Math.min(timeLeft + 8, 999);
+    gameEndTime += 8000;
     updateTimer();
     showItemPop(rMin, cMin, '⏰ +8초!', 'clock');
   }
@@ -2264,6 +2265,7 @@ function tryRemove(sel2) {
       updateHintBtn2();
       // 판 갈이 보너스 +15초
       timeLeft = Math.min(timeLeft + 15, 999);
+      gameEndTime += 15000;
       updateTimer();
       showBoardClearPop();
     }, 350);
@@ -2393,16 +2395,16 @@ function spawnRandomItem() {
   let pool;
   if (tier === 1) {
     pool = cloverAllowed
-      ? ['bomb','bomb','bomb','clock','clock','lucky']
+      ? ['bomb','bomb','bomb','clock','clock','lucky','lucky']
       : ['bomb','bomb','bomb','clock','clock'];
   } else if (tier === 2) {
     pool = cloverAllowed
-      ? ['bomb','bomb','clock','clock','megabomb','lucky']
+      ? ['bomb','bomb','clock','clock','megabomb','lucky','lucky']
       : ['bomb','bomb','clock','clock','megabomb'];
   } else {
     // 티어3: 시계50% 메가폭탄25% 프리즈25% (클로버 추가시 ~17%)
     pool = cloverAllowed
-      ? ['clock','clock','clock','megabomb','megabomb','freeze','lucky']
+      ? ['clock','clock','clock','megabomb','megabomb','freeze','lucky','lucky']
       : ['clock','clock','clock','clock','megabomb','megabomb','freeze','freeze'];
   }
   const pick = pool[Math.floor(Math.random() * pool.length)];
@@ -2417,7 +2419,7 @@ function hasValidMove() {
   for (let r = 0; r < ROWS; r++)
     for (let c = 0; c < COLS; c++) {
       const d = board[r][c];
-      if (!d.empty && !d.cat && !d.bomb && !d.clock && !d.hint) numCellCount++;
+      if (!d.empty && !d.cat && !d.bomb && !d.clock && !d.hint && !d.megabomb && !d.freeze && !d.lucky) numCellCount++;
     }
   if (numCellCount === 0) return false;
 
@@ -2429,7 +2431,7 @@ function hasValidMove() {
     for (let r = r1; r <= r2; r++)
       for (let c = c1; c <= c2; c++) {
         const d = board[r][c];
-        if (d.empty || d.cat || d.bomb || d.clock || d.hint) continue;
+        if (d.empty || d.cat || d.bomb || d.clock || d.hint || d.megabomb || d.freeze || d.lucky) continue;
         sum += d.num; hasNum = true;
         if (sum > 10) break;
       }
@@ -2910,7 +2912,7 @@ function findAllAnswers() {
     for (let r = r1; r <= r2; r++)
       for (let c = c1; c <= c2; c++) {
         const d = board[r][c];
-        if (d.empty || d.cat || d.bomb || d.clock || d.hint) continue;
+        if (d.empty || d.cat || d.bomb || d.clock || d.hint || d.megabomb || d.freeze || d.lucky) continue;
         nums.push(d.num);
       }
     const sum = nums.reduce((a,b)=>a+b,0);
