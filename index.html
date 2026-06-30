@@ -1943,6 +1943,74 @@ function playClock() {
   });
 }
 
+function playMegaBomb() {
+  resumeAC();
+  const now = AC.currentTime;
+  // 폭탄과 동일한 구조 — 볼륨+길이 강화, 파편 2겹 더 풍성하게
+  const buf = AC.createBuffer(1, AC.sampleRate * 0.4, AC.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random()*2-1) * Math.exp(-i/(AC.sampleRate*0.07));
+  const src = AC.createBufferSource(); const g = AC.createGain(); const lpf = AC.createBiquadFilter();
+  lpf.type = 'lowpass'; lpf.frequency.value = 420;
+  src.buffer = buf; src.connect(lpf); lpf.connect(g); g.connect(AC.destination);
+  g.gain.setValueAtTime(1.5, now); g.gain.exponentialRampToValueAtTime(0.001, now+0.36);
+  src.start(now);
+  // 파편 — 폭탄보다 종류 많고 겹겹이
+  [800,1200,600,400,1600].forEach((f,i) => {
+    const o = AC.createOscillator(); const og = AC.createGain();
+    o.connect(og); og.connect(AC.destination);
+    o.type='sine'; o.frequency.value=f;
+    const t = now+i*0.035;
+    og.gain.setValueAtTime(0.14,t); og.gain.exponentialRampToValueAtTime(0.001,t+0.16);
+    o.start(t); o.stop(t+0.18);
+  });
+}
+
+function playFreeze() {
+  resumeAC();
+  const now = AC.currentTime;
+  // 사각사각 얼어붙는 입자음 다발
+  for (let i = 0; i < 6; i++) {
+    const t = now + i * 0.025;
+    const f = 2000 + Math.random()*1800;
+    const o = AC.createOscillator(); const g = AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.05);
+    o.start(t); o.stop(t+0.06);
+  }
+  // 마무리 챙
+  const t2 = now + 0.16;
+  [1760, 2637].forEach((f,i) => {
+    const o = AC.createOscillator(); const g = AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    o.type = 'sine'; o.frequency.value = f;
+    const t = t2 + i*0.04;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.2, t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t+0.35);
+    o.start(t); o.stop(t+0.37);
+  });
+}
+
+function playLucky() {
+  resumeAC();
+  const now = AC.currentTime;
+  // 딩! 한 음 + 잔잔한 반짝 꼬리
+  const o = AC.createOscillator(); const g = AC.createGain();
+  o.connect(g); g.connect(AC.destination);
+  o.type = 'sine'; o.frequency.value = 1568;
+  g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.24, now+0.01);
+  g.gain.exponentialRampToValueAtTime(0.001, now+0.28);
+  o.start(now); o.stop(now+0.3);
+  const t2 = now + 0.05;
+  const o2 = AC.createOscillator(); const g2 = AC.createGain();
+  o2.connect(g2); g2.connect(AC.destination);
+  o2.type = 'sine'; o2.frequency.value = 2637;
+  g2.gain.setValueAtTime(0, t2); g2.gain.linearRampToValueAtTime(0.08, t2+0.01);
+  g2.gain.exponentialRampToValueAtTime(0.001, t2+0.22);
+  o2.start(t2); o2.stop(t2+0.24);
+}
+
 function playHint() {
   resumeAC();
   const now = AC.currentTime;
@@ -2121,7 +2189,7 @@ function onCellTap(e) {
     }
 
     if (d.megabomb) {
-      playBomb();
+      playMegaBomb();
       showItemPop(r, c, '💥 메가폭발!', 'bomb');
       setTimeout(() => {
         const targets = [];
@@ -2470,7 +2538,7 @@ let itemActive = false; // 아이템 동시 발동 방지
 function activateFreeze(secs) {
   if (freezeActive) return;
   freezeActive = true;
-  playClock();
+  playFreeze();
 
   // 기존 팝업 제거
   document.querySelectorAll('.freeze-text-pop').forEach(el => el.remove());
@@ -2522,6 +2590,7 @@ function activateFreeze(secs) {
 function activateLucky(fromR, fromC) {
   const answers = findAllAnswers();
   if (answers.length === 0) return;
+  playLucky();
   const shuffled = answers.sort(() => Math.random()-0.5);
   const picks = shuffled.slice(0, 3 + Math.floor(Math.random()*3));
   let luckyScore = 0;
