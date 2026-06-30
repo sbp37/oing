@@ -1507,11 +1507,17 @@ async function addScore(nickname, newScore) {
 
 // 역대 1등 "등극" 감지 — 새로 1등 자리를 차지한 순간에만 +1
 // (이미 1등이던 사람이 자기 점수를 더 올리는 건 카운트 안 함)
-async function checkAndRecordChampion(nickname) {
+// knownTopNick: 이미 알고 있는 현재 1등 닉네임이 있으면 넘겨서 중복 조회 생략 가능
+async function checkAndRecordChampion(nickname, knownTopNick) {
   try {
-    const q = query(collection(db, 'rankings'), orderBy('score', 'desc'), limit(1));
-    const topSnap = await getDocs(q);
-    if (topSnap.empty || topSnap.docs[0].id !== nickname) return; // 지금 1등이 아니면 종료
+    let topNick = knownTopNick;
+    if (!topNick) {
+      const q = query(collection(db, 'rankings'), orderBy('score', 'desc'), limit(1));
+      const topSnap = await getDocs(q);
+      if (topSnap.empty) return;
+      topNick = topSnap.docs[0].id;
+    }
+    if (topNick !== nickname) return; // 지금 1등이 아니면 종료
 
     const champRef = doc(db, 'meta', 'currentChampion');
     const champSnap = await getDoc(champRef);
@@ -3290,6 +3296,13 @@ async function renderRanking() {
   const list = await loadRankings();
   const myNick = loadNickname();
   const weeklyBest = await getAllTimeBest();
+
+  // 안전장치: 점수 등록 시점에 챔피언 기록이 어떤 이유로든 누락됐을 경우를 대비해
+  // 랭킹 화면을 열 때마다 "현재 1등"과 meta 기록이 다르면 그 자리에서 보정
+  if (list.length > 0) {
+    await checkAndRecordChampion(list[0].nickname, list[0].nickname);
+  }
+
   // 역대 챔피언(1등 등극) 횟수 — 점수 등록 시점(addScore)에 자동 누적됨
   const champCounts = await getChampCounts();
   // champCounts를 전역으로 저장 (모든 칭호 표시에 사용)
