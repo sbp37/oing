@@ -639,11 +639,15 @@ body.light .hall-title { color: #5a3aaa; }
 .rank3 .podium-rank-badge { background: linear-gradient(135deg, #b45309, #d97706); color: #fff8f0; }
 
 .podium-nick {
-  font-size: 12px; font-weight: 700; color: #ffffff;
+  font-size: 13px; font-weight: 700; color: #ffffff;
   margin-bottom: 1px; text-align: center;
-  width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 3px;
 }
-.rank1 .podium-nick { font-size: 14px; font-weight: 800; }
+.podium-nick-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.podium-title-badge {
+  font-size: 9px; font-weight: 800; color: #fbbf24; white-space: nowrap; flex-shrink: 0;
+}
+.rank1 .podium-nick { font-size: 15px; font-weight: 800; }
 .podium-score { font-size: 11px; font-weight: 900; margin-bottom: 4px; }
 .rank1 .podium-score { color: #fbbf24; font-size: 13px; }
 .rank2 .podium-score { color: #cbd5e1; }
@@ -964,8 +968,8 @@ body.light .cell.cat.answer {
             background-size: calc((100% - 6px) / 9) calc((100% - 6px) / 13);
             background-position: 3px 3px;
         }
-        .cell { font-size: clamp(13px, 1.6vw, 22px); }
-        .cell.cat { font-size: clamp(15px, 1.8vw, 24px); }
+        .cell { font-size: clamp(16px, 2.2vw, 30px); }
+        .cell.cat { font-size: clamp(18px, 2.4vw, 32px); }
 
         /* 모바일 전용 요소 숨기기 */
         .game-header { display: none; }
@@ -1188,8 +1192,22 @@ body.light .cell.cat.answer {
         <!-- 현재 랭킹 구분선 -->
         <div class="section-divider">
           <div class="section-divider-line"></div>
-          <div class="section-divider-text">현재 랭킹</div>
+          <div class="section-divider-text" id="rankTitleTap">현재 랭킹</div>
           <div class="section-divider-line"></div>
+        </div>
+
+        <!-- 관리자 전용: 랭킹 초기화 (숨김, 타이틀 5회 탭 시 노출) -->
+        <button id="adminResetBtn" style="display:none; margin:6px auto 4px; padding:6px 14px; font-size:11px; font-weight:700; color:#fca5a5; background:rgba(239,68,68,0.12); border:1px solid #ef4444; border-radius:10px;">
+          ⚠️ 랭킹 전체 초기화 (관리자)
+        </button>
+        <div id="adminHallPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:260px; background:rgba(251,191,36,0.08); border:1px solid #fbbf24; border-radius:10px; text-align:center;">
+          <div style="font-size:10px; color:#fbbf24; font-weight:700; margin-bottom:6px;">👑 명전 횟수 수동 설정</div>
+          <div style="display:flex; gap:4px; margin-bottom:6px;">
+            <input id="adminHallNick" type="text" placeholder="닉네임" style="flex:1; min-width:0; font-size:11px; padding:5px 6px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text);">
+            <input id="adminHallCount" type="number" min="0" placeholder="횟수" style="width:54px; font-size:11px; padding:5px 6px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text);">
+          </div>
+          <button id="adminHallSetBtn" style="width:100%; padding:5px; font-size:11px; font-weight:700; color:#fde68a; background:rgba(251,191,36,0.15); border:1px solid #fbbf24; border-radius:8px; margin-bottom:5px;">설정 저장</button>
+          <button id="adminHallSyncBtn" style="width:100%; padding:5px; font-size:10px; font-weight:700; color:#93c5fd; background:rgba(59,130,246,0.12); border:1px solid #3b82f6; border-radius:8px;">현재 1등을 챔피언으로 동기화</button>
         </div>
 
         <!-- 시상대 -->
@@ -1270,7 +1288,10 @@ body.light .cell.cat.answer {
       </div>
       <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:2;margin-bottom:8px;">
         <li>🎯 아이템 밸런스 조정 — 콤보 구간별 등장 아이템 개편</li>
-        <li>🍀 클로버 — 게임 중반 이후 희귀 등장</li>
+        <li>🍀 클로버 — 게임 중반 이후 등장 확률 상향</li>
+        <li>🐛 보드 클리어 / 클로버 시간보너스 버그 수정</li>
+        <li>🐛 힌트 정확도 버그 수정 — 잘못된 칸을 가리키던 문제 해결</li>
+        <li>🔑 PIN번호 안내 — 닉네임 등록 시 자동 발급되는 4자리 PIN으로 다른 기기에서도 같은 닉네임으로 이어쓰기(동기화) 가능</li>
       </ul>
       <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
 
@@ -1461,6 +1482,7 @@ async function addScore(nickname, newScore) {
     const existingScore = snap.exists() ? snap.data().score : null;
     if (existingScore === null || newScore > existingScore) {
       await setDoc(docRef, { score: newScore, ts: Date.now() });
+      await checkAndRecordChampion(nickname);
     }
   } catch (e) {
     console.warn('Firebase save 실패, 로컬 폴백:', e);
@@ -1473,6 +1495,29 @@ async function addScore(nickname, newScore) {
       list.sort((a,b) => b.score - a.score);
       localStorage.setItem('oeing_rankings_v1', JSON.stringify(list));
     } catch {}
+  }
+}
+
+// 역대 1등 "등극" 감지 — 새로 1등 자리를 차지한 순간에만 +1
+// (이미 1등이던 사람이 자기 점수를 더 올리는 건 카운트 안 함)
+async function checkAndRecordChampion(nickname) {
+  try {
+    const q = query(collection(db, 'rankings'), orderBy('score', 'desc'), limit(1));
+    const topSnap = await getDocs(q);
+    if (topSnap.empty || topSnap.docs[0].id !== nickname) return; // 지금 1등이 아니면 종료
+
+    const champRef = doc(db, 'meta', 'currentChampion');
+    const champSnap = await getDoc(champRef);
+    const prevChampion = champSnap.exists() ? champSnap.data().nickname : null;
+    if (prevChampion === nickname) return; // 이미 챔피언이었음, 새 등극 아님
+
+    await setDoc(champRef, { nickname, ts: Date.now() });
+    const countRef = doc(db, 'champions', nickname);
+    const countSnap = await getDoc(countRef);
+    const count = (countSnap.exists() ? (countSnap.data().count || 0) : 0) + 1;
+    await setDoc(countRef, { count, lastCrownedAt: Date.now() });
+  } catch (e) {
+    console.warn('챔피언 기록 실패:', e);
   }
 }
 
@@ -3183,15 +3228,12 @@ async function recordWeeklyChamp() {
   } catch { return null; }
 }
 
-// 역대 weekly_champs에서 닉네임별 횟수 집계
+// 역대 챔피언(1등 등극) 횟수 집계
 async function getChampCounts() {
   try {
-    const snap = await getDocs(collection(db, 'weekly_champs'));
+    const snap = await getDocs(collection(db, 'champions'));
     const counts = {};
-    snap.docs.forEach(d => {
-      const nick = d.data().nickname;
-      if (nick) counts[nick] = (counts[nick] || 0) + 1;
-    });
+    snap.docs.forEach(d => { counts[d.id] = d.data().count || 0; });
     return counts;
   } catch { return {}; }
 }
@@ -3213,9 +3255,7 @@ async function renderRanking() {
   const list = await loadRankings();
   const myNick = loadNickname();
   const weeklyBest = await getAllTimeBest();
-  // 주간 챔피언 기록 (매주 자동 갱신)
-  await recordWeeklyChamp();
-  // 역대 챔피언 횟수
+  // 역대 챔피언(1등 등극) 횟수 — 점수 등록 시점(addScore)에 자동 누적됨
   const champCounts = await getChampCounts();
   // champCounts를 전역으로 저장 (모든 칭호 표시에 사용)
   window._champCounts = champCounts;
@@ -3228,7 +3268,7 @@ async function renderRanking() {
     } catch {}
   });
 
-  // ── 명예의전당 렌더 (주간 최고점 1명) ──
+  // ── 명예의전당 렌더 (역대 1등) ──
   const hallCards = document.getElementById('hallCards');
   hallCards.innerHTML = '';
   const hallWrap = document.getElementById('hallWrap');
@@ -3238,7 +3278,7 @@ async function renderRanking() {
     hallDesc = document.createElement('div');
     hallDesc.className = 'hall-desc';
     hallDesc.style.cssText = 'text-align:center;font-size:10px;color:#a78bfa;margin-bottom:8px;letter-spacing:1px;';
-    hallDesc.innerHTML = '매주 월요일 기준 · 1등 경험 횟수 👑×N';
+    hallDesc.innerHTML = '역대 1등 등극 횟수 👑×N';
     hallWrap.insertBefore(hallDesc, hallCards);
   }
   const card = document.createElement('div');
@@ -3246,17 +3286,6 @@ async function renderRanking() {
   card.style.margin = '0 auto';
   card.style.maxWidth = '160px';
   if (weeklyBest) {
-    // 명전 오른 횟수 - 역대 1등이 바뀔 때마다 카운트
-    const prevHall = localStorage.getItem('oeing_prev_hall');
-    if (prevHall !== weeklyBest.nickname) {
-      addHallTitle(weeklyBest.nickname);
-      localStorage.setItem('oeing_prev_hall', weeklyBest.nickname);
-    }
-    // 처음 로드 시 1등이 있으면 최소 1회 보장
-    if (getHallTitle(weeklyBest.nickname) === 0) {
-      addHallTitle(weeklyBest.nickname);
-      localStorage.setItem('oeing_prev_hall', weeklyBest.nickname);
-    }
     const titleCount = getHallTitle(weeklyBest.nickname);
     card.innerHTML = `
       <div class="card-icon-1" style="font-size:32px;margin-bottom:2px;">👑</div>
@@ -3287,12 +3316,14 @@ async function renderRanking() {
   podiumDefs.forEach((p, i) => {
     const entry = displayOrder[i];
     const isMe = entry && myNick && entry.nickname === myNick;
+    const titleCountP = entry ? getHallTitle(entry.nickname) : 0;
+    const titleBadgeP = titleCountP > 0 ? `<span class="podium-title-badge">👑x${titleCountP}</span>` : '';
     const div = document.createElement('div');
     div.className = `podium-item ${p.cls}${entry ? '' : ' podium-empty'}`;
     div.innerHTML = `
       <div class="podium-trophy">${p.trophy}</div>
       ${entry ? `<div class="podium-rank-badge">${p.badge}</div>` : ''}
-      <div class="podium-nick">${entry ? (isMe ? '👤 ' : '') + entry.nickname : '—'}</div>
+      <div class="podium-nick">${titleBadgeP}<span class="podium-nick-text">${entry ? (isMe ? '👤 ' : '') + entry.nickname : '—'}</span></div>
       <div class="podium-score">${entry ? entry.score + 'pt' : ''}</div>
       <div class="podium-base">${p.num}</div>
     `;
@@ -3670,6 +3701,105 @@ function setTabAreaHeight() {
 }
 setTabAreaHeight();
 window.addEventListener('resize', setTabAreaHeight);
+
+// ══════════════════════════════
+//  관리자 전용: 랭킹 전체 초기화
+//  (rankings + user_stats만 삭제, weekly_champs/명예의전당은 유지)
+// ══════════════════════════════
+(function setupAdminReset() {
+  const titleEl = document.getElementById('rankTitleTap');
+  const btn = document.getElementById('adminResetBtn');
+  const hallPanel = document.getElementById('adminHallPanel');
+  if (!titleEl || !btn) return;
+
+  let tapCount = 0;
+  let tapTimer = null;
+  titleEl.addEventListener('click', () => {
+    tapCount++;
+    clearTimeout(tapTimer);
+    tapTimer = setTimeout(() => { tapCount = 0; }, 1500);
+    if (tapCount >= 5) {
+      tapCount = 0;
+      const show = btn.style.display === 'none';
+      btn.style.display = show ? 'block' : 'none';
+      if (hallPanel) hallPanel.style.display = show ? 'block' : 'none';
+    }
+  });
+
+  btn.addEventListener('click', async () => {
+    const code = prompt('관리자 암호를 입력하세요');
+    if (code !== '오잉리셋') { if (code !== null) alert('암호가 틀렸습니다.'); return; }
+    const ok = confirm('정말 점수 랭킹을 전체 초기화할까요?\n(명예의전당/👑 기록은 유지됩니다)\n이 작업은 되돌릴 수 없습니다.');
+    if (!ok) return;
+    const ok2 = confirm('마지막 확인입니다.\n모든 유저의 점수가 0부터 다시 시작됩니다.\n진행할까요?');
+    if (!ok2) return;
+
+    btn.disabled = true;
+    btn.textContent = '초기화 중...';
+    try {
+      const rankSnap = await getDocs(collection(db, 'rankings'));
+      for (const d of rankSnap.docs) await deleteDoc(doc(db, 'rankings', d.id));
+
+      const statsSnap = await getDocs(collection(db, 'user_stats'));
+      for (const d of statsSnap.docs) await deleteDoc(doc(db, 'user_stats', d.id));
+
+      try { localStorage.removeItem('oeing_rankings_v1'); } catch {}
+
+      alert(`완료! rankings ${rankSnap.size}개, user_stats ${statsSnap.size}개 삭제됨.\n(명예의전당/👑 기록은 그대로 유지)`);
+      btn.style.display = 'none';
+      renderRanking();
+    } catch (e) {
+      alert('초기화 중 오류 발생: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '⚠️ 랭킹 전체 초기화 (관리자)';
+    }
+  });
+
+  // 명전 횟수 수동 설정
+  const setBtn = document.getElementById('adminHallSetBtn');
+  if (setBtn) {
+    setBtn.addEventListener('click', async () => {
+      const nick = document.getElementById('adminHallNick').value.trim();
+      const countVal = document.getElementById('adminHallCount').value.trim();
+      if (!nick) { alert('닉네임을 입력하세요.'); return; }
+      if (countVal === '' || isNaN(Number(countVal)) || Number(countVal) < 0) { alert('올바른 횟수를 입력하세요.'); return; }
+      const count = Math.floor(Number(countVal));
+      setBtn.disabled = true;
+      try {
+        await setDoc(doc(db, 'champions', nick), { count, lastCrownedAt: Date.now() }, { merge: true });
+        alert(`'${nick}' 명전 횟수를 ${count}회로 설정했습니다.`);
+        document.getElementById('adminHallNick').value = '';
+        document.getElementById('adminHallCount').value = '';
+        renderRanking();
+      } catch (e) {
+        alert('저장 실패: ' + e.message);
+      } finally {
+        setBtn.disabled = false;
+      }
+    });
+  }
+
+  // 현재 1등을 챔피언 메타정보로 동기화 (카운트는 건드리지 않고, 다음 자동 등극 판정 기준만 맞춤)
+  const syncBtn = document.getElementById('adminHallSyncBtn');
+  if (syncBtn) {
+    syncBtn.addEventListener('click', async () => {
+      syncBtn.disabled = true;
+      try {
+        const q = query(collection(db, 'rankings'), orderBy('score', 'desc'), limit(1));
+        const snap = await getDocs(q);
+        if (snap.empty) { alert('현재 랭킹에 등록된 사람이 없습니다.'); return; }
+        const topNick = snap.docs[0].id;
+        await setDoc(doc(db, 'meta', 'currentChampion'), { nickname: topNick, ts: Date.now() });
+        alert(`현재 챔피언을 '${topNick}'(으)로 동기화했습니다.\n(명전 횟수는 변경되지 않았습니다)`);
+      } catch (e) {
+        alert('동기화 실패: ' + e.message);
+      } finally {
+        syncBtn.disabled = false;
+      }
+    });
+  }
+})();
 
 // 초기화 — Firebase 준비 후 renderRanking 실행
 // 웹앱(standalone) 첫 로드시 Firebase SDK 로드 타이밍 보장
