@@ -2827,6 +2827,8 @@ function startGame() {
   hintUsed = false;
   stopComboDecay();
 
+  board = []; // 새 게임 시작 — 직전 게임의 안 쓴 아이템이 이어지지 않도록 초기화
+
   timerDisp.classList.remove('danger-pulse');
   document.getElementById('startOverlay').style.display = 'none';
   document.getElementById('resultPanel').style.display = 'none';
