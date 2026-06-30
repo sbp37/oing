@@ -331,6 +331,18 @@ body.light .cell {
 }
 body.light .grid { background-color: #9ab8d8; }
 body.light .cell.cat { background: #fffbeb; border-color: #f59e0b; }
+
+/* 라이트모드 시상대 닉네임 가시성 */
+body.light .podium-nick { color: #1a3050; }
+body.light .rank2 .podium-score { color: #475569; }
+body.light .rank3 .podium-score { color: #92400e; }
+body.light .rank1 .podium-nick-text {
+  background: linear-gradient(90deg, #8a5800 0%, #c98a00 25%, #6b4500 45%, #c98a00 55%, #c98a00 75%, #8a5800 100%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 1px rgba(0,0,0,0.3));
+}
+body.light .rank1 .podium-score { color: #6b4500; text-shadow: none; }
 .cell:active { transform: scale(0.85); }
 
 .cell.cat {
@@ -617,6 +629,7 @@ body.light .hall-title { color: #5a3aaa; }
 }
 .section-divider-line { flex: 1; height: 1px; background: var(--border); }
 .section-divider-text { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 2px; }
+.rank-legend { text-align: center; font-size: 10px; color: var(--muted); margin: -2px 0 8px; opacity: 0.75; }
 
 /* ── 시상대 ── */
 .podium-wrap {
@@ -624,9 +637,9 @@ body.light .hall-title { color: #5a3aaa; }
   gap: 8px; margin-bottom: 0;
 }
 .podium-item { display: flex; flex-direction: column; align-items: center; }
-.podium-item.rank1 { width: 96px; }
-.podium-item.rank2 { width: 76px; }
-.podium-item.rank3 { width: 64px; }
+.podium-item.rank1 { width: 116px; }
+.podium-item.rank2 { width: 84px; }
+.podium-item.rank3 { width: 72px; }
 .podium-trophy { font-size: 22px; margin-bottom: 2px; }
 
 /* 1~3등 랭크 배지 */
@@ -639,7 +652,7 @@ body.light .hall-title { color: #5a3aaa; }
 .rank3 .podium-rank-badge { background: linear-gradient(135deg, #b45309, #d97706); color: #fff8f0; }
 
 .podium-nick {
-  font-size: 13px; font-weight: 700; color: #ffffff;
+  font-size: 15px; font-weight: 800; color: #ffffff;
   margin-bottom: 1px; text-align: center;
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 3px;
 }
@@ -647,11 +660,22 @@ body.light .hall-title { color: #5a3aaa; }
 .podium-title-badge {
   font-size: 9px; font-weight: 800; color: #fbbf24; white-space: nowrap; flex-shrink: 0;
 }
-.rank1 .podium-nick { font-size: 15px; font-weight: 800; }
-.podium-score { font-size: 11px; font-weight: 900; margin-bottom: 4px; }
-.rank1 .podium-score { color: #fbbf24; font-size: 13px; }
-.rank2 .podium-score { color: #cbd5e1; }
-.rank3 .podium-score { color: #d97706; }
+.rank1 .podium-nick-text {
+  font-size: 18px; font-weight: 900;
+  background: linear-gradient(90deg, #a07800 0%, #ffe566 25%, #fff8d6 45%, #ffd700 55%, #ffe566 75%, #a07800 100%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: nickShimmer 2.4s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(255,215,0,0.4));
+}
+@keyframes nickShimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+.podium-score { font-size: 13px; font-weight: 900; margin-bottom: 4px; }
+.rank1 .podium-score { color: #fffbe8; font-size: 17px; text-shadow: 0 0 6px rgba(255,215,0,0.5); }
+.rank2 .podium-score { color: #e8eef5; font-size: 14px; }
+.rank3 .podium-score { color: #ffd9a8; font-size: 14px; }
 
 /* shimmer 애니메이션 */
 @keyframes shimmer {
@@ -666,25 +690,26 @@ body.light .hall-title { color: #5a3aaa; }
 .podium-base {
   width: 100%; border-radius: 8px 8px 0 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 24px; font-weight: 900; color: rgba(255,255,255,0.55);
+  font-size: 30px; font-weight: 900; color: rgba(255,255,255,0.6);
   position: relative; overflow: hidden;
 }
+.rank1 .podium-base { font-size: 42px; color: rgba(255,255,255,0.7); }
 .rank1 .podium-base {
-  height: 90px;
+  height: 112px;
   background: linear-gradient(90deg, #a07800 0%, #ffe566 30%, #ffd700 50%, #ffe566 70%, #a07800 100%);
   background-size: 300% 100%;
   animation: shimmer 3.5s ease-in-out infinite alternate;
   box-shadow: 0 0 18px rgba(255,215,0,0.45), inset 0 1px 0 rgba(255,255,255,0.2);
 }
 .rank2 .podium-base {
-  height: 66px;
+  height: 82px;
   background: linear-gradient(90deg, #4a5a6a 0%, #b0bec8 35%, #d0dde8 50%, #b0bec8 65%, #4a5a6a 100%);
   background-size: 300% 100%;
   animation: shimmer2 4s ease-in-out infinite alternate;
   box-shadow: 0 0 10px rgba(168,184,200,0.25);
 }
 .rank3 .podium-base {
-  height: 50px;
+  height: 62px;
   background: linear-gradient(90deg, #5a3010 0%, #b06828 35%, #d08840 50%, #b06828 65%, #5a3010 100%);
   background-size: 300% 100%;
   animation: shimmer 4.5s ease-in-out infinite alternate;
@@ -693,12 +718,12 @@ body.light .hall-title { color: #5a3aaa; }
 .podium-empty .podium-nick { color: #3a5a7a; font-style: italic; font-weight: 400; font-size: 10px; }
 .podium-empty .podium-score { color: #3a5a7a; }
 .podium-floor {
-  display: flex; gap: 8px; justify-content: center; margin-bottom: 10px;
+  display: flex; gap: 8px; justify-content: center; margin-bottom: 22px;
 }
 .pf { height: 5px; border-radius: 0 0 5px 5px; }
-.pf-gold   { background: #b8860b; width: 96px; box-shadow: 0 2px 8px rgba(255,215,0,0.3); }
-.pf-silver { background: #546070; width: 76px; }
-.pf-bronze { background: #6a3e20; width: 64px; }
+.pf-gold   { background: #b8860b; width: 116px; box-shadow: 0 2px 8px rgba(255,215,0,0.3); }
+.pf-silver { background: #546070; width: 84px; }
+.pf-bronze { background: #6a3e20; width: 72px; }
 
 /* 화살표 */
 .arrow-up   { font-size: 12px; color: #ef4444; font-weight: 900; }
@@ -716,12 +741,12 @@ body.light .hall-title { color: #5a3aaa; }
 .rank-row.me { border-color: var(--blue-bright); background: var(--blue-dim); }
 .rank-num { font-size: 14px; font-weight: 700; color: var(--muted); min-width: 24px; }
 .rank-change { font-size: 11px; font-weight: 800; min-width: 26px; }
-.rank-change.up { color: #4ade80; }
-.rank-change.down { color: #f87171; }
+.rank-change.up { color: #22c55e; text-shadow: 0 0 3px rgba(0,0,0,0.5); }
+.rank-change.down { color: #f87171; text-shadow: 0 0 3px rgba(0,0,0,0.5); }
 .rank-change.same { color: var(--muted); font-size: 12px; }
-.podium-rank-change { font-size: 10px; font-weight: 800; margin-left: 2px; }
-.podium-rank-change.up { color: #4ade80; }
-.podium-rank-change.down { color: #f87171; }
+.podium-rank-change { font-size: 10px; font-weight: 900; margin-left: 2px; -webkit-text-stroke: 0.5px rgba(0,0,0,0.4); }
+.podium-rank-change.up { color: #15803d; }
+.podium-rank-change.down { color: #b91c1c; }
 .rank-nick { flex: 1; font-size: 15px; font-weight: 700; color: var(--text); }
 .rank-pts { font-size: 15px; font-weight: 900; color: var(--blue-light); }
 .rank-me-badge {
@@ -1189,13 +1214,7 @@ body.light .cell.cat.answer {
     <div class="tab-panel" id="panelRank">
       <div class="ranking-panel">
 
-        <!-- 명예의전당 -->
-        <div class="hall-wrap" id="hallWrap">
-          <button id="rankRefreshBtn" title="새로고침" style="position:absolute; top:8px; right:8px; z-index:3; width:28px; height:28px; border-radius:50%; border:1px solid var(--border); background:var(--surface); color:var(--blue-light); font-size:14px; display:flex; align-items:center; justify-content:center; padding:0;">🔄</button>
-          <div class="hall-title">✦ 명예의 전당 ✦</div>
-          <div class="cards-row" id="hallCards"></div>
-
-        </div>
+        <button id="rankRefreshBtn" title="새로고침" style="position:absolute; top:6px; right:6px; z-index:3; width:28px; height:28px; border-radius:50%; border:1px solid var(--border); background:var(--surface); color:var(--blue-light); font-size:14px; display:flex; align-items:center; justify-content:center; padding:0;">🔄</button>
 
         <!-- 현재 랭킹 구분선 -->
         <div class="section-divider">
@@ -1203,6 +1222,7 @@ body.light .cell.cat.answer {
           <div class="section-divider-text" id="rankTitleTap">현재 랭킹</div>
           <div class="section-divider-line"></div>
         </div>
+        <div class="rank-legend">👑×N 역대 1등 횟수</div>
 
         <!-- 관리자 전용: 랭킹 초기화 (숨김, 타이틀 5회 탭 시 노출) -->
         <button id="adminResetBtn" style="display:none; margin:6px auto 4px; padding:6px 14px; font-size:11px; font-weight:700; color:#fca5a5; background:rgba(239,68,68,0.12); border:1px solid #ef4444; border-radius:10px;">
@@ -1287,12 +1307,26 @@ body.light .cell.cat.answer {
 <div class="overlay" id="updateLog" style="display:none">
   <div class="overlay-card" style="max-height:80vh; display:flex; flex-direction:column;">
     <div class="overlay-title" style="font-size:18px; flex-shrink:0;">📋 업데이트 내역</div>
+    <div style="flex-shrink:0; margin-top:8px; padding:8px 10px; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); border-radius:8px; font-size:11px; color:var(--muted); line-height:1.5;">
+      ※ 게임 방향성·디자인은 계속 다듬는 중입니다. 일부 기능은 예고 없이 바뀌거나 사라질 수 있어요.
+    </div>
     <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
+
+      <!-- v2.6 -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <div style="font-size:11px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v2.6</div>
+        <span id="newBadge" style="display:none;background:#ef4444;color:white;font-size:9px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
+      </div>
+      <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:2;margin-bottom:8px;">
+        <li>👑 명예의전당 카드 정리 — 알고보니 1등이랑 100% 동일인물이었음(당연함). 역대 1등 횟수는 👑×N으로 시상대·순위 목록에 계속 표시됨</li>
+        <li>🎁 아이템 이어주기 — (간절한 요청으로) 판 넘어가기 <b>직전</b>에 못 쓴 아이템, 이제 다음 판까지 살아남음</li>
+        <li>📊 순위 변동 표시 ▲▼</li>
+      </ul>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
 
       <!-- v2.5 -->
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
         <div style="font-size:11px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v2.5</div>
-        <span id="newBadge" style="display:none;background:#ef4444;color:white;font-size:9px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
       </div>
       <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:2;margin-bottom:8px;">
         <li>🎯 아이템 밸런스 조정 — 콤보 구간별 등장 아이템 개편</li>
@@ -3226,10 +3260,7 @@ function addHallTitle(nickname) {
     return data[nickname];
   } catch { return 1; }
 }
-function getTitleBadge(count) {
-  if (!count || count < 1) return '';
-  return `<span style="font-size:10px;color:#fbbf24;font-weight:700;">👑×${count}</span>`;
-}
+
 
 // 역대 챔피언(1등 등극) 횟수 집계
 async function getChampCounts() {
@@ -3269,23 +3300,9 @@ function rankChangeHtml(prevRank, currentRank, podium) {
   return `<span class="${cls} down">▼${Math.abs(diff)}</span>`;
 }
 
-// 이번 주 1등
-async function getAllTimeBest() {
-  try {
-    const q = query(collection(db, 'rankings'), orderBy('score', 'desc'), limit(1));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      const d = snap.docs[0];
-      return { nickname: d.id, score: d.data().score };
-    }
-  } catch {}
-  return null;
-}
-
 async function renderRanking() {
   const list = await loadRankings();
   const myNick = loadNickname();
-  const weeklyBest = await getAllTimeBest();
 
   // 안전장치: 점수 등록 시점에 챔피언 기록이 어떤 이유로든 누락됐을 경우를 대비해
   // 랭킹 화면을 열 때마다 "현재 1등"과 meta 기록이 다르면 그 자리에서 보정
@@ -3315,40 +3332,6 @@ async function renderRanking() {
   if (!snapshot || snapshot.date !== getTodayDateStr()) {
     saveRankSnapshot(currentRanks);
   }
-
-  // ── 명예의전당 렌더 (역대 1등) ──
-  const hallCards = document.getElementById('hallCards');
-  hallCards.innerHTML = '';
-  const hallWrap = document.getElementById('hallWrap');
-  // hall-title 아래 설명 추가
-  let hallDesc = hallWrap.querySelector('.hall-desc');
-  if (!hallDesc) {
-    hallDesc = document.createElement('div');
-    hallDesc.className = 'hall-desc';
-    hallDesc.style.cssText = 'text-align:center;font-size:10px;color:#a78bfa;margin-bottom:8px;letter-spacing:1px;';
-    hallDesc.innerHTML = '역대 1등 등극 횟수 👑×N';
-    hallWrap.insertBefore(hallDesc, hallCards);
-  }
-  const card = document.createElement('div');
-  card.className = 'card-1st';
-  card.style.margin = '0 auto';
-  card.style.maxWidth = '160px';
-  if (weeklyBest) {
-    const titleCount = getHallTitle(weeklyBest.nickname);
-    card.innerHTML = `
-      <div class="card-icon-1" style="font-size:32px;margin-bottom:2px;">👑</div>
-      <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:4px;">역대 최고점</div>
-      <div class="card-nick-1" style="font-size:22px;margin-bottom:2px;">${getTitleBadge(titleCount)} ${weeklyBest.nickname}</div>
-      <div class="card-score-1" style="font-size:22px;">${weeklyBest.score}pt</div>
-    `;
-  } else {
-    card.innerHTML = `
-      <div class="card-icon-1">👑</div>
-      <div class="card-rank-1">THIS WEEK</div>
-      <div class="card-empty">아직 없어요</div>
-    `;
-  }
-  hallCards.appendChild(card);
 
   // ── 시상대 렌더 ──
   const podium = document.getElementById('podiumWrap');
@@ -3723,8 +3706,8 @@ document.addEventListener('mouseup', () => {
 });
 
 // 업데이트 내역 팝업
-const UPDATE_VERSION = 'v2.5';
-const SEEN_KEY = 'seenUpdate_v2.5';
+const UPDATE_VERSION = 'v2.6';
+const SEEN_KEY = 'seenUpdate_v2.6';
 
 function openUpdateLog() {
   document.getElementById('updateLog').style.display = 'flex';
