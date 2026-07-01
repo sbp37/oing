@@ -958,6 +958,8 @@ body.light .cell.cat.answer {
     @media (min-width: 700px) {
         /* 앱 최대폭 */
         .app { max-width: 960px; }
+        /* 오버레이 배경도 앱 폭에 맞춰 늘려서 좌우로 안 뚫려 보이게 */
+        .overlay { max-width: 960px; }
 
         /* 게임 패널 가로 분할 */
         .tab-panel.active#panelGame {
@@ -1552,13 +1554,20 @@ async function loadRankings() {
   }
 }
 
+function getLocalDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 async function updateUserStats(nickname, playTimeSeconds, score) {
   // 에러를 던져서 호출부에서 잡을 수 있게 함
   const docRef = doc(db, 'user_stats', nickname);
   const snap = await getDoc(docRef);
   const now = Date.now();
+  const todayStr = getLocalDateStr();
   if (snap.exists()) {
     const d = snap.data();
+    const isSameDay = d.dailyDate === todayStr;
     await setDoc(docRef, {
       playCount: (d.playCount || 0) + 1,
       totalPlayTime: (d.totalPlayTime || 0) + playTimeSeconds,
@@ -1566,6 +1575,9 @@ async function updateUserStats(nickname, playTimeSeconds, score) {
       firstPlayed: d.firstPlayed || now,
       lastScore: score,
       bestScore: Math.max(d.bestScore || 0, score),
+      dailyDate: todayStr,
+      dailyPlayCount: isSameDay ? (d.dailyPlayCount || 0) + 1 : 1,
+      dailyPlayTime: isSameDay ? (d.dailyPlayTime || 0) + playTimeSeconds : playTimeSeconds,
     });
   } else {
     await setDoc(docRef, {
@@ -1575,6 +1587,9 @@ async function updateUserStats(nickname, playTimeSeconds, score) {
       firstPlayed: now,
       lastScore: score,
       bestScore: score,
+      dailyDate: todayStr,
+      dailyPlayCount: 1,
+      dailyPlayTime: playTimeSeconds,
     });
   }
   return true;
