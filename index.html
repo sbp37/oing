@@ -163,6 +163,22 @@ html, body {
 .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 1px; }
 .stat-val { font-size: 22px; font-weight: 900; letter-spacing: -1px; color: var(--blue-bright); line-height: 1.1; }
 
+/* ── 남은시간 게이지 바 (숫자 안 읽어도 색으로 대략 파악) ── */
+.time-bar-track {
+  height: 4px; width: 100%;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px; overflow: hidden;
+  margin-top: 6px;
+}
+.time-bar-fill {
+  height: 100%; width: 100%;
+  background: #22c55e;
+  border-radius: 3px;
+  transition: width 0.3s linear, background-color 0.3s linear;
+}
+.time-bar-fill.warn { background: #f59e0b; }
+.time-bar-fill.danger { background: #ef4444; }
+
 /* ── 콤보바 ── */
 .combo-wrap {
   padding: 6px 14px 6px;
@@ -769,6 +785,11 @@ body.light .hall-title { color: #5a3aaa; }
 .pf-silver { background: #546070; width: 84px; }
 .pf-bronze { background: #6a3e20; width: 72px; }
 
+/* 이번주 랭킹 모드 — 시상대·텍스트 색상은 전체와 동일하게 유지, 토글 버튼만 포인트 컬러 */
+.rank-mode-btn.week.active { background: #14b8a6; border-color: #14b8a6; }
+#panelRank.week-mode .rank-row.me { border-color: #14b8a6; background: rgba(20,184,166,0.12); }
+#panelRank.week-mode #myRankInfo strong { color: #2dd4bf; }
+
 /* 화살표 */
 .arrow-up   { font-size: 12px; color: #ef4444; font-weight: 900; }
 .arrow-down { font-size: 12px; color: #3b82f6; font-weight: 900; }
@@ -1170,6 +1191,7 @@ body.light .cell.cat.answer {
           <div class="stat-box"><div class="stat-label">남은 시간</div><div class="stat-val" id="timerDisp">2:00</div></div>
           <div class="stat-box"><div class="stat-label">최고 콤보</div><div class="stat-val" id="clearDisp">×0</div></div>
         </div>
+        <div class="time-bar-track"><div class="time-bar-fill" id="timeBarFill"></div></div>
       </div>
 
       <div class="combo-wrap">
@@ -1201,6 +1223,7 @@ body.light .cell.cat.answer {
         <div class="stat-box"><div class="stat-label">점수</div><div class="stat-val" id="scoreDisp2">0</div></div>
         <div class="stat-box"><div class="stat-label">남은 시간</div><div class="stat-val" id="timerDisp2">2:00</div></div>
         <div class="stat-box"><div class="stat-label">최고 콤보</div><div class="stat-val" id="clearDisp2">×0</div></div>
+        <div class="time-bar-track"><div class="time-bar-fill" id="timeBarFill2"></div></div>
         <div class="combo-wrap" style="padding:0; flex-direction:column; align-items:stretch; gap:4px;">
           <span class="combo-label">콤보</span>
           <div style="display:flex; align-items:center; gap:6px;">
@@ -1265,24 +1288,24 @@ body.light .cell.cat.answer {
     </div>
 
     <!-- ══ 랭킹 탭 ══ -->
-    <div class="tab-panel" id="panelRank">
+    <div class="tab-panel week-mode" id="panelRank">
       <div class="ranking-panel">
 
         <button id="rankRefreshBtn" title="새로고침" style="position:absolute; top:6px; right:6px; z-index:3; width:28px; height:28px; border-radius:50%; border:1px solid var(--border); background:var(--surface); color:var(--blue-light); font-size:14px; display:flex; align-items:center; justify-content:center; padding:0;">🔄</button>
 
         <!-- 전체 랭킹 / 이번주 랭킹 토글 -->
         <div class="rank-mode-toggle">
-          <button class="rank-mode-btn active" id="rankModeAll">전체</button>
-          <button class="rank-mode-btn" id="rankModeWeek">이번주</button>
+          <button class="rank-mode-btn active week" id="rankModeWeek">이번주</button>
+          <button class="rank-mode-btn" id="rankModeAll">전체</button>
         </div>
 
         <!-- 현재 랭킹 구분선 -->
         <div class="section-divider">
           <div class="section-divider-line"></div>
-          <div class="section-divider-text" id="rankTitleTap">현재 랭킹</div>
+          <div class="section-divider-text" id="rankTitleTap">이번 주 랭킹</div>
           <div class="section-divider-line"></div>
         </div>
-        <div class="rank-legend" id="rankLegendText">👑×N 역대 1등 횟수</div>
+        <div class="rank-legend" id="rankLegendText">매주 월요일 0시에 새로 시작해요</div>
 
         <!-- 관리자 전용: 랭킹 초기화 (숨김, 타이틀 5회 탭 시 노출) -->
         <button id="adminResetBtn" style="display:none; margin:6px auto 4px; padding:6px 14px; font-size:11px; font-weight:700; color:#fca5a5; background:rgba(239,68,68,0.12); border:1px solid #ef4444; border-radius:10px;">
@@ -1317,16 +1340,30 @@ body.light .cell.cat.answer {
           <button class="nick-change-btn" id="nickChangeWrapBtn">닉네임 변경</button>
           <button class="nick-change-btn" id="pinCheckBtn">🔑 내 핀번호</button>
         </div>
-        <div style="text-align:center; margin-top:10px; padding-bottom:8px;">
-          <button id="contactBtnRank" style="
-            font-size:11px; color:var(--muted); text-decoration:none;
-            border:1px solid var(--border); border-radius:8px;
-            padding:5px 12px; display:inline-block; background:none; font-family:inherit; cursor:pointer;
-          ">💌 문의하기</button>
+        <div style="text-align:center; margin-top:14px; padding:14px 12px; border-top:1px solid var(--border);">
+          <button id="donateOpenBtn" style="
+            padding:10px 22px; border-radius:20px; border:1px solid var(--border2);
+            background:var(--surface2); color:var(--text);
+            font-family:inherit; font-size:13px; font-weight:800; cursor:pointer;
+          ">🐟 츄르 사주기🐱</button>
         </div>
       </div>
     </div>
 
+  </div>
+</div>
+
+<div id="donateOverlay" class="overlay" style="display:none;">
+  <div class="overlay-card" style="max-width:320px; text-align:center;">
+    <div style="font-size:19px; color:var(--blue-light); font-weight:800; margin-bottom:2px;">츄르 사주는거냥! 고맙다냥🐱❤️</div>
+    <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:14px;">업뎃 열심히 하겠다냥!! 🐾</div>
+    <a href="https://qr.kakaopay.com/Ej8cZUTdG" target="_blank" rel="noopener" style="
+      display:inline-block; padding:10px 20px; margin:0 auto 14px;
+      border-radius:20px; background:#FEE500; color:#391B1B;
+      font-family:inherit; font-size:14px; font-weight:800;
+      text-decoration:none; text-align:center;
+    ">츄르 사주기🎁</a>
+    <button id="donateCloseBtn" style="width:100%; padding:10px; border-radius:10px; border:1px solid var(--border); background:none; color:var(--muted); font-family:inherit; font-size:13px; cursor:pointer;">닫기</button>
   </div>
 </div>
 
@@ -1386,16 +1423,24 @@ body.light .cell.cat.answer {
 <div id="resultPanel" style="display:none; position:fixed; bottom:0; left:50%; transform:translateX(-50%);
   width:100%; max-width:650px; z-index:80;
   background:var(--surface); border-top:2px solid var(--border2);
-  padding:14px 16px 20px; box-shadow:0 -4px 24px rgba(0,0,0,0.5);">
+  padding:16px 16px 24px; box-shadow:0 -4px 24px rgba(0,0,0,0.5);">
   <div style="display:flex; align-items:center; margin-bottom:2px;">
-    <div style="flex:1; font-size:13px; color:var(--muted); font-weight:700;">⏱ 종료!</div>
+    <div style="flex:1; display:flex; justify-content:flex-start;">
+      <button id="shareResultBtn" style="
+        padding:6px 10px;
+        border-radius:8px; border:none;
+        background:#FEE500; color:#391B1B;
+        font-family:inherit; font-size:11px; font-weight:800;
+        cursor:pointer; white-space:nowrap;
+      ">🔗카톡 공유</button>
+    </div>
     <div style="flex:2; font-size:32px; font-weight:900; color:var(--blue-bright); letter-spacing:-1px; text-align:center;" id="finalScore">0</div>
     <div style="flex:1; font-size:12px; color:var(--muted); text-align:right; line-height:1.6;">
       <div id="resClear2">클리어 0회</div>
       <div id="resCombo2">최고 콤보 ×0</div>
     </div>
   </div>
-  <div id="scoreComment" style="text-align:center; font-size:17px; font-weight:800; color:var(--blue-light); margin:0 0 10px;"></div>
+  <div id="scoreComment" style="text-align:center; font-size:20px; font-weight:900; color:var(--blue-light); margin:2px 0 12px;"></div>
   <div id="nickSection2">
     <input class="nick-input" id="nickInput" type="text" maxlength="10" placeholder="닉네임 입력 후 등록" style="margin-top:0; margin-bottom:8px;">
     <button class="action-btn" id="submitScore" style="margin-top:0; margin-bottom:8px;">🏆 점수 등록하기</button>
@@ -1403,17 +1448,17 @@ body.light .cell.cat.answer {
   <div id="nickDone" style="display:none; color:var(--blue-light); font-size:13px; font-weight:700; text-align:center; margin-bottom:10px;"></div>
   <div style="display:flex; gap:8px; margin-top:4px;">
     <button id="resultRestartBtn" style="
-      flex:2; padding:14px;
-      border-radius:12px; border:none;
+      flex:2; padding:9px;
+      border-radius:10px; border:none;
       background:var(--blue-bright); color:white;
-      font-family:inherit; font-size:15px; font-weight:900;
+      font-family:inherit; font-size:13px; font-weight:800;
       cursor:pointer; letter-spacing:-0.5px;
     ">🔄 다시 하기</button>
     <button id="resultRankBtn" style="
-      flex:1; padding:14px;
-      border-radius:12px; border:1px solid var(--border2);
+      flex:1; padding:9px;
+      border-radius:10px; border:1px solid var(--border2);
       background:var(--surface2); color:var(--blue-light);
-      font-family:inherit; font-size:15px; font-weight:700;
+      font-family:inherit; font-size:13px; font-weight:700;
       cursor:pointer;
     ">🏆 랭킹</button>
   </div>
@@ -2116,6 +2161,7 @@ const MAX_COMBO = 7;
 let board = [], score = 0, combo = 0, maxCombo = 0;
 let clearCount = 0, catBonus = 0, resetCount = 0, sessionCats = 0;
 let timeLeft = 120, timerInterval = null, gameRunning = false;
+let maxTimeSeen = 120; // 시간 보너스로 timeLeft가 늘어날 때마다 갱신 — 게이지 바 기준값
 let gameStartTime = 0;
 let gameEndTime = 0; // Date.now 기반 종료 시각
 let sel1 = null;
@@ -3110,6 +3156,17 @@ function updateTimer() {
     timerDisp.classList.add('danger-pulse');
     if (t2) t2.classList.add('danger-pulse');
   }
+
+  // 시간 게이지 바 — 보너스로 늘어난 시간도 자연스럽게 반영 (최대치 기준 상대 비율)
+  if (timeLeft > maxTimeSeen) maxTimeSeen = timeLeft;
+  const pct = Math.max(0, Math.min(100, (timeLeft / maxTimeSeen) * 100));
+  [document.getElementById('timeBarFill'), document.getElementById('timeBarFill2')].forEach(bar => {
+    if (!bar) return;
+    bar.style.width = pct + '%';
+    bar.classList.remove('warn', 'danger');
+    if (pct <= 15) bar.classList.add('danger');
+    else if (pct <= 40) bar.classList.add('warn');
+  });
 }
 
 // 테마 토글
@@ -3200,6 +3257,7 @@ function startGame() {
   score = 0; combo = 0; maxCombo = 0;
   clearCount = 0; catBonus = 0; resetCount = 0; sessionCats = 0;
   timeLeft = 120; sel1 = null; gameRunning = false;
+  maxTimeSeen = 120;
   hintUsed = false;
   bonusHintGiven = false;
   stopComboDecay();
@@ -3358,7 +3416,7 @@ async function endGame() {
 
   // 답지가 resultPanel에 안 가려지게 grid-wrap에 여백 추가
   const gridWrap = document.querySelector('.grid-wrap');
-  if (gridWrap) gridWrap.style.paddingBottom = '180px';
+  if (gridWrap) gridWrap.style.paddingBottom = '196px';
 
   // 결과 패널 표시
   document.getElementById('finalScore').textContent = score;
@@ -3752,7 +3810,7 @@ function rankChangeHtml(prevRank, currentRank, podium) {
   return `<span class="${cls} down">▼${Math.abs(diff)}</span>`;
 }
 
-let currentRankMode = 'all'; // 'all' | 'week'
+let currentRankMode = 'week'; // 'all' | 'week' — 이번주를 기본으로
 
 async function renderRanking() {
   if (currentRankMode === 'week') { await renderWeeklyRanking(); return; }
@@ -3890,10 +3948,32 @@ async function renderRanking() {
 
 // 이번 주 랭킹 — 전체 랭킹과 같은 DOM(시상대/목록/내순위)을 재사용하되
 // 명예의전당 👑 / 순위변동 화살표 없이 간단하게 표시
+async function getWeeklyRankSnapshot() {
+  try {
+    const snap = await getDoc(doc(db, 'meta', 'weeklyRankSnapshot'));
+    return snap.exists() ? snap.data() : null;
+  } catch { return null; }
+}
+async function saveWeeklyRankSnapshot(weekId, ranks) {
+  try {
+    await setDoc(doc(db, 'meta', 'weeklyRankSnapshot'), { date: getTodayDateStr(), weekId, ranks });
+  } catch (e) { console.warn('주간 순위 스냅샷 저장 실패:', e); }
+}
+
 async function renderWeeklyRanking() {
   const list = await loadWeeklyRankings();
   const myNick = loadNickname();
   const justUpdated = sessionStorage.getItem('oeing_just_updated');
+  const weekId = getWeekId();
+
+  // 이번주 순위변동 비교용 스냅샷 — 같은 주차 안에서만 유효, 새 주차 시작되면 전부 NEW부터 다시 시작
+  const wSnapshot = await getWeeklyRankSnapshot();
+  const prevWeekRanks = (wSnapshot && wSnapshot.weekId === weekId) ? (wSnapshot.ranks || {}) : {};
+  const currentWeekRanks = {};
+  list.forEach((e, i) => { currentWeekRanks[e.nickname] = i + 1; });
+  if (!wSnapshot || wSnapshot.weekId !== weekId || wSnapshot.date !== getTodayDateStr()) {
+    saveWeeklyRankSnapshot(weekId, currentWeekRanks);
+  }
 
   const podium = document.getElementById('podiumWrap');
   const podiumFloor = document.getElementById('podiumFloor');
@@ -3908,11 +3988,13 @@ async function renderWeeklyRanking() {
   podiumDefs.forEach((p, i) => {
     const entry = displayOrder[i];
     const isMe = entry && myNick && entry.nickname === myNick;
+    const rankNumP = i === 0 ? 2 : i === 1 ? 1 : 3;
+    const changeHtmlP = entry ? rankChangeHtml(prevWeekRanks[entry.nickname], rankNumP, true) : '';
     const div = document.createElement('div');
     div.className = `podium-item ${p.cls}${entry ? '' : ' podium-empty'}`;
     div.innerHTML = `
       <div class="podium-trophy">${p.trophy}</div>
-      ${entry ? `<div class="podium-rank-badge">${p.badge}</div>` : ''}
+      ${entry ? `<div class="podium-rank-badge">${p.badge}${changeHtmlP}</div>` : ''}
       <div class="podium-nick"><span class="podium-nick-text">${entry ? (isMe ? '👤 ' : '') + entry.nickname : '—'}</span></div>
       <div class="podium-score">${entry ? entry.score + 'pt' : ''}</div>
       <div class="podium-base">${p.num}</div>
@@ -3937,10 +4019,12 @@ async function renderWeeklyRanking() {
       const isMe = myNick && entry.nickname === myNick;
       const isNew = justUpdated && entry.nickname === justUpdated;
       const isTop10 = rank <= 10;
+      const changeHtml = rankChangeHtml(prevWeekRanks[entry.nickname], rank);
       const row = document.createElement('div');
       row.className = 'rank-row' + (isMe ? ' me' : '') + (isTop10 ? ' top10' : '');
       row.innerHTML = `
         <span class="rank-num">${rank}</span>
+        ${changeHtml}
         <span class="rank-nick">${isMe ? '👤 ' : ''}${entry.nickname}</span>
         ${isTop10 ? '<span class="rank-badge rank-badge-top10">🔥 탑10</span>' : ''}
         ${isMe ? '<span class="rank-me-badge">나</span>' : ''}
@@ -4049,6 +4133,7 @@ document.getElementById('rankModeAll').addEventListener('click', () => {
   currentRankMode = 'all';
   document.getElementById('rankModeAll').classList.add('active');
   document.getElementById('rankModeWeek').classList.remove('active');
+  document.getElementById('panelRank').classList.remove('week-mode');
   document.getElementById('rankTitleTap').textContent = '현재 랭킹';
   document.getElementById('rankLegendText').textContent = '👑×N 역대 1등 횟수';
   renderRanking();
@@ -4058,6 +4143,7 @@ document.getElementById('rankModeWeek').addEventListener('click', () => {
   currentRankMode = 'week';
   document.getElementById('rankModeWeek').classList.add('active');
   document.getElementById('rankModeAll').classList.remove('active');
+  document.getElementById('panelRank').classList.add('week-mode');
   document.getElementById('rankTitleTap').textContent = '이번 주 랭킹';
   document.getElementById('rankLegendText').textContent = '매주 월요일 0시에 새로 시작해요';
   renderRanking();
@@ -4099,6 +4185,38 @@ document.getElementById('resultRankBtn').addEventListener('click', () => {
     startGame();
     document.getElementById('tabGame').removeEventListener('click', onceStart);
   }, { once: true });
+});
+
+// ══════════════════════════════
+//  카톡으로 자랑하기 — 결과 카드 이미지를 그려서 공유
+// ══════════════════════════════
+document.getElementById('shareResultBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('shareResultBtn');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳';
+
+  const gameUrl = 'https://sbp37.github.io/oing/';
+  const shareText = `오잉게임에서 ${score}점 냈다냥! 이겨보라냥 🐱`;
+
+  try {
+    if (navigator.share) {
+      // 이미지 없이 텍스트+링크만 공유 — 이래야 카톡에서 링크가 눌리는 형태로 확실히 전달됨
+      await navigator.share({ title: '오잉게임', text: shareText, url: gameUrl });
+    } else if (navigator.clipboard) {
+      await navigator.clipboard.writeText(`${shareText}\n${gameUrl}`);
+      alert('공유 기능이 없는 브라우저라 링크를 복사했어요! 카톡에 붙여넣기 해주세요 🐱');
+    } else {
+      alert(`이 링크를 복사해서 보내주세요:\n${gameUrl}`);
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') {
+      console.warn('공유 실패:', e);
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 });
 
 // 닉네임 변경
@@ -4300,8 +4418,13 @@ function openContactOverlay() {
 function closeContactOverlay() {
   document.getElementById('contactOverlay').style.display = 'none';
 }
+document.getElementById('donateOpenBtn').addEventListener('click', () => {
+  document.getElementById('donateOverlay').style.display = 'flex';
+});
+document.getElementById('donateCloseBtn').addEventListener('click', () => {
+  document.getElementById('donateOverlay').style.display = 'none';
+});
 document.getElementById('contactBtnGame').addEventListener('click', openContactOverlay);
-document.getElementById('contactBtnRank').addEventListener('click', openContactOverlay);
 document.getElementById('contactCloseBtn').addEventListener('click', closeContactOverlay);
 document.getElementById('contactBoardBtn').addEventListener('click', () => {
   closeContactOverlay();
