@@ -1387,7 +1387,7 @@ body.light .cell.cat.answer {
   width:100%; max-width:650px; z-index:80;
   background:var(--surface); border-top:2px solid var(--border2);
   padding:14px 16px 20px; box-shadow:0 -4px 24px rgba(0,0,0,0.5);">
-  <div style="display:flex; align-items:center; margin-bottom:10px;">
+  <div style="display:flex; align-items:center; margin-bottom:2px;">
     <div style="flex:1; font-size:13px; color:var(--muted); font-weight:700;">⏱ 종료!</div>
     <div style="flex:2; font-size:32px; font-weight:900; color:var(--blue-bright); letter-spacing:-1px; text-align:center;" id="finalScore">0</div>
     <div style="flex:1; font-size:12px; color:var(--muted); text-align:right; line-height:1.6;">
@@ -1395,6 +1395,7 @@ body.light .cell.cat.answer {
       <div id="resCombo2">최고 콤보 ×0</div>
     </div>
   </div>
+  <div id="scoreComment" style="text-align:center; font-size:13px; font-weight:700; color:var(--blue-light); margin:0 0 10px;"></div>
   <div id="nickSection2">
     <input class="nick-input" id="nickInput" type="text" maxlength="10" placeholder="닉네임 입력 후 등록" style="margin-top:0; margin-bottom:8px;">
     <button class="action-btn" id="submitScore" style="margin-top:0; margin-bottom:8px;">🏆 점수 등록하기</button>
@@ -1633,6 +1634,7 @@ async function addWeeklyScore(nickname, newScore) {
       await setDoc(docRef, { score: newScore, ts: Date.now() });
     }
   } catch (e) {
+    console.warn('주간 랭킹 저장 실패(권한/네트워크), 로컬 폴백:', e);
     try {
       const key = 'oeing_weekly_' + weekId;
       const raw = localStorage.getItem(key);
@@ -1738,18 +1740,70 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
 function showComboRecordPop(newBest) {
   const pop = document.createElement('div');
   pop.style.cssText = `
-    position:fixed; top:32%; left:50%;
+    position:fixed; top:12%; left:50%;
     transform:translate(-50%,-50%);
-    font-size:16px; font-weight:900; color:#fff; text-align:center; line-height:1.6;
-    background:linear-gradient(135deg,#ea580c,#f97316);
-    padding:16px 26px; border-radius:18px;
-    box-shadow:0 0 30px rgba(249,115,22,0.7);
+    font-size:12px; font-weight:700; color:var(--text, #e2eeff); text-align:center;
+    background:rgba(20,28,42,0.9);
+    border:1px solid rgba(255,255,255,0.12);
+    padding:7px 16px; border-radius:14px;
     pointer-events:none; z-index:320; white-space:nowrap;
-    animation:recordpop 2.4s ease forwards;
+    animation:recordpop 1.8s ease forwards;
   `;
-  pop.innerHTML = `🔥 최고 콤보 경신!<br><span style="font-size:24px;">×${newBest}</span>`;
+  pop.innerHTML = `🔥 최고 콤보 ×${newBest} 경신`;
   document.body.appendChild(pop);
-  setTimeout(() => pop.remove(), 2400);
+  setTimeout(() => pop.remove(), 1800);
+}
+
+// ══════════════════════════════
+//  점수 구간별 결과창 코멘트
+//  - 낮은 구간일수록 점수 얘기 대신 재미/기대감 쪽으로, "못했다" 뉘앙스는 절대 안 씀
+//  - 같은 구간 안에서도 매번 다른 문구가 나오도록 랜덤 2~3개씩
+// ══════════════════════════════
+const SCORE_COMMENT_TIERS = [
+  { min: 15000, lines: [
+    '말도 안 되는 실력이다냥 🏆🐱',
+    '이 정도면 랭킹 1티어다냥 👑🐱',
+    '완전 고수의 향기다냥...! 🔥🐱',
+    '오잉게임 마스터 인정이다냥 🎖️🐱',
+    '이 점수 실화냥? 대단하다냥 😳🐱',
+    '진짜 손이 안 보였을 것 같다냥 ⚡🐱',
+  ] },
+  { min: 8000, lines: [
+    '엄청난 실력이다냥! 랭킹 노려볼만하다냥 🔥🐱',
+    '숫자가 다 보이나보다냥 😳🐱',
+    '이 페이스면 순위권 코앞이다냥! 🐱',
+    '와, 이번 판 진짜 잘했다냥 🙌🐱',
+    '콤보 타이밍이 예술이다냥 ✨🐱',
+    '다음 판도 이 흐름 기대한다냥! 🐱',
+  ] },
+  { min: 3000, lines: [
+    '감 좋다냥! 콤보가 착착 붙는다냥 ✨🐱',
+    '점점 익숙해지고 있다냥 👍🐱',
+    '오, 이번 판 흐름 괜찮았다냥? 🐱',
+    '숫자 조합 보는 눈이 늘고 있다냥 👀🐱',
+    '안정적으로 잘 하고 있다냥! 🐱',
+    '이 정도면 중수는 훌쩍 넘었다냥 😎🐱',
+  ] },
+  { min: 1000, lines: [
+    '숫자 조합이 눈에 들어오기 시작했다냥 👀🐱',
+    '한 판 한 판 늘고 있다냥, 이 감각 기억해두라냥 🐱',
+    '다음 판엔 조금 더 잘 보일 거다냥 🐱',
+    '조금씩 요령이 붙고 있다냥 🐱',
+    '나쁘지 않은 페이스다냥, 계속 가보라냥! 🐱',
+    '이 정도면 감 잡기 시작한 거다냥 🙂🐱',
+  ] },
+  { min: 0, lines: [
+    '오잉게임 은근 중독성 있다냥? 몇 판 더 하면 감 잡힌다냥 🐱',
+    '합이 10 되는 조합, 눈에 익으면 확 빨라진다냥 🐱',
+    '고양이는 챙겼냥? 다음 판도 기대한다냥 🐾🐱',
+    '워밍업 한 판이었다고 생각하면 딱이다냥 🐱',
+    '처음엔 다 이렇다냥, 몇 판 더 해보면 확 달라진다냥 🐱',
+    '오늘의 한 판, 그 자체로 의미있다냥 🙂🐱',
+  ] },
+];
+function getScoreComment(finalScoreVal) {
+  const tier = SCORE_COMMENT_TIERS.find(t => finalScoreVal >= t.min) || SCORE_COMMENT_TIERS[SCORE_COMMENT_TIERS.length - 1];
+  return tier.lines[Math.floor(Math.random() * tier.lines.length)];
 }
 
 async function addScore(nickname, newScore) {
@@ -3310,6 +3364,7 @@ async function endGame() {
   document.getElementById('finalScore').textContent = score;
   document.getElementById('resClear2').textContent = `클리어 ${clearCount}회`;
   document.getElementById('resCombo2').textContent = `최고 콤보 ×${maxCombo}`;
+  document.getElementById('scoreComment').textContent = getScoreComment(score);
 
   // resultPanel은 Firebase 결과와 무관하게 무조건 600ms 후 표시
   setTimeout(() => {
@@ -3334,7 +3389,7 @@ async function endGame() {
         const isNewRecord = !prevBest || score > prevBest.score;
 
         await addScore(savedNick, score);
-        addWeeklyScore(savedNick, score);
+        await addWeeklyScore(savedNick, score);
         let statsMsg = '';
         try {
           const { stats, prev } = await updateUserStats(savedNick, playTimeSeconds, score, sessionCats, maxCombo);
@@ -3356,7 +3411,7 @@ async function endGame() {
           showNewRecordPop();
         } else {
           renderRanking();
-          nickDone.textContent = `🎉 ${savedNick} 자동 등록 완료!${statsMsg}`;
+          nickDone.textContent = getScoreComment(score);
         }
       })();
       await Promise.race([work, timeout]);
@@ -3597,7 +3652,7 @@ document.getElementById('submitScore').addEventListener('click', async () => {
   let statsMsg = '';
   try {
     await addScore(nick, score);
-    addWeeklyScore(nick, score);
+    await addWeeklyScore(nick, score);
   } catch (e) {
     statsMsg += ' (점수저장 실패)';
   }
@@ -4102,7 +4157,7 @@ document.getElementById('nickChangeBtn').addEventListener('click', async () => {
   try {
     const currentScore = score || 0;
     await addScore(nick, currentScore);
-    addWeeklyScore(nick, currentScore);
+    await addWeeklyScore(nick, currentScore);
   } catch (e) {}
 
   btn.disabled = false;
