@@ -173,7 +173,7 @@ html, body {
 }
 .combo-label { font-size: 11px; color: var(--muted); flex-shrink: 0; }
 .combo-track {
-  width: 220px; flex: none; height: 6px; background: var(--surface2);
+  width: 180px; flex: none; height: 6px; background: var(--surface2);
   border-radius: 4px; overflow: visible; position: relative;
 }
 .combo-fill {
@@ -787,13 +787,10 @@ body.light .hall-title { color: #5a3aaa; }
 /* 아이템 셀 */
 .cell.item-bomb  { background: #2a0a0a; border-color: #cc3333; }
 .cell.item-clock { background: #0a1f2a; border-color: #33aacc; }
-.cell.item-hint  { background: #1a2a0a; border-color: #66cc33; }
 .cell.item-bomb.sel  { background: #4a1010; border-color: #ff4444; box-shadow: 0 0 0 1px #ff4444; color:white!important; }
 .cell.item-clock.sel { background: #0a2a3a; border-color: #44ccff; box-shadow: 0 0 0 1px #44ccff; color:white!important; }
-.cell.item-hint.sel  { background: #1a3a0a; border-color: #88ff44; box-shadow: 0 0 0 1px #88ff44; color:white!important; }
 .cell.item-bomb.in-range  { background: #3a0808; border-color: #cc2222; }
 .cell.item-clock.in-range { background: #081828; border-color: #2288aa; }
-.cell.item-hint.in-range  { background: #102808; border-color: #44aa22; }
 .cell.exploding {
   animation: explode 0.4s ease forwards;
   pointer-events: none;
@@ -1185,12 +1182,18 @@ body.light .cell.cat.answer {
               <ul class="overlay-rules">
                 <li><div class="rule-num">1</div>두 셀을 탭해 직사각형 영역 선택 <span style="color:var(--muted);font-size:11px;">(빈칸 포함)</span></li>
                 <li><div class="rule-num">2</div>선택한 숫자 합이 <strong>딱 10</strong>이면 클리어!</li>
-                <li><div class="rule-num">3</div>🐱 고양이는 와일드카드 · 포함 시 +5 보너스</li>
+                <li><div class="rule-num">3</div>🐱 고양이 포함해서 지우면 +5 보너스</li>
                 <li><div class="rule-num">4</div>🐾 연속 클리어 → 콤보 UP · ×7마다 아이템 생성!</li>
                 <li><div class="rule-num">5</div>⚡️ 5개 이상 동시 클리어 → WOW! 점수 보너스</li>
               </ul>
-              <div style="text-align:center; font-size:14px; font-weight:900; color:var(--blue-bright); margin:8px 0 4px;">
-                ⏱ 2분 안에 최고 점수 도전!
+              <div style="display:flex; align-items:center; justify-content:center; gap:6px; margin:8px 0 10px; flex-wrap:nowrap;">
+                <span style="font-size:13px; font-weight:900; color:var(--blue-bright); white-space:nowrap;">⏱ 2분 안에 최고 점수 도전!</span>
+                <button id="tipBtn" style="
+                  background:none; border:none;
+                  color:var(--muted); font-family:inherit; font-size:11px; font-weight:700;
+                  padding:0; cursor:pointer; text-decoration:underline;
+                  text-underline-offset:2px; white-space:nowrap; flex-shrink:0;
+                ">💡추가Tip</button>
               </div>
               <button class="action-btn" id="startBtn">🎮 게임 시작</button>
               <button class="action-btn" id="startRankBtn" style="
@@ -2120,8 +2123,6 @@ function renderGrid() {
         el.className = 'cell item-clock'; el.textContent = '⏰';
       } else if (d.freeze) {
         el.className = 'cell item-freeze'; el.textContent = '❄️';
-      } else if (d.hint) {
-        el.className = 'cell item-hint'; el.textContent = '💡';
       } else if (d.lucky) {
         el.className = 'cell item-lucky'; el.textContent = '🍀';
       } else {
@@ -2630,10 +2631,9 @@ function spawnRandomItem() {
   const elapsed = Date.now() - gameStartTime;
   const cloverAllowed = timeLeft <= 40;
 
-  // 티어1: 폭탄60% 시계40%
-  // 티어2: 폭탄40% 시계40% 메가폭탄20%
-  // 티어3: 시계50% 메가폭탄30% 프리즈20%
-  // 클로버: 1분 이후 전 티어 ~17% 추가
+  // 티어1: 폭탄60% 시계40% (클로버 허용 시 폭탄43% 시계29% 클로버29%)
+  // 티어2: 폭탄40% 시계40% 메가폭탄20% (클로버 허용 시 폭탄29% 시계29% 메가폭탄14% 클로버29%)
+  // 티어3: 시계50% 메가폭탄25% 프리즈25% (클로버 허용 시 시계37.5% 메가폭탄25% 프리즈12.5% 클로버25%)
   let pool;
   if (tier === 1) {
     pool = cloverAllowed
@@ -2765,10 +2765,11 @@ function updateComboUI(milestone) {
   comboFill.style.background = colors[idx];
   if (fill2) fill2.style.background = colors[idx];
 
-  // 게이지 텍스트 — 아이템까지 N + 티어
+  // 게이지 텍스트 — 아이템까지 N + 티어(별 최대 5개)
   const nextIn = seg === 0 ? 7 : 7 - seg;
   const nextCombo = combo + nextIn;
-  const tier = nextCombo >= 21 ? ' ✦✦' : nextCombo >= 14 ? ' ✦' : '';
+  const starCount = Math.max(0, Math.min(5, Math.floor(nextCombo / 7) - 1));
+  const tier = starCount > 0 ? ' ' + '✦'.repeat(starCount) : '';
 
   function setNext(el) {
     if (!el) return;
@@ -3359,6 +3360,9 @@ document.getElementById('submitScore').addEventListener('click', async () => {
 });
 
 document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('tipBtn').addEventListener('click', () => {
+  window.location.href = 'tip-1.html';
+});
 document.getElementById('startRankBtn').addEventListener('click', () => {
   document.getElementById('startOverlay').style.display = 'none';
   switchTab('rank');
