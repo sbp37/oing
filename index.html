@@ -1357,7 +1357,7 @@ body.light .cell.cat.answer {
   <div class="overlay-card" style="max-width:320px; text-align:center;">
     <div style="font-size:19px; color:var(--blue-light); font-weight:800; margin-bottom:2px;">츄르 사주는거냥! 고맙다냥🐱❤️</div>
     <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:14px;">업뎃 열심히 하겠다냥!! 🐾</div>
-    <a href="https://qr.kakaopay.com/Ej8cZUTdG" target="_blank" rel="noopener" style="
+    <a id="donateLink" href="https://qr.kakaopay.com/Ej8cZUTdG" target="_blank" rel="noopener" style="
       display:inline-block; padding:10px 20px; margin:0 auto 14px;
       border-radius:20px; background:#FEE500; color:#391B1B;
       font-family:inherit; font-size:14px; font-weight:800;
@@ -1630,7 +1630,7 @@ body.light .cell.cat.answer {
 //  FIREBASE 초기화
 // ══════════════════════════════
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, getDoc, orderBy, query, limit, deleteDoc }
+import { getFirestore, collection, getDocs, doc, setDoc, getDoc, orderBy, query, limit, deleteDoc, addDoc }
   from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -4461,6 +4461,20 @@ document.getElementById('donateOpenBtn').addEventListener('click', () => {
 document.getElementById('donateCloseBtn').addEventListener('click', () => {
   document.getElementById('donateOverlay').style.display = 'none';
 });
+// 츄르 사주기(카카오페이) 실제 클릭 로그 — 누가/언제 눌렀는지 관리자 페이지에서 집계
+document.getElementById('donateLink').addEventListener('click', () => {
+  logDonateClick();
+});
+async function logDonateClick() {
+  try {
+    const nickname = loadNickname() || '익명';
+    await addDoc(collection(db, 'donate_clicks'), {
+      nickname,
+      ts: Date.now(),
+      date: getTodayDateStr(),
+    });
+  } catch (e) { console.warn('후원 클릭 로그 실패:', e); }
+}
 document.getElementById('contactBtnGame').addEventListener('click', openContactOverlay);
 document.getElementById('contactCloseBtn').addEventListener('click', closeContactOverlay);
 document.getElementById('contactBoardBtn').addEventListener('click', () => {
