@@ -1663,21 +1663,57 @@ function classifyReferrerSrc(ref) {
 (function captureAcquisition() {
   try {
     const params = new URLSearchParams(window.location.search);
-    const refBy = params.get('ref');
-    if (refBy && !sessionStorage.getItem('oeing_refby_captured')) {
-      sessionStorage.setItem('oeing_ref_by', refBy);
+    const refCode = params.get('r');
+    if (refCode && !sessionStorage.getItem('oeing_refby_captured')) {
       sessionStorage.setItem('oeing_refby_captured', '1');
+      resolveRefCode(refCode); // 비동기로 코드→닉네임 변환
     }
     if (!sessionStorage.getItem('oeing_referrer_src')) {
       sessionStorage.setItem('oeing_referrer_src', classifyReferrerSrc(document.referrer));
     }
-    // 링크 깔끔하게 — 주소창에 ?ref= 남지 않게
-    if (refBy) {
+    // 링크 깔끔하게 — 주소창에 ?r= 남지 않게
+    if (refCode) {
       const cleanUrl = window.location.origin + window.location.pathname;
       window.history.replaceState({}, '', cleanUrl);
     }
   } catch {}
 })();
+async function resolveRefCode(code) {
+  try {
+    const snap = await getDoc(doc(db, 'ref_codes', code));
+    if (snap.exists() && snap.data().nickname) {
+      sessionStorage.setItem('oeing_ref_by', snap.data().nickname);
+    }
+  } catch (e) { console.warn('추천코드 조회 실패:', e); }
+}
+// 닉네임 → 짧은 공유코드 (ASCII, 5~6자) 발급/캐시 — 링크가 지저분한 %인코딩 대신 깔끔하게 보이도록
+async function getOrCreateRefCode(nickname) {
+  const cacheKey = 'oeing_refcode_' + nickname;
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) return cached;
+    let hash = 0;
+    for (let i = 0; i < nickname.length; i++) {
+      hash = ((hash << 5) - hash + nickname.charCodeAt(i)) | 0;
+    }
+    const base = Math.abs(hash).toString(36).slice(0, 6) || 'a1';
+    let code = base;
+    for (let i = 0; i < 6; i++) {
+      const ref = doc(db, 'ref_codes', code);
+      const snap = await getDoc(ref);
+      if (!snap.exists() || snap.data().nickname === nickname) {
+        await setDoc(ref, { nickname });
+        localStorage.setItem(cacheKey, code);
+        return code;
+      }
+      code = base + i; // 충돌 시 접미사
+    }
+    return code;
+  } catch (e) {
+    console.warn('추천코드 생성 실패:', e);
+    return null;
+  }
+}
 
 // ══════════════════════════════
 //  STORAGE
@@ -4273,9 +4309,12 @@ document.getElementById('shareResultBtn').addEventListener('click', async () => 
   btn.textContent = '⏳';
 
   const myNickForShare = loadNickname();
-  const gameUrl = myNickForShare
-    ? `https://sbp37.github.io/oing/?ref=${encodeURIComponent(myNickForShare)}`
-    : 'https://sbp37.github.io/oing/';
+  let gameUrl = 'https://sbp37.github.io/oing/';
+  if (myNickForShare) {
+    const code = await getOrCreateRefCode(myNickForShare);
+    if (code) gameUrl = `https://sbp37.github.io/oing/?r=${code}`;
+    logShareClick(myNickForShare);
+  }
   const shareText = `오잉게임에서 ${score}점 냈다냥! 이겨보라냥 🐱`;
 
   try {
@@ -4516,6 +4555,15 @@ async function logDonateClick() {
       date: getTodayDateStr(),
     });
   } catch (e) { console.warn('후원 클릭 로그 실패:', e); }
+}
+async function logShareClick(nickname) {
+  try {
+    await addDoc(collection(db, 'share_clicks'), {
+      nickname: nickname || '익명',
+      ts: Date.now(),
+      date: getTodayDateStr(),
+    });
+  } catch (e) { console.warn('공유 클릭 로그 실패:', e); }
 }
 document.getElementById('contactBtnGame').addEventListener('click', openContactOverlay);
 document.getElementById('contactCloseBtn').addEventListener('click', closeContactOverlay);
