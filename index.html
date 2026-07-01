@@ -1395,7 +1395,7 @@ body.light .cell.cat.answer {
       <div id="resCombo2">최고 콤보 ×0</div>
     </div>
   </div>
-  <div id="scoreComment" style="text-align:center; font-size:13px; font-weight:700; color:var(--blue-light); margin:0 0 10px;"></div>
+  <div id="scoreComment" style="text-align:center; font-size:17px; font-weight:800; color:var(--blue-light); margin:0 0 10px;"></div>
   <div id="nickSection2">
     <input class="nick-input" id="nickInput" type="text" maxlength="10" placeholder="닉네임 입력 후 등록" style="margin-top:0; margin-bottom:8px;">
     <button class="action-btn" id="submitScore" style="margin-top:0; margin-bottom:8px;">🏆 점수 등록하기</button>
@@ -3411,7 +3411,7 @@ async function endGame() {
           showNewRecordPop();
         } else {
           renderRanking();
-          nickDone.textContent = getScoreComment(score);
+          nickDone.style.display = 'none';
         }
       })();
       await Promise.race([work, timeout]);
