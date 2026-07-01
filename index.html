@@ -1473,10 +1473,21 @@ body.light .cell.cat.answer {
     </div>
     <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
 
+      <!-- v2.7 -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <div style="font-size:11px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v2.7</div>
+        <span id="newBadge27" style="display:none;background:#ef4444;color:white;font-size:9px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
+      </div>
+      <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:2;margin-bottom:8px;">
+        <li>✅ 시간 게이지바 생성⏰️</li>
+        <li>✅ 랭킹 전체랑 이번주 분리!🏆</li>
+        <li>✅ 🔗카톡공유 기능 추가 - 이 점수 이겨보라냥?🐱</li>
+      </ul>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
+
       <!-- v2.6 -->
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
         <div style="font-size:11px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v2.6</div>
-        <span id="newBadge" style="display:none;background:#ef4444;color:white;font-size:9px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
       </div>
       <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:2;margin-bottom:8px;">
         <li>👑 명예의전당 카드 정리 — 알고보니 1등이랑 100% 동일인물이었음(당연함). 역대 1등 횟수는 👑×N으로 시상대·순위 목록에 계속 표시됨</li>
@@ -4387,14 +4398,14 @@ document.addEventListener('mouseup', () => {
 });
 
 // 업데이트 내역 팝업
-const UPDATE_VERSION = 'v2.6';
-const SEEN_KEY = 'seenUpdate_v2.6';
+const UPDATE_VERSION = 'v2.7';
+const SEEN_KEY = 'seenUpdate_v2.7';
 
 function openUpdateLog() {
   document.getElementById('updateLog').style.display = 'flex';
   // NEW 뱃지 숨기기 + 본 것으로 저장
   localStorage.setItem(SEEN_KEY, '1');
-  const badge = document.getElementById('newBadge');
+  const badge = document.getElementById('newBadge27');
   if (badge) badge.style.display = 'none';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'none';
@@ -4403,7 +4414,7 @@ document.getElementById('updateLogBtn').addEventListener('click', openUpdateLog)
 
 // 최초 방문 시 NEW 뱃지 표시
 if (!localStorage.getItem(SEEN_KEY)) {
-  const badge = document.getElementById('newBadge');
+  const badge = document.getElementById('newBadge27');
   if (badge) badge.style.display = 'inline';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'inline';
