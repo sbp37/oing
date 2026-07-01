@@ -3857,7 +3857,10 @@ async function renderRanking() {
   const currentRanks = {};
   list.forEach((e, i) => { currentRanks[e.nickname] = i + 1; });
   // 오늘 처음 스냅샷을 읽은 경우에만 새로 저장 (하루 동안은 같은 기준 유지)
-  if (!snapshot || snapshot.date !== getTodayDateStr()) {
+  // list가 비어있으면(로딩 오류 등) 기준을 저장하지 않음 — 잘못된 빈 기준으로 오염되는 것 방지
+  // 이미 오염된(비어있는) 기준이 저장돼 있으면 오늘 안이라도 즉시 복구
+  const snapshotIsEmpty = snapshot && Object.keys(snapshot.ranks || {}).length === 0;
+  if (list.length > 0 && (!snapshot || snapshot.date !== getTodayDateStr() || snapshotIsEmpty)) {
     saveRankSnapshot(currentRanks);
   }
 
@@ -3982,7 +3985,8 @@ async function renderWeeklyRanking() {
   const prevWeekRanks = (wSnapshot && wSnapshot.weekId === weekId) ? (wSnapshot.ranks || {}) : {};
   const currentWeekRanks = {};
   list.forEach((e, i) => { currentWeekRanks[e.nickname] = i + 1; });
-  if (!wSnapshot || wSnapshot.weekId !== weekId || wSnapshot.date !== getTodayDateStr()) {
+  const snapshotIsEmptyW = wSnapshot && wSnapshot.weekId === weekId && Object.keys(wSnapshot.ranks || {}).length === 0;
+  if (list.length > 0 && (!wSnapshot || wSnapshot.weekId !== weekId || wSnapshot.date !== getTodayDateStr() || snapshotIsEmptyW)) {
     saveWeeklyRankSnapshot(weekId, currentWeekRanks);
   }
 
