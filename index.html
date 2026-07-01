@@ -258,6 +258,26 @@ html, body {
     linear-gradient(90deg, rgba(120,170,230,0.09) 1px, transparent 1px);
   background-size: calc((100% - 6px) / 9) calc((100% - 6px) / 13);
   background-position: 3px 3px;
+  perspective: 700px;
+}
+
+/* 보드 리셋(재배치) 카드 셔플 연출 */
+.cell.reshuffle-out {
+  animation: cardShuffleOut 0.34s ease forwards;
+  pointer-events: none;
+}
+.cell.reshuffle-in {
+  animation: cardShuffleIn 0.36s ease forwards;
+}
+@keyframes cardShuffleOut {
+  0%   { transform: scale(1) rotateY(0deg); opacity: 1; }
+  45%  { transform: scale(0.88) rotateY(95deg); opacity: 0.5; }
+  100% { transform: scale(0.72) rotateY(180deg); opacity: 0; }
+}
+@keyframes cardShuffleIn {
+  0%   { transform: scale(0.72) rotateY(-180deg); opacity: 0; }
+  55%  { transform: scale(1.06) rotateY(-15deg); opacity: 1; }
+  100% { transform: scale(1) rotateY(0deg); opacity: 1; }
 }
 
 .cell {
@@ -630,6 +650,30 @@ body.light .hall-title { color: #5a3aaa; }
 .section-divider-line { flex: 1; height: 1px; background: var(--border); }
 .section-divider-text { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 2px; }
 .rank-legend { text-align: center; font-size: 10px; color: var(--muted); margin: -2px 0 8px; opacity: 0.75; }
+
+.rank-mode-toggle {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 2px 0 10px;
+}
+.rank-mode-btn {
+  padding: 6px 18px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rank-mode-btn.active {
+  background: var(--blue-bright);
+  border-color: var(--blue-bright);
+  color: white;
+  font-weight: 700;
+}
 
 /* ── 시상대 ── */
 .podium-wrap {
@@ -1226,13 +1270,19 @@ body.light .cell.cat.answer {
 
         <button id="rankRefreshBtn" title="새로고침" style="position:absolute; top:6px; right:6px; z-index:3; width:28px; height:28px; border-radius:50%; border:1px solid var(--border); background:var(--surface); color:var(--blue-light); font-size:14px; display:flex; align-items:center; justify-content:center; padding:0;">🔄</button>
 
+        <!-- 전체 랭킹 / 이번주 랭킹 토글 -->
+        <div class="rank-mode-toggle">
+          <button class="rank-mode-btn active" id="rankModeAll">전체</button>
+          <button class="rank-mode-btn" id="rankModeWeek">이번주</button>
+        </div>
+
         <!-- 현재 랭킹 구분선 -->
         <div class="section-divider">
           <div class="section-divider-line"></div>
           <div class="section-divider-text" id="rankTitleTap">현재 랭킹</div>
           <div class="section-divider-line"></div>
         </div>
-        <div class="rank-legend">👑×N 역대 1등 횟수</div>
+        <div class="rank-legend" id="rankLegendText">👑×N 역대 1등 횟수</div>
 
         <!-- 관리자 전용: 랭킹 초기화 (숨김, 타이틀 5회 탭 시 노출) -->
         <button id="adminResetBtn" style="display:none; margin:6px auto 4px; padding:6px 14px; font-size:11px; font-weight:700; color:#fca5a5; background:rgba(239,68,68,0.12); border:1px solid #ef4444; border-radius:10px;">
@@ -1554,21 +1604,98 @@ async function loadRankings() {
   }
 }
 
+// ══════════════════════════════
+//  주간 랭킹 (매주 월요일 00:00 기준으로 새 주차 시작)
+//  전체 랭킹(rankings)은 그대로 두고, weekly_rankings/{weekId}/scores 서브컬렉션에 별도 저장
+// ══════════════════════════════
+function getWeekId() {
+  const d = new Date();
+  const day = d.getDay(); // 0=일 1=월 ... 6=토
+  const diffToMonday = day === 0 ? 6 : day - 1;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - diffToMonday);
+  return `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+}
+
+// 다음 월요일 00:00까지 남은 일수 (오늘 포함 안 함, 0이면 오늘이 리셋 직전 마지막 날)
+function daysUntilNextMonday() {
+  const day = new Date().getDay();
+  return day === 0 ? 1 : (8 - day) % 7 === 0 ? 7 : (8 - day);
+}
+
+async function addWeeklyScore(nickname, newScore) {
+  const weekId = getWeekId();
+  try {
+    const docRef = doc(db, 'weekly_rankings', weekId, 'scores', nickname);
+    const snap = await getDoc(docRef);
+    const existingScore = snap.exists() ? snap.data().score : null;
+    if (existingScore === null || newScore > existingScore) {
+      await setDoc(docRef, { score: newScore, ts: Date.now() });
+    }
+  } catch (e) {
+    try {
+      const key = 'oeing_weekly_' + weekId;
+      const raw = localStorage.getItem(key);
+      const list = raw ? JSON.parse(raw) : [];
+      const idx = list.findIndex(x => x.nickname === nickname);
+      if (idx !== -1) { if (newScore > list[idx].score) { list[idx].score = newScore; } }
+      else list.push({ nickname, score: newScore });
+      list.sort((a, b) => b.score - a.score);
+      localStorage.setItem(key, JSON.stringify(list));
+    } catch {}
+  }
+}
+
+async function loadWeeklyRankings() {
+  const weekId = getWeekId();
+  try {
+    const q = query(collection(db, 'weekly_rankings', weekId, 'scores'), orderBy('score', 'desc'), limit(100));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ nickname: d.id, score: d.data().score, ts: d.data().ts }));
+  } catch (e) {
+    console.warn('주간 랭킹 로드 실패, 로컬 폴백:', e);
+    try {
+      const raw = localStorage.getItem('oeing_weekly_' + weekId);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  }
+}
+
 function getLocalDateStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-async function updateUserStats(nickname, playTimeSeconds, score) {
+function isConsecutiveDay(prevDateStr, todayStr) {
+  if (!prevDateStr) return false;
+  const prev = new Date(prevDateStr + 'T00:00:00');
+  const today = new Date(todayStr + 'T00:00:00');
+  const diffDays = Math.round((today - prev) / 86400000);
+  return diffDays === 1;
+}
+
+async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg, sessionMaxComboArg) {
   // 에러를 던져서 호출부에서 잡을 수 있게 함
   const docRef = doc(db, 'user_stats', nickname);
   const snap = await getDoc(docRef);
   const now = Date.now();
   const todayStr = getLocalDateStr();
+  const catsThisSession = sessionCatsArg || 0;
+  const comboThisSession = sessionMaxComboArg || 0;
+  let statsOut;
   if (snap.exists()) {
     const d = snap.data();
     const isSameDay = d.dailyDate === todayStr;
-    await setDoc(docRef, {
+    const prevPlayDate = d.lastPlayDate || null;
+    let streak = d.streak || 0;
+    if (prevPlayDate === todayStr) {
+      // 오늘 이미 플레이 — 스트릭 유지
+    } else if (isConsecutiveDay(prevPlayDate, todayStr)) {
+      streak = streak + 1;
+    } else {
+      streak = 1;
+    }
+    statsOut = {
       playCount: (d.playCount || 0) + 1,
       totalPlayTime: (d.totalPlayTime || 0) + playTimeSeconds,
       lastPlayed: now,
@@ -1578,9 +1705,13 @@ async function updateUserStats(nickname, playTimeSeconds, score) {
       dailyDate: todayStr,
       dailyPlayCount: isSameDay ? (d.dailyPlayCount || 0) + 1 : 1,
       dailyPlayTime: isSameDay ? (d.dailyPlayTime || 0) + playTimeSeconds : playTimeSeconds,
-    });
+      totalCats: (d.totalCats || 0) + catsThisSession,
+      bestCombo: Math.max(d.bestCombo || 0, comboThisSession),
+      lastPlayDate: todayStr,
+      streak,
+    };
   } else {
-    await setDoc(docRef, {
+    statsOut = {
       playCount: 1,
       totalPlayTime: playTimeSeconds,
       lastPlayed: now,
@@ -1590,9 +1721,35 @@ async function updateUserStats(nickname, playTimeSeconds, score) {
       dailyDate: todayStr,
       dailyPlayCount: 1,
       dailyPlayTime: playTimeSeconds,
-    });
+      totalCats: catsThisSession,
+      bestCombo: comboThisSession,
+      lastPlayDate: todayStr,
+      streak: 1,
+    };
   }
-  return true;
+  await setDoc(docRef, statsOut);
+  try { localStorage.setItem('oeing_local_stats_' + nickname, JSON.stringify(statsOut)); } catch {}
+  return { stats: statsOut, prev: snap.exists() ? snap.data() : null };
+}
+
+// ══════════════════════════════
+//  개인 최고 콤보 경신 알림
+// ══════════════════════════════
+function showComboRecordPop(newBest) {
+  const pop = document.createElement('div');
+  pop.style.cssText = `
+    position:fixed; top:32%; left:50%;
+    transform:translate(-50%,-50%);
+    font-size:16px; font-weight:900; color:#fff; text-align:center; line-height:1.6;
+    background:linear-gradient(135deg,#ea580c,#f97316);
+    padding:16px 26px; border-radius:18px;
+    box-shadow:0 0 30px rgba(249,115,22,0.7);
+    pointer-events:none; z-index:320; white-space:nowrap;
+    animation:recordpop 2.4s ease forwards;
+  `;
+  pop.innerHTML = `🔥 최고 콤보 경신!<br><span style="font-size:24px;">×${newBest}</span>`;
+  document.body.appendChild(pop);
+  setTimeout(() => pop.remove(), 2400);
 }
 
 async function addScore(nickname, newScore) {
@@ -1903,12 +2060,13 @@ const HINT_RATIO  = 0.018;
 const MAX_COMBO = 7;
 
 let board = [], score = 0, combo = 0, maxCombo = 0;
-let clearCount = 0, catBonus = 0, resetCount = 0;
+let clearCount = 0, catBonus = 0, resetCount = 0, sessionCats = 0;
 let timeLeft = 120, timerInterval = null, gameRunning = false;
 let gameStartTime = 0;
 let gameEndTime = 0; // Date.now 기반 종료 시각
 let sel1 = null;
 let hintUsed = false; // 판당 힌트 사용 여부
+let bonusHintGiven = false; // 퍼펙트 클리어 임박 보너스 힌트, 판당 1회만
 
 const gridEl    = document.getElementById('grid');
 const scoreDisp = document.getElementById('scoreDisp');
@@ -2118,6 +2276,7 @@ function makeBoard() {
   });
 
   hintUsed = false;
+  bonusHintGiven = false;
 }
 
 function renderGrid() {
@@ -2149,6 +2308,43 @@ function renderGrid() {
     }
   }
   applyHighlights();
+
+  // 퍼펙트 클리어 임박(남은 칸 5개 이하) 시, 힌트를 이미 썼다면 1회 한정 보너스 힌트 지급
+  if (gameRunning && hintUsed && !bonusHintGiven) {
+    const remaining = countRemainingCells();
+    if (remaining > 0 && remaining <= 5) {
+      bonusHintGiven = true;
+      hintUsed = false;
+      updateHintBtn();
+      updateHintBtn2();
+      showBonusHintPop();
+    }
+  }
+}
+
+function countRemainingCells() {
+  let n = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (!board[r][c].empty) n++;
+  return n;
+}
+
+function showBonusHintPop() {
+  const pop = document.createElement('div');
+  pop.style.cssText = `
+    position:fixed; top:26%; left:50%;
+    transform:translate(-50%,-50%);
+    font-size:14px; font-weight:900; color:#fff; text-align:center; line-height:1.5;
+    background:linear-gradient(135deg,#16a34a,#22c55e);
+    padding:12px 20px; border-radius:16px;
+    box-shadow:0 0 24px rgba(34,197,94,0.6);
+    pointer-events:none; z-index:320; white-space:nowrap;
+    animation:recordpop 2s ease forwards;
+  `;
+  pop.innerHTML = `🎉 퍼펙트 클리어 임박!<br><span style="font-size:13px;">💡 보너스 힌트 1개 지급</span>`;
+  document.body.appendChild(pop);
+  setTimeout(() => pop.remove(), 2000);
 }
 
 function cellEl(r, c) { return gridEl.children[r * COLS + c]; }
@@ -2187,6 +2383,7 @@ function onCellTap(e) {
         targets.slice(0,6).forEach(({rr,cc}) => {
           const bd = board[rr][cc];
           if (bd.cat) bombScore += 5;
+          if (bd.cat) sessionCats++;
           else if (!bd.bomb && !bd.clock && !bd.hint && !bd.megabomb && !bd.freeze && !bd.lucky) bombScore += bd.num;
           board[rr][cc].empty = true;
           const el2 = cellEl(rr,cc);
@@ -2200,7 +2397,7 @@ function onCellTap(e) {
         if (bombScore > 0) { score += bombScore; updateStats(); showScorePop(r, c, '+' + bombScore + ' 💣', false, 'bomb'); }
         updateComboUI(combo % 7 === 0);
         if (combo % 7 === 0) spawnRandomItem();
-        setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350); }, 380);
+        setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350); }, 380);
       }, 150);
     }
 
@@ -2216,6 +2413,7 @@ function onCellTap(e) {
         targets.slice(0,12).forEach(({rr,cc}) => {
           const bd = board[rr][cc];
           if (bd.cat) bombScore += 5;
+          if (bd.cat) sessionCats++;
           else if (!bd.bomb && !bd.clock && !bd.hint && !bd.megabomb && !bd.freeze && !bd.lucky) bombScore += bd.num;
           board[rr][cc].empty = true;
           const el2 = cellEl(rr,cc);
@@ -2231,7 +2429,7 @@ function onCellTap(e) {
         showScorePop(r, c, '+' + bombScore + ' 💥', false, 'megabomb');
         updateComboUI(combo % 7 === 0);
         if (combo % 7 === 0) spawnRandomItem();
-        setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350); }, 380);
+        setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350); }, 380);
       }, 150);
     }
 
@@ -2241,12 +2439,12 @@ function onCellTap(e) {
       gameEndTime += 8000;
       updateTimer();
       showItemPop(r, c, '⏰ +8초!', 'clock');
-      setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350); }, 380);
+      setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350); }, 380);
     }
 
     if (d.freeze) {
       activateFreeze(15);
-      setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350); }, 380);
+      setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350); }, 380);
     }
 
     if (d.lucky) {
@@ -2264,7 +2462,7 @@ function onCellTap(e) {
               if (el2) el2.classList.remove('answer');
             }
         }, 1600);
-        if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350);
+        if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350);
       }, 380);
     }
 
@@ -2329,7 +2527,7 @@ function tryRemove(sel2) {
 
   if (!valid) {
     highlightRange(rMin, rMax, cMin, cMax, 'err');
-    combo = 0; updateComboUI();
+    combo = Math.floor(combo / 2); updateComboUI();
     setTimeout(() => { sel1 = null; applyHighlights(); }, 290);
     return;
   }
@@ -2347,6 +2545,7 @@ function tryRemove(sel2) {
 
   const totalCells = cells.length + catCells;
   const cBonus = catCells * 5;
+  sessionCats += catCells;
   const gained = (totalCells + cBonus) * combo;
   score += gained; clearCount++; catBonus += cBonus;
 
@@ -2415,6 +2614,7 @@ function tryRemove(sel2) {
       toExplode.forEach(({r,c}) => {
         const bd = board[r][c];
         if (bd.cat) bombScore += 5;
+        if (bd.cat) sessionCats++;
         else if (bd.num && !bd.bomb && !bd.clock && !bd.hint) bombScore += (bd.num || 0);
         board[r][c].empty = true;
         const el = cellEl(r,c);
@@ -2453,7 +2653,7 @@ function tryRemove(sel2) {
             if (el) el.classList.remove('answer');
           }
       }, 1600);
-      if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350);
+      if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350);
     }, 380);
   }
 
@@ -2469,6 +2669,7 @@ function tryRemove(sel2) {
       targets.slice(0,12).forEach(({r,c}) => {
         const bd = board[r][c];
         if (bd.cat) bombScore += 5;
+        if (bd.cat) sessionCats++;
         else if (!bd.bomb && !bd.clock && !bd.hint && !bd.megabomb && !bd.freeze && !bd.lucky) bombScore += bd.num;
         board[r][c].empty = true;
         const el = cellEl(r,c);
@@ -2481,7 +2682,7 @@ function tryRemove(sel2) {
       combo++; if (combo > maxCombo) maxCombo = combo;
       updateComboUI(combo % 7 === 0);
       if (combo % 7 === 0) spawnRandomItem();
-      setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350); }, 380);
+      setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350); }, 380);
     }, 150);
   }
 
@@ -2503,7 +2704,7 @@ function tryRemove(sel2) {
             if (el) el.classList.remove('answer');
           }
       }, 1600);
-      if (!hasValidMove()) setTimeout(() => { resetCount++; makeBoard(); renderGrid(); updateHintBtn(); updateHintBtn2(); }, 350);
+      if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350);
     }, 380);
   }
 
@@ -2520,6 +2721,7 @@ function tryRemove(sel2) {
       renderGrid();
       updateHintBtn();
       updateHintBtn2();
+      playReshuffleIn();
       // 판 갈이 보너스 +15초
       timeLeft = Math.min(timeLeft + 15, 999);
       gameEndTime += 15000;
@@ -2669,6 +2871,41 @@ function spawnRandomItem() {
   board[r][c] = { num:1, cat:false, bomb:false, clock:false, hint:false,
                   megabomb:false, freeze:false, lucky:false, empty:false };
   board[r][c][pick] = true;
+}
+
+// 판이 막혔을 때(더 이상 만들 수 있는 합이 없을 때) 보드를 새로 섞는 연출
+// 대각선(r+c) 순서로 살짝씩 딜레이를 줘서 카드가 웨이브처럼 뒤집히며 사라졌다가
+// 새 숫자로 다시 뒤집히며 등장하는 느낌을 준다.
+function playReshuffleIn() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c].empty) continue;
+      const el = cellEl(r, c);
+      if (!el) continue;
+      el.style.animationDelay = ((r + c) * 5 + Math.random() * 30) + 'ms';
+      el.classList.add('reshuffle-in');
+    }
+  }
+}
+
+function triggerBoardReset() {
+  resetCount++;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c].empty) continue;
+      const el = cellEl(r, c);
+      if (!el) continue;
+      el.style.animationDelay = ((r + c) * 5 + Math.random() * 30) + 'ms';
+      el.classList.add('reshuffle-out');
+    }
+  }
+  setTimeout(() => {
+    makeBoard();
+    renderGrid();
+    updateHintBtn();
+    updateHintBtn2();
+    playReshuffleIn();
+  }, 420);
 }
 
 function hasValidMove() {
@@ -2907,9 +3144,10 @@ function startGame() {
   gameEnding = false;
 
   score = 0; combo = 0; maxCombo = 0;
-  clearCount = 0; catBonus = 0; resetCount = 0;
+  clearCount = 0; catBonus = 0; resetCount = 0; sessionCats = 0;
   timeLeft = 120; sel1 = null; gameRunning = false;
   hintUsed = false;
+  bonusHintGiven = false;
   stopComboDecay();
 
   board = []; // 새 게임 시작 — 직전 게임의 안 쓴 아이템이 이어지지 않도록 초기화
@@ -3096,12 +3334,13 @@ async function endGame() {
         const isNewRecord = !prevBest || score > prevBest.score;
 
         await addScore(savedNick, score);
-
-        // 통계 저장 (실패해도 결과 표시)
+        addWeeklyScore(savedNick, score);
         let statsMsg = '';
         try {
-          await updateUserStats(savedNick, playTimeSeconds, score);
+          const { stats, prev } = await updateUserStats(savedNick, playTimeSeconds, score, sessionCats, maxCombo);
           statsMsg = ' 📊✓';
+          const prevBestCombo = prev ? (prev.bestCombo || 0) : 0;
+          if (maxCombo > prevBestCombo && maxCombo > 0) showComboRecordPop(maxCombo);
         } catch (se) {
           statsMsg = ' 📊✗';
         }
@@ -3358,12 +3597,15 @@ document.getElementById('submitScore').addEventListener('click', async () => {
   let statsMsg = '';
   try {
     await addScore(nick, score);
+    addWeeklyScore(nick, score);
   } catch (e) {
     statsMsg += ' (점수저장 실패)';
   }
   try {
-    await updateUserStats(nick, playTimeSeconds, score);
+    const { stats, prev } = await updateUserStats(nick, playTimeSeconds, score, sessionCats, maxCombo);
     statsMsg += ' 📊✓';
+    const prevBestCombo2 = prev ? (prev.bestCombo || 0) : 0;
+    if (maxCombo > prevBestCombo2 && maxCombo > 0) showComboRecordPop(maxCombo);
   } catch (e) {
     statsMsg += ' 📊✗';
   }
@@ -3455,7 +3697,10 @@ function rankChangeHtml(prevRank, currentRank, podium) {
   return `<span class="${cls} down">▼${Math.abs(diff)}</span>`;
 }
 
+let currentRankMode = 'all'; // 'all' | 'week'
+
 async function renderRanking() {
+  if (currentRankMode === 'week') { await renderWeeklyRanking(); return; }
   const list = await loadRankings();
   const myNick = loadNickname();
   // 방금 점수 등록한 닉네임 + 그 직전 순위 (시상대/목록 공통 사용)
@@ -3588,6 +3833,84 @@ async function renderRanking() {
   }
 }
 
+// 이번 주 랭킹 — 전체 랭킹과 같은 DOM(시상대/목록/내순위)을 재사용하되
+// 명예의전당 👑 / 순위변동 화살표 없이 간단하게 표시
+async function renderWeeklyRanking() {
+  const list = await loadWeeklyRankings();
+  const myNick = loadNickname();
+  const justUpdated = sessionStorage.getItem('oeing_just_updated');
+
+  const podium = document.getElementById('podiumWrap');
+  const podiumFloor = document.getElementById('podiumFloor');
+  const displayOrder = [list[1], list[0], list[2]];
+  const podiumDefs = [
+    { cls: 'rank2', trophy: '🥈', num: '2', floorCls: 'pf pf-silver', badge: '🥈 2nd' },
+    { cls: 'rank1', trophy: '🥇', num: '1', floorCls: 'pf pf-gold',   badge: '🏆 1st' },
+    { cls: 'rank3', trophy: '🥉', num: '3', floorCls: 'pf pf-bronze', badge: '🥉 3rd' },
+  ];
+  podium.innerHTML = '';
+  podiumFloor.innerHTML = '';
+  podiumDefs.forEach((p, i) => {
+    const entry = displayOrder[i];
+    const isMe = entry && myNick && entry.nickname === myNick;
+    const div = document.createElement('div');
+    div.className = `podium-item ${p.cls}${entry ? '' : ' podium-empty'}`;
+    div.innerHTML = `
+      <div class="podium-trophy">${p.trophy}</div>
+      ${entry ? `<div class="podium-rank-badge">${p.badge}</div>` : ''}
+      <div class="podium-nick"><span class="podium-nick-text">${entry ? (isMe ? '👤 ' : '') + entry.nickname : '—'}</span></div>
+      <div class="podium-score">${entry ? entry.score + 'pt' : ''}</div>
+      <div class="podium-base">${p.num}</div>
+    `;
+    podium.appendChild(div);
+    const fl = document.createElement('div');
+    fl.className = p.floorCls;
+    podiumFloor.appendChild(fl);
+  });
+
+  const rankList = document.getElementById('rankList');
+  const rankEmpty = document.getElementById('rankEmpty');
+  rankList.innerHTML = '';
+
+  if (list.length === 0) {
+    rankEmpty.style.display = 'block';
+    rankEmpty.innerHTML = '이번 주엔 아직 기록이 없어요<br>🐾 첫 번째 도전자가 되어보세요!';
+  } else {
+    rankEmpty.style.display = 'none';
+    list.slice(3).forEach((entry, i) => {
+      const rank = i + 4;
+      const isMe = myNick && entry.nickname === myNick;
+      const isNew = justUpdated && entry.nickname === justUpdated;
+      const isTop10 = rank <= 10;
+      const row = document.createElement('div');
+      row.className = 'rank-row' + (isMe ? ' me' : '') + (isTop10 ? ' top10' : '');
+      row.innerHTML = `
+        <span class="rank-num">${rank}</span>
+        <span class="rank-nick">${isMe ? '👤 ' : ''}${entry.nickname}</span>
+        ${isTop10 ? '<span class="rank-badge rank-badge-top10">🔥 탑10</span>' : ''}
+        ${isMe ? '<span class="rank-me-badge">나</span>' : ''}
+        ${isNew ? '<span class="rank-new-badge">NEW</span>' : ''}
+        <span class="rank-pts">${entry.score}pt</span>
+      `;
+      rankList.appendChild(row);
+    });
+  }
+
+  const myRankInfo = document.getElementById('myRankInfo');
+  const dLeft = daysUntilNextMonday();
+  const resetLabel = dLeft <= 1 ? '내일 자정 초기화' : `${dLeft}일 후 초기화`;
+  if (myNick) {
+    const myIdx = list.findIndex(e => e.nickname === myNick);
+    if (myIdx !== -1) {
+      myRankInfo.innerHTML = `<strong>이번 주 내 순위: ${myIdx + 1}위 · ${list[myIdx].score}pt</strong><br><span style="font-size:11px; color:var(--muted);">🗓️ ${resetLabel} (매주 월요일)</span>`;
+    } else {
+      myRankInfo.innerHTML = `닉네임: <strong>${myNick}</strong> · 이번 주 기록 없음<br><span style="font-size:11px; color:var(--muted);">🗓️ ${resetLabel} (매주 월요일)</span>`;
+    }
+  } else {
+    myRankInfo.innerHTML = `게임 후 닉네임을 등록하면 순위에 표시돼요<br><span style="font-size:11px; color:var(--muted);">🗓️ ${resetLabel} (매주 월요일)</span>`;
+  }
+}
+
 // 탭 전환
 function clearAnswerHighlights() {
   for (let r = 0; r < ROWS; r++)
@@ -3664,6 +3987,26 @@ document.getElementById('tabGame').addEventListener('click', () => {
   }
 });
 document.getElementById('tabRank').addEventListener('click', () => switchTab('rank'));
+
+// 전체 / 이번주 랭킹 토글
+document.getElementById('rankModeAll').addEventListener('click', () => {
+  if (currentRankMode === 'all') return;
+  currentRankMode = 'all';
+  document.getElementById('rankModeAll').classList.add('active');
+  document.getElementById('rankModeWeek').classList.remove('active');
+  document.getElementById('rankTitleTap').textContent = '현재 랭킹';
+  document.getElementById('rankLegendText').textContent = '👑×N 역대 1등 횟수';
+  renderRanking();
+});
+document.getElementById('rankModeWeek').addEventListener('click', () => {
+  if (currentRankMode === 'week') return;
+  currentRankMode = 'week';
+  document.getElementById('rankModeWeek').classList.add('active');
+  document.getElementById('rankModeAll').classList.remove('active');
+  document.getElementById('rankTitleTap').textContent = '이번 주 랭킹';
+  document.getElementById('rankLegendText').textContent = '매주 월요일 0시에 새로 시작해요';
+  renderRanking();
+});
 document.getElementById('themeBtn').addEventListener('click', toggleTheme);
 // restartBtn 제거됨
 document.getElementById('bottomRestartBtn').addEventListener('click', () => {
@@ -3759,6 +4102,7 @@ document.getElementById('nickChangeBtn').addEventListener('click', async () => {
   try {
     const currentScore = score || 0;
     await addScore(nick, currentScore);
+    addWeeklyScore(nick, currentScore);
   } catch (e) {}
 
   btn.disabled = false;
