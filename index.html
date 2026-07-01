@@ -1645,6 +1645,41 @@ const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 
 // ══════════════════════════════
+//  유입경로 캡처 — 공유링크(?ref=닉네임) + 브라우저 리퍼러
+// ══════════════════════════════
+function classifyReferrerSrc(ref) {
+  if (!ref) return '직접접속/앱설치';
+  try {
+    const host = new URL(ref).hostname.toLowerCase();
+    if (host.includes('kakao')) return '카카오톡';
+    if (host.includes('google')) return '구글';
+    if (host.includes('naver')) return '네이버';
+    if (host.includes('instagram')) return '인스타그램';
+    if (host.includes('facebook') || host.includes('fb.com')) return '페이스북';
+    if (host.includes('band.us')) return '밴드';
+    return host;
+  } catch { return '직접접속/앱설치'; }
+}
+(function captureAcquisition() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const refBy = params.get('ref');
+    if (refBy && !sessionStorage.getItem('oeing_refby_captured')) {
+      sessionStorage.setItem('oeing_ref_by', refBy);
+      sessionStorage.setItem('oeing_refby_captured', '1');
+    }
+    if (!sessionStorage.getItem('oeing_referrer_src')) {
+      sessionStorage.setItem('oeing_referrer_src', classifyReferrerSrc(document.referrer));
+    }
+    // 링크 깔끔하게 — 주소창에 ?ref= 남지 않게
+    if (refBy) {
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+    }
+  } catch {}
+})();
+
+// ══════════════════════════════
 //  STORAGE
 // ══════════════════════════════
 const NICK_KEY = 'oeing_nickname_v1';
@@ -1770,6 +1805,8 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
       bestCombo: Math.max(d.bestCombo || 0, comboThisSession),
       lastPlayDate: todayStr,
       streak,
+      referrerSrc: d.referrerSrc || '알수없음',
+      refBy: d.refBy || '',
     };
   } else {
     statsOut = {
@@ -1786,6 +1823,8 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
       bestCombo: comboThisSession,
       lastPlayDate: todayStr,
       streak: 1,
+      referrerSrc: sessionStorage.getItem('oeing_referrer_src') || '알수없음',
+      refBy: sessionStorage.getItem('oeing_ref_by') || '',
     };
   }
   await setDoc(docRef, statsOut);
@@ -4233,7 +4272,10 @@ document.getElementById('shareResultBtn').addEventListener('click', async () => 
   btn.disabled = true;
   btn.textContent = '⏳';
 
-  const gameUrl = 'https://sbp37.github.io/oing/';
+  const myNickForShare = loadNickname();
+  const gameUrl = myNickForShare
+    ? `https://sbp37.github.io/oing/?ref=${encodeURIComponent(myNickForShare)}`
+    : 'https://sbp37.github.io/oing/';
   const shareText = `오잉게임에서 ${score}점 냈다냥! 이겨보라냥 🐱`;
 
   try {
