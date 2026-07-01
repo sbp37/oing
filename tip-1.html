@@ -36,7 +36,7 @@
 
   .deck { flex: 1; position: relative; overflow: hidden; padding-top: 10px; min-height: 0; }
   .track { display: flex; height: 100%; transition: transform 0.32s cubic-bezier(.22,.61,.36,1); }
-  .card-slide { flex: 0 0 100%; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 20px 20px; }
+  .card-slide { flex: 0 0 100%; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 20px 20px; touch-action: pan-y; }
   .card { width: 100%; background: #0d1d35; border: 1px solid #1e3258; border-radius: 18px; padding: 26px 20px; }
   .card-emoji { font-size: 38px; text-align: center; margin-bottom: 12px; }
   .mini-diagram { display: flex; justify-content: center; margin-bottom: 16px; }
@@ -150,7 +150,7 @@
 
 <div class="top-bar">
   <button class="back-btn" id="backBtn">← 돌아가기</button>
-  <span class="page-count" id="pageCount">1 / 6</span>
+  <span class="page-count" id="pageCount">1 / 5</span>
 </div>
 
 <div class="game-title">오잉게임</div>
@@ -233,24 +233,7 @@
       </div>
     </div>
 
-    <!-- 4. 고양이 -->
-    <div class="card-slide">
-      <div class="card">
-        <div class="card-emoji">🐱</div>
-        <div class="card-title">콤보 높을 때<br>고양이를 포함해서 지우세요</div>
-        <div class="card-body">고양이 셀을 조합에 포함하면 <b>칸당 +5점 보너스</b>가 붙고, 이 보너스엔 콤보 배수가 적용돼요.</div>
-        <div style="display:flex; align-items:center; justify-content:center; gap:14px; margin:18px 0;">
-          <div class="ex-cell picked" style="font-size:22px;">🐱</div>
-          <span style="font-size:20px; color:#5a80b0; font-weight:800;">+5</span>
-        </div>
-        <div class="badge-row">
-          <span class="score-badge">콤보 30일 때 5×30 = +150점</span>
-        </div>
-        <div class="card-note">🐾 한 판(보드 한 장)에 고양이는 <b>7마리</b> 있어요. 콤보가 높을 때 지날 때까지 아껴뒀다 지우면 이득이에요.</div>
-      </div>
-    </div>
-
-    <!-- 5. WOW 보너스 -->
+    <!-- 4. WOW 보너스 -->
     <div class="card-slide">
       <div class="card">
         <div class="example" style="margin-bottom:14px;">
@@ -270,7 +253,7 @@
       </div>
     </div>
 
-    <!-- 6. 보드 클리어 -->
+    <!-- 5. 보드 클리어 -->
     <div class="card-slide">
       <div class="card">
         <div class="card-emoji">🏅</div>
