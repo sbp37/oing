@@ -1597,6 +1597,7 @@ body.light .cell.cat.answer {
     </div>
   </div>
   <div id="scoreComment" style="text-align:center; font-size:19px; font-weight:900; color:var(--blue-light); margin:2px 0 12px;"></div>
+  <div id="beatMsg" style="display:none; text-align:center; font-size:14px; font-weight:800; color:#fbbf24; margin:-6px 0 12px;"></div>
   <div id="nickSection2">
     <input class="nick-input" id="nickInput" type="text" maxlength="10" placeholder="닉네임 입력 후 등록" style="margin-top:0; margin-bottom:8px;">
     <button class="action-btn" id="submitScore" style="margin-top:0; margin-bottom:8px;">🏆 점수 등록하기</button>
@@ -3521,6 +3522,8 @@ function startGame() {
   document.getElementById('resultPanel').style.display = 'none';
   const bestCompareEl0 = document.getElementById('bestCompare');
   if (bestCompareEl0) bestCompareEl0.textContent = '';
+  const beatMsgEl0 = document.getElementById('beatMsg');
+  if (beatMsgEl0) { beatMsgEl0.style.display = 'none'; beatMsgEl0.textContent = ''; }
 
   for (let r = 0; r < ROWS; r++)
     for (let c = 0; c < COLS; c++) {
@@ -3678,6 +3681,8 @@ async function endGame() {
   document.getElementById('resCombo2').textContent = `최고 콤보 ×${maxCombo}`;
   document.getElementById('scoreComment').textContent = getScoreComment(score);
   document.getElementById('bestCompare').textContent = '';
+  const beatMsgEl1 = document.getElementById('beatMsg');
+  if (beatMsgEl1) { beatMsgEl1.style.display = 'none'; beatMsgEl1.textContent = ''; }
 
   // resultPanel은 Firebase 결과와 무관하게 무조건 600ms 후 표시
   setTimeout(() => {
@@ -3715,6 +3720,30 @@ async function endGame() {
             bestCompareEl.textContent = `최고 기록의 ${pct}%`;
             bestCompareEl.style.color = 'var(--muted)';
           }
+        }
+
+        // 순위 추월 감지 — 전체 랭킹에서 방금 넘어선 사람이 있으면 "OO님을 이겼다냥!" 표시
+        if (isNewRecord && score > 0 && prevBest) {
+          try {
+            const prevRank = prevList.findIndex(e => e.nickname === savedNick);
+            if (prevRank > 0) {
+              const newList = prevList
+                .filter(e => e.nickname !== savedNick)
+                .concat([{ nickname: savedNick, score }])
+                .sort((a, b) => b.score - a.score);
+              const newRank = newList.findIndex(e => e.nickname === savedNick);
+              if (newRank < prevRank) {
+                const beaten = prevList[newRank];
+                if (beaten && beaten.nickname !== savedNick) {
+                  const beatMsgEl = document.getElementById('beatMsg');
+                  if (beatMsgEl) {
+                    beatMsgEl.textContent = `🔥 ${beaten.nickname}님을 이겼다냥! (${newRank + 1}위 등극)`;
+                    beatMsgEl.style.display = 'block';
+                  }
+                }
+              }
+            }
+          } catch (be) { console.warn('순위 추월 감지 실패:', be); }
         }
 
         await addScore(savedNick, score);
