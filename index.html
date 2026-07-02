@@ -496,6 +496,10 @@ body.light .cell.empty {
 }
 /* 시작화면 overlay는 일반 overlay와 동일 (fixed, top:0) */
 /* 탭바가 DOM 뒤에 있어서 같은 z-index라도 항상 탭바가 위에 렌더 */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 .overlay-card {
   background: var(--surface);
   border: 1px solid var(--border2);
@@ -1248,21 +1252,32 @@ body.light .cell.cat.answer {
             <div class="overlay-card">
               <div class="overlay-title">오잉게임 v2 🐱</div>
               <div class="overlay-sub">합이 10이 되면 제거!</div>
-              <ul class="overlay-rules">
+
+              <button id="howToBtn" style="
+                display:flex; align-items:center; justify-content:center; gap:4px;
+                width:100%; background:none; border:none;
+                color:var(--blue-light); font-family:inherit; font-size:13px; font-weight:700;
+                padding:6px 0 2px; cursor:pointer; text-decoration:underline;
+                text-underline-offset:2px;
+              ">📖 게임방법 <span id="howToArrow" style="font-size:10px; transition:transform 0.2s;">▼</span></button>
+
+              <ul class="overlay-rules" id="howToRules" style="display:none;">
                 <li><div class="rule-num">1</div>두 셀을 탭해 직사각형 영역 선택 <span style="color:var(--muted);font-size:11px;">(빈칸 포함)</span></li>
                 <li><div class="rule-num">2</div>선택한 숫자 합이 <strong>딱 10</strong>이면 클리어!</li>
                 <li><div class="rule-num">3</div>🐱 고양이 포함해서 지우면 +5 보너스</li>
                 <li><div class="rule-num">4</div>🐾 연속 클리어 → 콤보 UP · ×7마다 아이템 생성!</li>
                 <li><div class="rule-num">5</div>⚡️ 5개 이상 동시 클리어 → WOW! 점수 보너스</li>
               </ul>
-              <div style="display:flex; align-items:center; justify-content:center; gap:6px; margin:8px 0 10px; flex-wrap:nowrap;">
+              <button id="tipBtn" style="
+                display:none;
+                background:none; border:none;
+                color:var(--muted); font-family:inherit; font-size:11px; font-weight:700;
+                padding:0 0 8px; cursor:pointer; text-decoration:underline;
+                text-underline-offset:2px;
+              " data-shown-with-rules="1">💡 추가팁 보기</button>
+
+              <div style="text-align:center; margin:8px 0 14px;">
                 <span style="font-size:13px; font-weight:900; color:var(--blue-bright); white-space:nowrap;">⏱ 2분 안에 최고 점수 도전!</span>
-                <button id="tipBtn" style="
-                  background:none; border:none;
-                  color:var(--muted); font-family:inherit; font-size:11px; font-weight:700;
-                  padding:0; cursor:pointer; text-decoration:underline;
-                  text-underline-offset:2px; white-space:nowrap; flex-shrink:0;
-                ">💡추가Tip</button>
               </div>
               <button class="action-btn" id="startBtn">🎮 게임 시작</button>
               <button class="action-btn" id="startRankBtn" style="
@@ -3841,6 +3856,15 @@ document.getElementById('submitScore').addEventListener('click', async () => {
 });
 
 document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('howToBtn').addEventListener('click', () => {
+  const rules = document.getElementById('howToRules');
+  const tip = document.getElementById('tipBtn');
+  const arrow = document.getElementById('howToArrow');
+  const isOpen = rules.style.display !== 'none';
+  rules.style.display = isOpen ? 'none' : 'block';
+  tip.style.display = isOpen ? 'none' : 'block';
+  arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+});
 document.getElementById('tipBtn').addEventListener('click', () => {
   window.location.href = 'tip-1.html';
 });
