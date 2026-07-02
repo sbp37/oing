@@ -542,6 +542,98 @@ html {
   border: 1px solid var(--border);
   margin-top: 6px;
 }
+#tutorialStartBtn.tutorial-glow {
+  animation: tutorialPulse 2s ease-in-out infinite;
+}
+@keyframes tutorialPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,0.45); }
+  50% { box-shadow: 0 0 0 6px rgba(251,191,36,0); }
+}
+
+/* ── 튜토리얼 모드 ── */
+#tutorialOverlay { z-index: 110; }
+.tut-card {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 18px; padding: 16px; width: 100%; max-width: 380px;
+  max-height: 92vh; overflow-y: auto; text-align: center;
+  animation: tutCardIn 0.35s cubic-bezier(0.2,0.8,0.3,1.1);
+}
+@keyframes tutCardIn {
+  0% { opacity: 0; transform: scale(0.88) translateY(14px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes tutIntroBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-8px) scale(1.06); }
+}
+#tutMainContent.tut-fade-in { animation: tutFadeIn 0.4s ease; }
+@keyframes tutFadeIn {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.tut-banner {
+  background: linear-gradient(135deg, #1e3a5f, #16283f);
+  border: 1px solid var(--blue-bright);
+  border-radius: 12px; padding: 12px 14px; margin-bottom: 10px;
+  font-size: 14px; font-weight: 800; color: var(--blue-light);
+  line-height: 1.4; min-height: 44px; display:flex; align-items:center; justify-content:center;
+  position: relative;
+}
+.tut-banner.success { border-color: #22c55e; color: #4ade80; background: linear-gradient(135deg, #0a2f1a, #16283f); }
+.tut-banner-text { animation: tutBannerIn 0.25s ease; }
+@keyframes tutBannerIn {
+  0% { opacity: 0; transform: translateY(-4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.tut-gauge-wrap { margin-bottom: 12px; }
+.tut-gauge-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-align: left; }
+.tut-gauge-bg { width:100%; height:10px; background: var(--surface2); border-radius:6px; overflow:hidden; border: 1px solid var(--border2); }
+.tut-gauge-fill { height:100%; width:0%; background: linear-gradient(90deg, #fbbf24, #f59e0b); border-radius:6px; transition: width 0.45s ease; }
+.tut-stats { display:flex; justify-content:center; gap:16px; margin-bottom:10px; font-size:12px; color: var(--muted); }
+.tut-stats b { color: var(--blue-bright); font-size: 16px; }
+.tut-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr);
+  gap: 4px; border-radius: 10px; padding: 4px;
+  background-color: #1e3a5f;
+  background-image:
+    linear-gradient(rgba(120,170,230,0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120,170,230,0.12) 1px, transparent 1px);
+  background-size: calc((100% - 8px) / 5) calc((100% - 8px) / 5);
+  background-position: 4px 4px;
+  aspect-ratio: 1; margin-bottom: 12px; position: relative;
+}
+.tut-grid .cell { font-size: clamp(13px, 4vw, 19px); transition: opacity 0.25s ease, transform 0.2s ease, background 0.15s ease, border-color 0.15s ease; }
+.tut-grid .cell.empty {
+  background: rgba(255,255,255,0.03);
+  border: 1.5px dashed rgba(120,170,230,0.35);
+}
+body.light .tut-grid .cell.empty {
+  background: rgba(59,130,246,0.04);
+  border: 1.5px dashed rgba(59,130,246,0.3);
+}
+.tut-grid .cell.tut-dim { opacity: 0.28; pointer-events: none; filter: grayscale(0.3); }
+.tut-grid .cell.tut-inzone { opacity: 0.9; pointer-events: none; border-color: rgba(251,191,36,0.4); background: rgba(251,191,36,0.06); }
+.tut-grid .cell.tut-hint-flash { animation: tutTargetBlink 0.5s ease-in-out 3; }
+.tut-grid .cell.tut-target {
+  animation: tutTargetBlink 0.9s ease-in-out infinite;
+  z-index: 2;
+}
+@keyframes tutTargetBlink {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,0.7); border-color: #fbbf24; transform: scale(1); }
+  50% { box-shadow: 0 0 0 6px rgba(251,191,36,0); border-color: #fde68a; transform: scale(1.06); }
+}
+.tut-confetti {
+  position: absolute; inset: 0; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; z-index: 5;
+}
+.tut-confetti span {
+  position: absolute; animation: tutConfettiPop 0.9s ease forwards;
+}
+@keyframes tutConfettiPop {
+  0% { transform: translate(0,0) scale(0.4) rotate(0deg); opacity: 1; }
+  100% { transform: var(--tc-end) scale(1.1) rotate(var(--tc-rot)); opacity: 0; }
+}
 
 /* 결과 오버레이 */
 .result-score {
@@ -1258,7 +1350,7 @@ body.light .cell.cat.answer {
                       padding:16px 20px; overflow-y:auto;">
             <div class="overlay-card">
               <div class="overlay-title">오잉게임 v2 🐱</div>
-              <div class="overlay-sub">합이 10이 되면 제거!</div>
+              <div class="overlay-sub">합이 10이 되면 제거! · ⏱ 2분 안에 최고점수 도전!</div>
 
               <button id="howToBtn" style="
                 display:flex; align-items:center; justify-content:center; gap:4px;
@@ -1276,16 +1368,22 @@ body.light .cell.cat.answer {
                 <li><div class="rule-num">5</div>⚡️ 5개 이상 동시 클리어 → WOW! 점수 보너스</li>
               </ul>
               <button id="tipBtn" style="
-                display:none;
-                background:none; border:none;
-                color:var(--muted); font-family:inherit; font-size:11px; font-weight:700;
-                padding:0 0 8px; cursor:pointer; text-decoration:underline;
+                display:none; align-items:center; justify-content:center;
+                width:100%; background:none; border:none;
+                color:var(--blue-light); font-family:inherit; font-size:14px; font-weight:800;
+                padding:2px 0 12px; cursor:pointer; text-decoration:underline;
                 text-underline-offset:2px;
               " data-shown-with-rules="1">💡 추가팁 보기</button>
 
-              <div style="text-align:center; margin:8px 0 14px;">
-                <span style="font-size:13px; font-weight:900; color:var(--blue-bright); white-space:nowrap;">⏱ 2분 안에 최고 점수 도전!</span>
-              </div>
+              <button class="action-btn" id="tutorialStartBtn" style="
+                background: var(--surface2);
+                border: 1px solid #f59e0b55;
+                color: #fbbf24;
+                font-size: 12px;
+                padding: 9px;
+                margin-top: 10px;
+                margin-bottom: 8px;
+              ">🎓 튜토리얼 해보라냥 <span style="font-size:10px; color:var(--muted); font-weight:700;">(처음이면 클릭!)</span></button>
               <button class="action-btn" id="startBtn">🎮 게임 시작</button>
               <button class="action-btn" id="startRankBtn" style="
                 background: var(--surface2);
@@ -1293,16 +1391,19 @@ body.light .cell.cat.answer {
                 color: var(--blue-light);
                 margin-top: 6px;
               ">🏆 랭킹 확인</button>
-              <button id="updateLogBtn" style="
-                background:none; border:none; color:var(--muted);
-                font-size:11px; font-family:inherit; cursor:pointer;
-                margin-top:8px; text-decoration:underline;
-              ">📋 업데이트 내역 보기 <span id="updateLogBtnNew" style="display:none;background:#ef4444;color:white;font-size:9px;font-weight:900;padding:1px 5px;border-radius:8px;">NEW</span></button>
-              <button id="contactBtnGame" style="
-                background:none; border:none; color:var(--muted);
-                font-size:11px; font-family:inherit; cursor:pointer;
-                margin-top:14px; text-decoration:underline;
-              ">💌 문의하기</button>
+              <div style="margin-top:12px; font-size:11px; color:var(--muted);">
+                <button id="updateLogBtn" style="
+                  background:none; border:none; color:var(--muted);
+                  font-size:11px; font-family:inherit; cursor:pointer;
+                  text-decoration:underline;
+                ">📋 업데이트 내역 <span id="updateLogBtnNew" style="display:none;background:#ef4444;color:white;font-size:9px;font-weight:900;padding:1px 5px;border-radius:8px;">NEW</span></button>
+                <span style="color:var(--border2); margin:0 6px;">·</span>
+                <button id="contactBtnGame" style="
+                  background:none; border:none; color:var(--muted);
+                  font-size:11px; font-family:inherit; cursor:pointer;
+                  text-decoration:underline;
+                ">💌 문의하기</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1365,6 +1466,37 @@ body.light .cell.cat.answer {
       </div>
     </div>
 
+  </div>
+</div>
+
+<div id="tutorialOverlay" class="overlay" style="display:none;">
+  <div class="tut-card" id="tutCard">
+    <div id="tutIntroSplash" style="padding:30px 10px;">
+      <div id="tutIntroEmo" style="font-size:72px; animation: tutIntroBounce 1s ease infinite;">🐱</div>
+      <div id="tutIntroText" style="font-size:21px; font-weight:900; color:var(--blue-bright); margin-top:10px; line-height:1.4;">나만 따라오라냥!♥︎</div>
+    </div>
+
+    <div id="tutMainContent" style="display:none;">
+      <div style="font-size:19px; font-weight:900; color:var(--blue-bright); margin-bottom:2px;">🎓 오잉게임 튜토리얼</div>
+      <div style="font-size:11px; color:var(--muted); margin-bottom:12px;">천천히 따라와보라냥! 시간 제한 없다냥</div>
+
+      <div class="tut-gauge-wrap">
+        <div class="tut-gauge-label" id="tutGaugeLabel">0 / 4 단계</div>
+        <div class="tut-gauge-bg"><div class="tut-gauge-fill" id="tutGaugeFill"></div></div>
+      </div>
+      <div class="tut-banner" id="tutBanner"><span class="tut-banner-text" id="tutBannerText">두 개를 눌러서 10을 만들어보라냥!</span></div>
+      <div class="tut-stats">
+        <span>점수 <b id="tutScore">0</b></span>
+        <span>콤보 <b id="tutCombo">×0</b></span>
+      </div>
+
+      <div class="tut-grid" id="tutGrid"></div>
+
+      <button id="tutSkipBtn" style="
+        background:none; border:none; color:var(--muted);
+        font-size:12px; font-family:inherit; cursor:pointer; text-decoration:underline;
+      ">건너뛰고 바로 게임하기</button>
+    </div>
   </div>
 </div>
 
@@ -1491,10 +1623,20 @@ body.light .cell.cat.answer {
     </div>
     <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
 
+      <!-- v2.8 -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <div style="font-size:11px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v2.8</div>
+        <span id="newBadge28" style="display:none;background:#ef4444;color:white;font-size:9px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
+      </div>
+      <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:2;margin-bottom:8px;">
+        <li>🎓 초심자를 위한 튜토리얼 제작</li>
+        <li>🐟 츄르 사주기 버튼 신설(즐겨주셔서 감사합니다 여러분🐱❤️)</li>
+      </ul>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
+
       <!-- v2.7 -->
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
         <div style="font-size:11px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v2.7</div>
-        <span id="newBadge27" style="display:none;background:#ef4444;color:white;font-size:9px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
       </div>
       <ul style="list-style:none;padding:0;font-size:12px;color:var(--text);line-height:2;margin-bottom:8px;">
         <li>✅ 시간 게이지바 생성⏰️</li>
@@ -3859,7 +4001,7 @@ document.getElementById('howToBtn').addEventListener('click', () => {
   const arrow = document.getElementById('howToArrow');
   const isOpen = rules.style.display !== 'none';
   rules.style.display = isOpen ? 'none' : 'block';
-  tip.style.display = isOpen ? 'none' : 'block';
+  tip.style.display = isOpen ? 'none' : 'flex';
   arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
 });
 document.getElementById('tipBtn').addEventListener('click', () => {
@@ -4529,14 +4671,14 @@ document.addEventListener('mouseup', () => {
 });
 
 // 업데이트 내역 팝업
-const UPDATE_VERSION = 'v2.7';
-const SEEN_KEY = 'seenUpdate_v2.7';
+const UPDATE_VERSION = 'v2.8';
+const SEEN_KEY = 'seenUpdate_v2.8';
 
 function openUpdateLog() {
   document.getElementById('updateLog').style.display = 'flex';
   // NEW 뱃지 숨기기 + 본 것으로 저장
   localStorage.setItem(SEEN_KEY, '1');
-  const badge = document.getElementById('newBadge27');
+  const badge = document.getElementById('newBadge28');
   if (badge) badge.style.display = 'none';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'none';
@@ -4545,7 +4687,7 @@ document.getElementById('updateLogBtn').addEventListener('click', openUpdateLog)
 
 // 최초 방문 시 NEW 뱃지 표시
 if (!localStorage.getItem(SEEN_KEY)) {
-  const badge = document.getElementById('newBadge27');
+  const badge = document.getElementById('newBadge28');
   if (badge) badge.style.display = 'inline';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'inline';
@@ -4897,6 +5039,633 @@ function dismissIOSPopup() {
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
 });
+
+// ══════════════════════════════
+//  튜토리얼 모드 — 실제 게임과 완전히 분리된 작은 연습판
+// ══════════════════════════════
+(function tutorialModule() {
+  const TR = 5, TC = 5; // 5x5 미니 보드 — 튜토리얼 내내 이 크기 유지 (연습판도 동일 크기)
+
+  // 2/3/4/5칸 조합을 각각 한 번씩 보여주도록 설계. 가짜 "10" 숫자 없이 전부 실제 1~9 숫자만 사용.
+  const LAYOUT = [
+    [7, 6, 1, 2, 2],
+    ['empty', 8, 3, 4, 5],
+    [3, 9, 2, 6, 1],
+    [7, 'cat', 3, 4, 'empty'],
+    [5, 5, 6, 4, 2],
+  ];
+  const CAT_VALUE = 0;
+
+  const STEPS = [
+    {
+      msg: '반짝이는 두 칸을 눌러서 10을 만들어보라냥! 🐾',
+      targets: [{r:4,c:0}, {r:4,c:1}],
+      successMsg: '잘했다냥!! 🎉',
+    },
+    {
+      msg: '이번엔 세 칸! 빈칸도 같이 낀다냥 👀',
+      targets: [{r:0,c:0}, {r:2,c:0}],
+      successMsg: '잘했다냥!! 👏',
+    },
+    {
+      msg: '이번엔 네 칸, 네모 모양이다냥!',
+      targets: [{r:0,c:2}, {r:1,c:3}],
+      successMsg: '완전 잘했다냥!! 💪',
+    },
+    {
+      msg: '이번엔 다섯 칸이다냥!',
+      targets: [{r:0,c:4}, {r:4,c:4}],
+      successMsg: '최고다냥!! 🙌',
+    },
+    {
+      msg: '고양이도 터뜨려보라냥! 보너스 점수 준다냥 🐱',
+      targets: [{r:3,c:0}, {r:3,c:2}],
+      successMsg: '냥냥펀치 성공!! 아이템 나온다냥 🎁',
+      comboFinish: true,
+    },
+  ];
+
+  const ITEMS = [
+    { key:'bomb', cls:'item-bomb', emo:'💣', name:'폭탄', desc:'💣 폭탄! 주변 숫자칸을 한번에 펑 터뜨려준다냥' },
+  ];
+
+  let tutBoard = [];
+  let itemBoard = [];
+  let practiceBoard = [];
+  let tutSel1 = null;
+  let tutScore = 0, tutCombo = 0;
+  let stepIdx = 0;
+  let bannerTimer = null;
+  let advanceTimer = null;
+  let locked = false;
+  let phase = 'steps'; // steps → items → practice → done
+  let itemIdx = 0;
+  let practiceSuccess = 0;
+  const PRACTICE_GOAL = 3;
+
+  function makeCell(v) {
+    if (v === 'empty') return { value: 0, empty: true, cat: false, cleared: false, itemKey: null };
+    if (v === 'cat') return { value: CAT_VALUE, empty: false, cat: true, cleared: false, itemKey: null };
+    return { value: v, empty: false, cat: false, cleared: false, itemKey: null };
+  }
+
+  function buildBoard() {
+    tutBoard = LAYOUT.map(row => row.map(makeCell));
+  }
+
+  function setBanner(text, cls, delay) {
+    clearTimeout(bannerTimer);
+    const apply = () => {
+      const b = document.getElementById('tutBanner');
+      const t = document.getElementById('tutBannerText');
+      b.className = 'tut-banner' + (cls ? ' ' + cls : '');
+      t.style.animation = 'none';
+      void t.offsetWidth;
+      t.style.animation = '';
+      t.innerHTML = text;
+    };
+    if (delay) bannerTimer = setTimeout(apply, delay);
+    else apply();
+  }
+
+  function updateGauge(label, pct) {
+    document.getElementById('tutGaugeFill').style.width = pct + '%';
+    document.getElementById('tutGaugeLabel').textContent = label;
+  }
+
+  function setGridSize(rows, cols) {
+    const grid = document.getElementById('tutGrid');
+    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+  }
+
+  function computeZone(step) {
+    const [a, b] = step.targets;
+    const r1 = Math.min(a.r, b.r), r2 = Math.max(a.r, b.r);
+    const c1 = Math.min(a.c, b.c), c2 = Math.max(a.c, b.c);
+    const interior = [];
+    for (let rr = r1; rr <= r2; rr++)
+      for (let cc = c1; cc <= c2; cc++) {
+        const isCorner = (rr === a.r && cc === a.c) || (rr === b.r && cc === b.c);
+        if (!isCorner) interior.push({ r: rr, c: cc });
+      }
+    return interior;
+  }
+
+  function isCornerTarget(r, c) {
+    if (phase !== 'steps') return false;
+    const step = STEPS[stepIdx];
+    return !!step && step.targets.some(t => t.r === r && t.c === c);
+  }
+  function isInteriorZone(r, c) {
+    if (phase !== 'steps') return false;
+    const step = STEPS[stepIdx];
+    if (!step) return false;
+    return computeZone(step).some(t => t.r === r && t.c === c);
+  }
+
+  // ── STEPS 단계 렌더 ──
+  function renderTutGrid() {
+    const grid = document.getElementById('tutGrid');
+    grid.innerHTML = '';
+    setGridSize(TR, TC);
+    for (let r = 0; r < TR; r++) {
+      for (let c = 0; c < TC; c++) {
+        const d = tutBoard[r][c];
+        const el = document.createElement('div');
+        el.dataset.r = r; el.dataset.c = c;
+        if (d.cleared) { el.className = 'cell'; el.style.visibility = 'hidden'; grid.appendChild(el); continue; }
+
+        if (d.empty) el.className = 'cell empty';
+        else if (d.cat) { el.className = 'cell cat'; el.textContent = '🐱'; }
+        else { el.className = 'cell'; el.textContent = d.value; }
+
+        const isCorner = isCornerTarget(r, c);
+        const isZone = isInteriorZone(r, c);
+        if (isCorner) el.classList.add('tut-target');
+        else if (isZone) el.classList.add('tut-inzone');
+        else el.classList.add('tut-dim');
+        if (tutSel1 && tutSel1.r === r && tutSel1.c === c) el.classList.add('sel');
+
+        if (isCorner && !locked) el.addEventListener('click', () => onTutCellClick(r, c));
+        grid.appendChild(el);
+      }
+    }
+  }
+
+  function spawnConfetti(emojis) {
+    const grid = document.getElementById('tutGrid');
+    const layer = document.createElement('div');
+    layer.className = 'tut-confetti';
+    emojis.forEach((emo, i) => {
+      const span = document.createElement('span');
+      span.textContent = emo;
+      const angle = (Math.PI * 2 * i) / emojis.length + Math.random() * 0.5;
+      const dist = 55 + Math.random() * 35;
+      span.style.setProperty('--tc-end', `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist - 25}px)`);
+      span.style.setProperty('--tc-rot', `${Math.random()*60-30}deg`);
+      layer.appendChild(span);
+    });
+    grid.appendChild(layer);
+    setTimeout(() => layer.remove(), 950);
+  }
+
+  function onTutCellClick(r, c) {
+    if (locked) return;
+    const d = tutBoard[r][c];
+    if (d.cleared) return;
+    if (!tutSel1) {
+      if (d.empty) return; // 실제 게임처럼 빈칸은 첫 클릭으로 못 씀
+      tutSel1 = { r, c }; renderTutGrid(); return;
+    }
+    if (tutSel1.r === r && tutSel1.c === c) return;
+
+    locked = true;
+    const r1 = Math.min(tutSel1.r, r), r2 = Math.max(tutSel1.r, r);
+    const c1 = Math.min(tutSel1.c, c), c2 = Math.max(tutSel1.c, c);
+    const grid = document.getElementById('tutGrid');
+    for (let rr = r1; rr <= r2; rr++)
+      for (let cc = c1; cc <= c2; cc++) {
+        const el = grid.querySelector(`[data-r="${rr}"][data-c="${cc}"]`);
+        if (el) el.classList.add('in-range');
+      }
+
+    clearTimeout(advanceTimer);
+    advanceTimer = setTimeout(() => resolveSelection(r1, r2, c1, c2), 260);
+  }
+
+  function resolveSelection(r1, r2, c1, c2) {
+    const step = STEPS[stepIdx];
+    let includesCat = false;
+    for (let rr = r1; rr <= r2; rr++)
+      for (let cc = c1; cc <= c2; cc++) {
+        const cell = tutBoard[rr][cc];
+        cell.cleared = true;
+        if (cell.cat) includesCat = true;
+      }
+    tutCombo++;
+    tutScore += 10 + (includesCat ? 5 : 0) + (tutCombo - 1) * 2;
+    document.getElementById('tutScore').textContent = tutScore;
+    document.getElementById('tutCombo').textContent = '×' + tutCombo;
+    tutSel1 = null;
+
+    if (includesCat) { playMeow(); playSuccess(1); spawnConfetti(['🐱','✨','🎉','⭐','✨']); }
+    else { playSuccess(0); spawnConfetti(['🎉','✨','⭐']); }
+    if (!step.comboFinish && tutCombo >= 2) playComboUp(Math.min(tutCombo, 6));
+
+    stepIdx++;
+    updateGauge(`${stepIdx} / ${STEPS.length} 단계`, Math.round((stepIdx / STEPS.length) * 100));
+    renderTutGrid();
+    setBanner(step.successMsg, 'success');
+
+    clearTimeout(advanceTimer);
+    if (step.comboFinish) {
+      advanceTimer = setTimeout(startItemPhase, 1700);
+    } else if (stepIdx >= STEPS.length) {
+      advanceTimer = setTimeout(startItemPhase, 1500);
+    } else {
+      setBanner(STEPS[stepIdx].msg, null, 1600);
+      advanceTimer = setTimeout(() => { locked = false; renderTutGrid(); }, 1600);
+    }
+  }
+
+  // ── 아이템 체험 단계 — 실제 게임처럼 숫자칸 빽빽한 보드 + 진짜 효과 ──
+  function buildItemBoard() {
+    itemBoard = [];
+    for (let r = 0; r < TR; r++) {
+      const row = [];
+      for (let c = 0; c < TC; c++) row.push({ value: 1 + Math.floor(Math.random()*9), empty:false, cat:false, cleared:false, itemKey:null });
+      itemBoard.push(row);
+    }
+  }
+
+  function renderItemGrid() {
+    const grid = document.getElementById('tutGrid');
+    grid.innerHTML = '';
+    setGridSize(TR, TC);
+    for (let r = 0; r < TR; r++) {
+      for (let c = 0; c < TC; c++) {
+        const d = itemBoard[r][c];
+        const el = document.createElement('div');
+        el.dataset.r = r; el.dataset.c = c;
+        if (d.cleared && !d.itemKey) { el.className = 'cell'; el.style.visibility = 'hidden'; grid.appendChild(el); continue; }
+        if (d.itemKey) {
+          el.className = 'cell ' + d.itemCls + ' tut-target';
+          el.textContent = d.itemEmo;
+          el.addEventListener('click', () => onItemClick(r, c));
+        } else {
+          el.className = 'cell';
+          el.textContent = d.value;
+        }
+        grid.appendChild(el);
+      }
+    }
+  }
+
+  function startItemPhase() {
+    phase = 'items';
+    itemIdx = 0;
+    locked = false;
+    playCombo7();
+    spawnConfetti(['🎁','✨','🎉','⭐','🎊']);
+    showNextItem();
+  }
+
+  function showNextItem() {
+    if (itemIdx >= ITEMS.length) { setTimeout(startPracticePhase, 1100); return; }
+    const item = ITEMS[itemIdx];
+    buildItemBoard();
+    const cr = 2, cc = 2; // 항상 중앙에 아이템 배치
+    itemBoard[cr][cc] = { value:0, empty:false, cat:false, cleared:true, itemKey:item.key, itemCls:item.cls, itemEmo:item.emo };
+    updateGauge(`아이템 체험 ${itemIdx + 1} / ${ITEMS.length}`, Math.round((itemIdx / ITEMS.length) * 100));
+    setBanner(`${item.name} 아이템이 나왔다냥! 반짝이는 칸을 눌러서 써보라냥`, null);
+    renderItemGrid();
+  }
+
+  function onItemClick(r, c) {
+    if (locked) return;
+    const d = itemBoard[r][c];
+    if (!d || !d.itemKey) return;
+    locked = true;
+    const item = ITEMS[itemIdx];
+    let waitMs = 1200;
+
+    if (item.key === 'bomb' || item.key === 'megabomb') {
+      const radius = item.key === 'bomb' ? 1 : 2;
+      if (item.key === 'bomb') playBomb(); else playMegaBomb();
+      const affected = [];
+      for (let rr = Math.max(0,r-radius); rr <= Math.min(TR-1,r+radius); rr++)
+        for (let cc = Math.max(0,c-radius); cc <= Math.min(TC-1,c+radius); cc++) {
+          if (rr===r && cc===c) continue;
+          const cell = itemBoard[rr][cc];
+          if (cell && !cell.cleared && !cell.itemKey) affected.push({rr,cc,cell});
+        }
+      affected.forEach(({rr,cc}) => {
+        const el = document.querySelector(`#tutGrid [data-r="${rr}"][data-c="${cc}"]`);
+        if (el) el.classList.add('clearing');
+      });
+      const bonus = affected.reduce((s,a)=>s+a.cell.value,0) + (item.key==='bomb'?20:40);
+      tutScore += bonus;
+      document.getElementById('tutScore').textContent = tutScore;
+      setTimeout(() => { affected.forEach(({rr,cc}) => { itemBoard[rr][cc].cleared = true; }); renderAfterItemUse(r,c); }, 340);
+      waitMs = 1600;
+      setBanner(`${item.desc} (+${bonus}점!)`, 'success');
+    } else if (item.key === 'clock') {
+      playClock();
+      setBanner(item.desc, 'success');
+      renderAfterItemUse(r, c);
+      waitMs = 1600;
+    } else if (item.key === 'freeze') {
+      playFreeze();
+      setBanner(item.desc, 'success');
+      renderAfterItemUse(r, c);
+      waitMs = 1600;
+    } else if (item.key === 'lucky') {
+      playHint();
+      setBanner(item.desc, 'success');
+      const pair = findAdjacentPair(itemBoard, TR, TC);
+      renderAfterItemUse(r, c);
+      if (pair) {
+        pair.forEach(p => {
+          const el = document.querySelector(`#tutGrid [data-r="${p.r}"][data-c="${p.c}"]`);
+          if (el) el.classList.add('tut-hint-flash');
+        });
+      }
+      waitMs = 1600;
+    }
+
+    spawnConfetti(['✨','🎉','⭐']);
+    itemIdx++;
+    clearTimeout(advanceTimer);
+    advanceTimer = setTimeout(() => { locked = false; showNextItem(); }, waitMs);
+  }
+
+  function renderAfterItemUse(r, c) {
+    itemBoard[r][c].itemKey = null;
+    itemBoard[r][c].cleared = true;
+    renderItemGrid();
+  }
+
+  function findAdjacentPair(board, rows, cols) {
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols - 1; c++) {
+      const a = board[r][c], b = board[r][c+1];
+      if (a && b && !a.cleared && !b.cleared && !a.itemKey && !b.itemKey) {
+        const av = a.empty ? 0 : a.value, bv = b.empty ? 0 : b.value;
+        if (av + bv === 10) return [{r,c},{r,c:c+1}];
+      }
+    }
+    for (let c = 0; c < cols; c++) for (let r = 0; r < rows - 1; r++) {
+      const a = board[r][c], b = board[r+1][c];
+      if (a && b && !a.cleared && !b.cleared && !a.itemKey && !b.itemKey) {
+        const av = a.empty ? 0 : a.value, bv = b.empty ? 0 : b.value;
+        if (av + bv === 10) return [{r,c},{r:r+1,c}];
+      }
+    }
+    return null;
+  }
+
+  // ── 자유 연습 단계 — 같은 5x5 크기 유지, 5번 성공까지, 아이템도 섞여서 등장 ──
+  function buildPracticeBoard() {
+    practiceBoard = [];
+    for (let r = 0; r < TR; r++) {
+      const row = [];
+      for (let c = 0; c < TC; c++) row.push({ value: 1 + Math.floor(Math.random()*9), empty:false, cat:false, cleared:false, itemKey:null });
+      practiceBoard.push(row);
+    }
+
+    // 3칸(row0 c0-2), 4칸(row1 c0-3) 조합을 고정 영역에 100% 보장해서 넣음
+    const region3 = [{r:0,c:0},{r:0,c:1},{r:0,c:2}];
+    const region4 = [{r:1,c:0},{r:1,c:1},{r:1,c:2},{r:1,c:3}];
+    setSumRegion(region3, 10);
+    setSumRegion(region4, 10);
+    const reserved = new Set([...region3, ...region4].map(p => p.r+','+p.c));
+
+    // 나머지(reserved 제외) 칸 중에서 랜덤으로 빈칸2/고양이1/아이템1 배치
+    const freeSpots = [];
+    for (let r=0;r<TR;r++) for (let c=0;c<TC;c++) if (!reserved.has(r+','+c)) freeSpots.push({r,c});
+    freeSpots.sort(() => Math.random()-0.5);
+    practiceBoard[freeSpots[0].r][freeSpots[0].c] = { value:0, empty:true, cat:false, cleared:false, itemKey:null };
+    practiceBoard[freeSpots[1].r][freeSpots[1].c] = { value:0, empty:true, cat:false, cleared:false, itemKey:null };
+    practiceBoard[freeSpots[2].r][freeSpots[2].c] = { value: 3+Math.floor(Math.random()*4), empty:false, cat:true, cleared:false, itemKey:null };
+    const item = ITEMS[Math.floor(Math.random()*ITEMS.length)];
+    practiceBoard[freeSpots[3].r][freeSpots[3].c] = { value:0, empty:false, cat:false, cleared:true, itemKey:item.key, itemCls:item.cls, itemEmo:item.emo };
+
+    ensureSolvable(reserved); // 2칸짜리 쉬운 조합도 하나 추가 보장 (예약 영역은 건드리지 않음)
+  }
+  function setSumRegion(cells, targetSum) {
+    const cap = Math.max(1, Math.floor((targetSum - 1) / (cells.length - 1)));
+    let sum = 0;
+    for (let i = 0; i < cells.length - 1; i++) {
+      const v = 1 + Math.floor(Math.random()*cap);
+      practiceBoard[cells[i].r][cells[i].c] = { value:v, empty:false, cat:false, cleared:false, itemKey:null };
+      sum += v;
+    }
+    const last = targetSum - sum;
+    const lastCell = cells[cells.length-1];
+    practiceBoard[lastCell.r][lastCell.c] = { value: Math.max(1, Math.min(9, last)), empty:false, cat:false, cleared:false, itemKey:null };
+  }
+  function ensureSolvable(reserved) {
+    for (let n = 0; n < 10; n++) {
+      const r = Math.floor(Math.random()*TR), c = Math.floor(Math.random()*(TC-1));
+      if (reserved && (reserved.has(r+','+c) || reserved.has(r+','+(c+1)))) continue;
+      const a = practiceBoard[r][c], b = practiceBoard[r][c+1];
+      if (!a.empty && !a.cat && !a.itemKey && !b.empty && !b.cat && !b.itemKey) {
+        const target = 3 + Math.floor(Math.random()*6);
+        a.value = target; b.value = 10 - target;
+        return;
+      }
+    }
+  }
+
+  function startPracticePhase() {
+    phase = 'practice';
+    practiceSuccess = 0;
+    tutSel1 = null;
+    locked = false;
+    buildPracticeBoard();
+    updateGauge(`자유 연습 0 / ${PRACTICE_GOAL}`, 0);
+    setBanner(`이제 자유롭게 연습해보라냥!<br>${PRACTICE_GOAL}번 성공하면 진짜 게임 간다냥`, null);
+    renderPracticeGrid();
+  }
+
+  function renderPracticeGrid() {
+    const grid = document.getElementById('tutGrid');
+    grid.innerHTML = '';
+    setGridSize(TR, TC);
+    for (let r = 0; r < TR; r++) {
+      for (let c = 0; c < TC; c++) {
+        const d = practiceBoard[r][c];
+        const el = document.createElement('div');
+        el.dataset.r = r; el.dataset.c = c;
+        if (d.cleared && !d.itemKey) { el.className = 'cell'; el.style.visibility = 'hidden'; grid.appendChild(el); continue; }
+        if (d.itemKey) { el.className = 'cell ' + d.itemCls; el.textContent = d.itemEmo; }
+        else if (d.empty) el.className = 'cell empty';
+        else if (d.cat) { el.className = 'cell cat'; el.textContent = '🐱'; }
+        else { el.className = 'cell'; el.textContent = d.value; }
+        if (tutSel1 && tutSel1.r === r && tutSel1.c === c) el.classList.add('sel');
+        el.addEventListener('click', () => onPracticeCellClick(r, c));
+        grid.appendChild(el);
+      }
+    }
+  }
+
+  function onPracticeCellClick(r, c) {
+    if (locked) return;
+    const d = practiceBoard[r][c];
+    if (d.itemKey) {
+      locked = true;
+      const item = ITEMS.find(i => i.key === d.itemKey);
+      if (item.key === 'bomb' || item.key === 'megabomb') {
+        const radius = item.key === 'bomb' ? 1 : 2;
+        if (item.key === 'bomb') playBomb(); else playMegaBomb();
+        const affected = [];
+        for (let rr = Math.max(0,r-radius); rr <= Math.min(TR-1,r+radius); rr++)
+          for (let cc = Math.max(0,c-radius); cc <= Math.min(TC-1,c+radius); cc++) {
+            if (rr===r && cc===c) continue;
+            const cell = practiceBoard[rr][cc];
+            if (cell && !cell.cleared && !cell.itemKey) affected.push({rr,cc,cell});
+          }
+        affected.forEach(({rr,cc}) => {
+          const el = document.querySelector(`#tutGrid [data-r="${rr}"][data-c="${cc}"]`);
+          if (el) el.classList.add('clearing');
+        });
+        setTimeout(() => { affected.forEach(({rr,cc}) => { practiceBoard[rr][cc].cleared = true; }); practiceBoard[r][c].itemKey=null; practiceBoard[r][c].cleared=true; renderPracticeGrid(); locked=false; }, 340);
+      } else {
+        if (item.key === 'clock') playClock();
+        else if (item.key === 'freeze') playFreeze();
+        else playHint();
+        practiceBoard[r][c].itemKey = null;
+        practiceBoard[r][c].cleared = true;
+        renderPracticeGrid();
+        locked = false;
+      }
+      setBanner(item.desc, 'success', 0);
+      spawnConfetti(['✨','🎉','⭐']);
+      return;
+    }
+
+    if (!tutSel1) {
+      if (d.cleared) return;
+      if (d.empty) return; // 실제 게임처럼 빈칸은 첫 클릭으로 못 씀
+      tutSel1 = { r, c }; renderPracticeGrid(); return;
+    }
+    if (d.cleared) return;
+    if (tutSel1.r === r && tutSel1.c === c) return;
+
+    const r1 = Math.min(tutSel1.r, r), r2 = Math.max(tutSel1.r, r);
+    const c1 = Math.min(tutSel1.c, c), c2 = Math.max(tutSel1.c, c);
+    let sum = 0, cellCount = 0, includesCat = false, blocked = false;
+    for (let rr = r1; rr <= r2; rr++)
+      for (let cc = c1; cc <= c2; cc++) {
+        const cell = practiceBoard[rr][cc];
+        if (cell.cleared || cell.itemKey) { blocked = true; }
+        sum += cell.value;
+        if (cell.cat) includesCat = true;
+        cellCount++;
+      }
+    if (blocked) { tutSel1 = null; renderPracticeGrid(); return; }
+
+    locked = true;
+    const grid = document.getElementById('tutGrid');
+    for (let rr = r1; rr <= r2; rr++)
+      for (let cc = c1; cc <= c2; cc++) {
+        const el = grid.querySelector(`[data-r="${rr}"][data-c="${cc}"]`);
+        if (el) el.classList.add('in-range');
+      }
+
+    clearTimeout(advanceTimer);
+    advanceTimer = setTimeout(() => {
+      if (sum === 10 && cellCount >= 2) {
+        for (let rr = r1; rr <= r2; rr++) for (let cc = c1; cc <= c2; cc++) practiceBoard[rr][cc].cleared = true;
+        tutSel1 = null;
+        if (includesCat) { playMeow(); playSuccess(1); spawnConfetti(['🐱','✨','🎉']); }
+        else { playSuccess(0); spawnConfetti(['🎉','✨','⭐']); }
+        practiceSuccess++;
+        updateGauge(`자유 연습 ${practiceSuccess} / ${PRACTICE_GOAL}`, Math.round((practiceSuccess/PRACTICE_GOAL)*100));
+        if (practiceSuccess >= PRACTICE_GOAL) {
+          setBanner('완벽하다냥! 이제 진짜 준비 끝났다냥 😽', 'success');
+          renderPracticeGrid();
+          setTimeout(showTutComplete, 1800);
+          return;
+        }
+        setBanner('정답이다냥! 계속 해보라냥 👍', 'success');
+        renderPracticeGrid();
+        // 다 지워서 더 이상 조합이 없으면 새 판 생성
+        setTimeout(() => {
+          locked = false;
+          if (!hasAnyPair()) buildAndRerenderPractice();
+        }, 900);
+      } else {
+        tutSel1 = null;
+        setBanner(`합이 ${sum}이다냥! 10이 되게 다시 골라보라냥`, null);
+        renderPracticeGrid();
+        setTimeout(() => { locked = false; }, 700);
+      }
+    }, 260);
+  }
+
+  function hasAnyPair() {
+    for (let r=0;r<TR;r++) for (let c=0;c<TC-1;c++) {
+      const a=practiceBoard[r][c], b=practiceBoard[r][c+1];
+      if (!a.cleared && !b.cleared && !a.itemKey && !b.itemKey) {
+        const av=a.empty?0:a.value, bv=b.empty?0:b.value;
+        if (av+bv===10) return true;
+      }
+    }
+    return false;
+  }
+  function buildAndRerenderPractice() {
+    buildPracticeBoard();
+    renderPracticeGrid();
+  }
+
+  function showTutComplete() {
+    const card = document.getElementById('tutCard');
+    card.innerHTML = `
+      <div style="font-size:40px; margin-bottom:8px;">🎉🐱🎉</div>
+      <div style="font-size:19px; font-weight:900; color:var(--blue-bright); margin-bottom:6px;">튜토리얼 완료다냥!</div>
+      <div style="font-size:13px; color:var(--muted); margin-bottom:18px; line-height:1.5;">
+        2~5칸 조합, 빈칸, 고양이 보너스, 콤보,<br>아이템까지 다 배웠다냥! 이제 진짜 게임 가보자냥 😽
+      </div>
+      <button class="action-btn" id="tutGoRealBtn">🎮 진짜 게임 시작하기!</button>
+    `;
+    document.getElementById('tutGoRealBtn').addEventListener('click', () => {
+      document.getElementById('tutorialOverlay').style.display = 'none';
+      document.getElementById('startOverlay').style.display = 'none';
+      startGame();
+    });
+  }
+
+  function openTutorial() {
+    try { playHint(); } catch {}
+    clearTimeout(bannerTimer); clearTimeout(advanceTimer);
+    phase = 'steps';
+    buildBoard();
+    tutSel1 = null; tutScore = 0; tutCombo = 0; stepIdx = 0; locked = false;
+    document.getElementById('tutScore').textContent = '0';
+    document.getElementById('tutCombo').textContent = '×0';
+    updateGauge(`0 / ${STEPS.length} 단계`, 0);
+    setBanner(STEPS[0].msg);
+    renderTutGrid();
+
+    document.getElementById('tutorialOverlay').style.display = 'flex';
+    document.getElementById('tutIntroSplash').style.display = 'block';
+    document.getElementById('tutIntroEmo').textContent = '🐱';
+    document.getElementById('tutIntroText').textContent = '나만 따라오라냥!♥︎';
+    document.getElementById('tutIntroText').style.fontSize = '21px';
+    document.getElementById('tutMainContent').style.display = 'none';
+    document.getElementById('tutMainContent').classList.remove('tut-fade-in');
+
+    // 1단계: 인사 → 2단계: 게임 개념 한 줄 설명 → 3단계: 본문(클릭 안내) 공개
+    setTimeout(() => {
+      document.getElementById('tutIntroEmo').textContent = '🙌';
+      document.getElementById('tutIntroText').style.fontSize = '17px';
+      document.getElementById('tutIntroText').textContent = '오잉게임은 두 칸을 선택해서 10을 만들면 되는 게임이다냥! 콤보를 길게 유지하면 점수가 배가 된다냥!';
+    }, 1900);
+
+    setTimeout(() => {
+      document.getElementById('tutIntroSplash').style.display = 'none';
+      const main = document.getElementById('tutMainContent');
+      main.style.display = 'block';
+      main.classList.add('tut-fade-in');
+    }, 4500);
+
+    try { localStorage.setItem('oeing_tutorial_seen', '1'); } catch {}
+    document.getElementById('tutorialStartBtn').classList.remove('tutorial-glow');
+  }
+
+  try {
+    if (!localStorage.getItem('oeing_tutorial_seen')) {
+      document.getElementById('tutorialStartBtn').classList.add('tutorial-glow');
+    }
+  } catch {}
+
+  document.getElementById('tutorialStartBtn').addEventListener('click', openTutorial);
+  document.getElementById('tutSkipBtn').addEventListener('click', () => {
+    clearTimeout(bannerTimer); clearTimeout(advanceTimer);
+    document.getElementById('tutorialOverlay').style.display = 'none';
+  });
+})();
 
 </script>
 
