@@ -1176,7 +1176,14 @@ body.light .cell.cat.answer {
   <div class="tab-bar">
     <button class="tab-btn active" id="tabGame">🎮 게임</button>
     <button class="tab-btn" id="tabRank">🏆 랭킹</button>
-    <button class="theme-btn" id="themeBtn" style="margin: 6px 10px 6px 0;">☀️ 라이트</button>
+    <button id="donateOpenBtn" style="
+      margin: 6px 4px 6px 0; padding: 3px 9px; flex-shrink:0;
+      border-radius: 20px; border: 1px solid rgba(250,204,21,0.4);
+      background: rgba(250,204,21,0.16); color: #fbbf24;
+      font-family: inherit; font-size: 11px; font-weight: 700;
+      cursor: pointer; white-space: nowrap;
+    ">🐟 츄르 사주기</button>
+    <button class="theme-btn" id="themeBtn" style="margin: 6px 10px 6px 0; width:30px; height:30px; padding:0; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;">☀️</button>
   </div>
 
   <div class="tab-content">
@@ -1360,16 +1367,6 @@ body.light .cell.cat.answer {
 
   </div>
 </div>
-
-<!-- 우측 하단 고정 후원 버튼 — 항상 보이되 거슬리지 않게 작고 반투명 -->
-<button id="donateOpenBtn" style="
-  position:fixed; right:14px; bottom:16px; z-index:45;
-  width:46px; height:46px; border-radius:50%;
-  background:rgba(30,52,72,0.82); border:1px solid var(--border2);
-  display:flex; align-items:center; justify-content:center;
-  font-size:20px; box-shadow:0 2px 12px rgba(0,0,0,0.35);
-  cursor:pointer; backdrop-filter:blur(4px);
-">🐟</button>
 
 <div id="donateOverlay" class="overlay" style="display:none;">
   <div class="overlay-card" style="max-width:320px; text-align:center;">
@@ -3280,7 +3277,7 @@ function updateTimer() {
 function toggleTheme() {
   const isLight = document.body.classList.toggle('light');
   const btn = document.getElementById('themeBtn');
-  btn.textContent = isLight ? '🌙 다크' : '☀️ 라이트';
+  btn.textContent = isLight ? '🌙' : '☀️';
   try { localStorage.setItem('oeing_theme', isLight ? 'light' : 'dark'); } catch {}
 }
 
@@ -3291,7 +3288,7 @@ function toggleTheme() {
     if (saved === 'light') {
       document.body.classList.add('light');
       const btn = document.getElementById('themeBtn');
-      if (btn) btn.textContent = '🌙 다크';
+      if (btn) btn.textContent = '🌙';
     }
   } catch {}
 })();
