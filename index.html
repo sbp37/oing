@@ -4681,6 +4681,12 @@ async function renderRanking() {
   if (currentRankMode === 'week') { await renderWeeklyRanking(); return; }
   let list = await loadRankings();
   const myNick = loadNickname();
+  // 안전장치: 점수 등록 시점에 챔피언 기록이 어떤 이유로든 누락됐을 경우를 대비해
+  // "전체" 랭킹을 열 때마다 진짜(전체) 1등과 meta 기록이 다르면 그 자리에서 보정.
+  // 반드시 필터링 전(전체) 리스트 기준이어야 하며, 친구 탭에서는 절대 실행하지 않는다.
+  if (currentRankMode !== 'friends' && list.length > 0) {
+    await checkAndRecordChampion(list[0].nickname, list[0].nickname);
+  }
   if (currentRankMode === 'friends') {
     const friends = loadFriends();
     const friendSet = new Set(friends);
@@ -4691,12 +4697,6 @@ async function renderRanking() {
   const justUpdated = sessionStorage.getItem('oeing_just_updated');
   const justUpdatedPrevRankRaw = sessionStorage.getItem('oeing_just_updated_prevrank');
   const justUpdatedPrevRank = justUpdatedPrevRankRaw ? parseInt(justUpdatedPrevRankRaw, 10) : null;
-
-  // 안전장치: 점수 등록 시점에 챔피언 기록이 어떤 이유로든 누락됐을 경우를 대비해
-  // 랭킹 화면을 열 때마다 "현재 1등"과 meta 기록이 다르면 그 자리에서 보정
-  if (list.length > 0) {
-    await checkAndRecordChampion(list[0].nickname, list[0].nickname);
-  }
 
   // 역대 챔피언(1등 등극) 횟수 — 점수 등록 시점(addScore)에 자동 누적됨
   const champCounts = await getChampCounts();
