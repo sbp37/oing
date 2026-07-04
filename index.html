@@ -1513,6 +1513,19 @@ body.light .cell.cat.answer {
 </style>
 </head>
 <body>
+<div id="replyNotifyBanner" style="
+  position:fixed; top:0; left:50%; transform:translate(-50%,-120%);
+  width:100%; max-width:650px; z-index:300; transition:transform 0.4s ease;
+  background:linear-gradient(135deg,#2f7ec9,#1a5a99); color:#fff;
+  padding:12px 14px; display:flex; align-items:center; gap:10px;
+  box-shadow:0 4px 14px rgba(0,0,0,0.35); cursor:pointer; font-family:inherit;
+">
+  <span style="font-size:20px; flex-shrink:0;">💌</span>
+  <span style="flex:1; font-size:13px; font-weight:700; line-height:1.4;">문의/응원 글에 답장이 도착했어요!</span>
+  <span style="font-size:11px; opacity:0.9; flex-shrink:0;">확인하기 →</span>
+  <span id="replyNotifyCloseBtn" style="font-size:16px; opacity:0.7; padding:2px 4px; flex-shrink:0;">×</span>
+</div>
+
 <div class="app">
 
   <!-- 탭바 -->
@@ -2100,14 +2113,12 @@ body.light .cell.cat.answer {
 
 <!-- 내 글 답글 보기 오버레이 -->
 <div id="myFeedbackOverlay" class="overlay" style="display:none;">
-  <div class="overlay-card" style="max-width:320px;">
-    <div class="overlay-title" style="font-size:16px;">💬 내가 쓴 글</div>
-    <div id="myFeedbackContent" style="margin-top:10px; font-size:13px; color:var(--text); line-height:1.6; white-space:pre-wrap;"></div>
-    <div id="myFeedbackReplyWrap" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
-      <div style="font-size:11px; color:#fbbf24; font-weight:700; margin-bottom:4px;">↳ 개발자 답글</div>
-      <div id="myFeedbackReply" style="font-size:13px; color:var(--text); line-height:1.6; white-space:pre-wrap;"></div>
-    </div>
-    <button id="myFeedbackCloseBtn" style="width:100%; margin-top:14px; background:var(--surface2); border:1px solid var(--border2); color:var(--muted); border-radius:10px; padding:10px; font-family:inherit;">닫기</button>
+  <div class="overlay-card" style="max-width:320px; max-height:80vh; display:flex; flex-direction:column;">
+    <div class="overlay-title" style="font-size:16px; flex-shrink:0;">💬 내가 쓴 글 <span style="font-size:10px; color:var(--muted); font-weight:400;">(비밀글)</span></div>
+    <div id="myFeedbackThread" style="margin-top:10px; overflow-y:auto; flex:1;"></div>
+    <textarea id="myFeedbackReplyInput" maxlength="500" rows="2" placeholder="답장 남기기..." style="width:100%; box-sizing:border-box; margin-top:10px; padding:8px; border-radius:10px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:inherit; font-size:12px; resize:none; flex-shrink:0;"></textarea>
+    <button id="myFeedbackReplySendBtn" class="action-btn" style="margin:8px 0 0; flex-shrink:0;">답장 보내기</button>
+    <button id="myFeedbackCloseBtn" style="width:100%; margin-top:8px; background:var(--surface2); border:1px solid var(--border2); color:var(--muted); border-radius:10px; padding:10px; font-family:inherit; flex-shrink:0;">닫기</button>
   </div>
 </div>
 
@@ -2372,7 +2383,7 @@ body.light .cell.cat.answer {
 //  FIREBASE 초기화
 // ══════════════════════════════
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, getDoc, orderBy, query, limit, deleteDoc, addDoc, increment }
+import { getFirestore, collection, getDocs, doc, setDoc, getDoc, orderBy, query, limit, deleteDoc, addDoc, increment, where }
   from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -5640,6 +5651,10 @@ function openUpdateLog() {
   if (badge) badge.style.display = 'none';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'none';
+  try {
+    const nickname = loadNickname() || '익명';
+    addDoc(collection(db, 'updatelog_clicks'), { nickname, ts: Date.now(), date: getTodayDateStr() });
+  } catch (e) { console.warn('업데이트 내역 클릭 로그 실패:', e); }
 }
 document.getElementById('updateLogBtn').addEventListener('click', openUpdateLog);
 
@@ -6233,8 +6248,11 @@ document.getElementById('feedbackSubmitBtn').addEventListener('click', async () 
   const submitBtn = document.getElementById('feedbackSubmitBtn');
   submitBtn.disabled = true;
   try {
+    const ts = Date.now();
     await setDoc(doc(collection(db, 'feedback')), {
-      nickname: nick, content, ts: Date.now(), reply: null,
+      nickname: nick, ts, lastTs: ts,
+      messages: [{ from: 'user', text: content, ts }],
+      adminUnread: true, userUnread: false,
       type: wasDonateConfirm ? 'donate_confirm' : 'general'
     });
     document.getElementById('feedbackWriteOverlay').style.display = 'none';
@@ -6257,6 +6275,121 @@ function formatFeedbackDate(ts) {
   return `${d.getMonth() + 1}.${d.getDate()}`;
 }
 
+// 구버전(content/reply) 문서도 대화 스레드 형태로 변환해서 보여줌 (하위호환)
+function getFeedbackMessages(data) {
+  if (Array.isArray(data.messages)) return data.messages;
+  const msgs = [{ from: 'user', text: data.content || '', ts: data.ts || 0 }];
+  if (data.reply) msgs.push({ from: 'admin', text: data.reply, ts: data.ts || 0 });
+  return msgs;
+}
+
+let currentOpenFeedbackId = null;
+function openMyFeedbackDetail(id, data) {
+  currentOpenFeedbackId = id;
+  const threadEl = document.getElementById('myFeedbackThread');
+  const messages = getFeedbackMessages(data);
+  threadEl.innerHTML = messages.map(m => `
+    <div style="margin-bottom:8px; text-align:${m.from === 'admin' ? 'left' : 'right'};">
+      ${m.from === 'admin' ? '<div style="font-size:10px; color:#DA9845; font-weight:700; margin-bottom:2px;">🐱 개발자</div>' : ''}
+      <span style="display:inline-block; max-width:85%; padding:8px 10px; border-radius:10px; font-size:13px; line-height:1.5; white-space:pre-wrap; text-align:left; background:${m.from === 'admin' ? 'var(--surface2)' : 'var(--blue-dim)'}; color:var(--text); border:1px solid ${m.from === 'admin' ? 'var(--border)' : 'var(--blue-bright)'};">${m.text}</span>
+    </div>
+  `).join('');
+  document.getElementById('myFeedbackReplyInput').value = '';
+  document.getElementById('myFeedbackOverlay').style.display = 'flex';
+  // 열어봤으니 안읽음 표시 해제
+  if (data.userUnread) {
+    setDoc(doc(db, 'feedback', id), { userUnread: false }, { merge: true }).catch(() => {});
+  }
+}
+
+document.getElementById('myFeedbackReplySendBtn').addEventListener('click', async () => {
+  const input = document.getElementById('myFeedbackReplyInput');
+  const text = input.value.trim();
+  if (!text) { alert('내용을 입력해주세요.'); return; }
+  if (!currentOpenFeedbackId) return;
+  const sendBtn = document.getElementById('myFeedbackReplySendBtn');
+  sendBtn.disabled = true;
+  try {
+    const docRef = doc(db, 'feedback', currentOpenFeedbackId);
+    const snap = await getDoc(docRef);
+    const data = snap.exists() ? snap.data() : {};
+    const messages = getFeedbackMessages(data);
+    const ts = Date.now();
+    messages.push({ from: 'user', text, ts });
+    await setDoc(docRef, { messages, lastTs: ts, adminUnread: true, userUnread: false }, { merge: true });
+    openMyFeedbackDetail(currentOpenFeedbackId, { ...data, messages });
+  } catch (e) {
+    alert('전송 실패: ' + e.message);
+  } finally {
+    sendBtn.disabled = false;
+  }
+});
+
+// ══════════════════════════════
+//  문의/응원 답장 알림 — 답장 온 걸 아직 못 봤으면 접속 시 상단 배너로 알림
+// ══════════════════════════════
+async function checkUnreadReply() {
+  const myNick = loadNickname();
+  if (!myNick) return;
+  try {
+    const q = query(collection(db, 'feedback'), where('nickname', '==', myNick), where('userUnread', '==', true));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const d = snap.docs[0];
+      showReplyNotification(d.id, d.data());
+    }
+  } catch (e) { console.warn('답장 확인 실패:', e); }
+}
+function showReplyNotification(id, data) {
+  const banner = document.getElementById('replyNotifyBanner');
+  if (!banner) return;
+  banner.style.transform = 'translate(-50%, 0)';
+  const onOpen = () => {
+    banner.style.transform = 'translate(-50%, -120%)';
+    openMyFeedbackDetail(id, data);
+    banner.removeEventListener('click', onOpen);
+  };
+  banner.addEventListener('click', onOpen);
+  const closeBtn = document.getElementById('replyNotifyCloseBtn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      banner.style.transform = 'translate(-50%, -120%)';
+      banner.removeEventListener('click', onOpen);
+    });
+  }
+}
+
+// ══════════════════════════════
+//  관리자용 — 새 문의 도착 알림 (한 번 관리자 인증한 기기에서는 계속 확인)
+// ══════════════════════════════
+const ADMIN_DEVICE_KEY = 'oeing_admin_device_v1';
+async function checkAdminUnreadInquiries() {
+  let trusted = false;
+  try { trusted = localStorage.getItem(ADMIN_DEVICE_KEY) === '1'; } catch {}
+  if (!trusted) return;
+  try {
+    const q = query(collection(db, 'feedback'), where('adminUnread', '==', true));
+    const snap = await getDocs(q);
+    if (!snap.empty) showAdminNotifyBanner(snap.size);
+  } catch (e) { console.warn('관리자 알림 확인 실패:', e); }
+}
+function showAdminNotifyBanner(count) {
+  const banner = document.getElementById('replyNotifyBanner');
+  if (!banner) return;
+  banner.style.background = 'linear-gradient(135deg,#DA9845,#a8722f)';
+  banner.querySelector('span').textContent = '🔔';
+  banner.children[1].textContent = `새 문의/응원 글이 ${count}건 있어요!`;
+  banner.style.transform = 'translate(-50%, 0)';
+  const onOpen = async () => {
+    banner.style.transform = 'translate(-50%, -120%)';
+    banner.removeEventListener('click', onOpen);
+    document.getElementById('tabRank').click();
+    await openAdminPanelDirect();
+  };
+  banner.addEventListener('click', onOpen);
+}
+
 async function renderFeedbackBoard() {
   const boardEl = document.getElementById('feedbackBoard');
   if (!boardEl) return;
@@ -6274,22 +6407,15 @@ async function renderFeedbackBoard() {
       const isMine = myNick && data.nickname === myNick;
       const row = document.createElement('div');
       row.style.cssText = `display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface);font-size:12px;${isMine ? 'border-color:var(--blue-bright);background:var(--blue-dim);cursor:pointer;' : ''}`;
-      const replyMark = data.reply ? ' 💬' : '';
+      const hasReply = getFeedbackMessages(data).some(m => m.from === 'admin');
+      const replyMark = hasReply ? ' 💬' : '';
       row.innerHTML = `
         <span style="color:${isMine ? 'var(--blue-light)' : 'var(--muted)'};">🔒 비밀글입니다${isMine ? ' (내 글)' + replyMark : ''}</span>
         <span style="color:var(--muted);font-size:10px;">${formatFeedbackDate(data.ts)}</span>
       `;
       if (isMine) {
         row.addEventListener('click', () => {
-          document.getElementById('myFeedbackContent').textContent = data.content;
-          const replyWrap = document.getElementById('myFeedbackReplyWrap');
-          if (data.reply) {
-            document.getElementById('myFeedbackReply').textContent = data.reply;
-            replyWrap.style.display = 'block';
-          } else {
-            replyWrap.style.display = 'none';
-          }
-          document.getElementById('myFeedbackOverlay').style.display = 'flex';
+          openMyFeedbackDetail(d.id, data);
         });
       }
       boardEl.appendChild(row);
@@ -6365,13 +6491,19 @@ async function renderAdminFeedbackList() {
     listEl.innerHTML = '';
     snap.docs.forEach(d => {
       const data = d.data();
+      const messages = getFeedbackMessages(data);
+      const threadHtml = messages.map(m => `
+        <div style="margin-bottom:4px; text-align:${m.from === 'admin' ? 'right' : 'left'};">
+          <span style="display:inline-block; max-width:88%; padding:5px 8px; border-radius:8px; font-size:11px; white-space:pre-wrap; text-align:left; background:${m.from === 'admin' ? 'var(--blue-dim)' : 'var(--surface)'}; color:${m.from === 'admin' ? 'var(--blue-light)' : 'var(--text)'};">${m.text}</span>
+        </div>
+      `).join('');
       const item = document.createElement('div');
-      item.style.cssText = 'padding:8px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);';
+      item.style.cssText = `padding:8px;border-radius:8px;background:var(--surface2);border:1px solid ${data.adminUnread ? '#DA9845' : 'var(--border)'};`;
       item.innerHTML = `
-        <div style="font-size:11px;font-weight:700;color:var(--blue-light);margin-bottom:2px;">${data.nickname} <span style="color:var(--muted);font-weight:400;">· ${formatFeedbackDate(data.ts)}</span></div>
-        <div style="font-size:12px;color:var(--text);white-space:pre-wrap;margin-bottom:6px;">${data.content}</div>
-        <textarea class="adminReplyInput" data-id="${d.id}" placeholder="답글 작성..." rows="2" style="width:100%;box-sizing:border-box;font-size:11px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;resize:none;">${data.reply || ''}</textarea>
-        <button class="adminReplySaveBtn" data-id="${d.id}" style="width:100%;margin-top:4px;padding:4px;font-size:10px;font-weight:700;color:#93c5fd;background:rgba(59,130,246,0.12);border:1px solid #3b82f6;border-radius:6px;">답글 저장</button>
+        <div style="font-size:11px;font-weight:700;color:var(--blue-light);margin-bottom:4px;">${data.nickname}${data.adminUnread ? ' 🔔' : ''} <span style="color:var(--muted);font-weight:400;">· ${formatFeedbackDate(data.ts)}</span></div>
+        <div style="margin-bottom:6px;">${threadHtml}</div>
+        <textarea class="adminReplyInput" data-id="${d.id}" placeholder="답글 작성..." rows="2" style="width:100%;box-sizing:border-box;font-size:11px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;resize:none;"></textarea>
+        <button class="adminReplySaveBtn" data-id="${d.id}" style="width:100%;margin-top:4px;padding:4px;font-size:10px;font-weight:700;color:#93c5fd;background:rgba(59,130,246,0.12);border:1px solid #3b82f6;border-radius:6px;">답글 보내기</button>
       `;
       listEl.appendChild(item);
     });
@@ -6380,11 +6512,18 @@ async function renderAdminFeedbackList() {
         const id = saveBtn.getAttribute('data-id');
         const textarea = listEl.querySelector(`.adminReplyInput[data-id="${id}"]`);
         const replyText = textarea.value.trim();
+        if (!replyText) { alert('답글 내용을 입력하세요.'); return; }
         saveBtn.disabled = true;
         try {
-          await setDoc(doc(db, 'feedback', id), { reply: replyText || null }, { merge: true });
-          saveBtn.textContent = '저장됨 ✓';
-          setTimeout(() => { saveBtn.textContent = '답글 저장'; }, 1500);
+          const docRef = doc(db, 'feedback', id);
+          const snap2 = await getDoc(docRef);
+          const data2 = snap2.exists() ? snap2.data() : {};
+          const messages = getFeedbackMessages(data2);
+          messages.push({ from: 'admin', text: replyText, ts: Date.now() });
+          await setDoc(docRef, { messages, lastTs: Date.now(), userUnread: true, adminUnread: false }, { merge: true });
+          saveBtn.textContent = '전송됨 ✓';
+          textarea.value = '';
+          setTimeout(() => renderAdminFeedbackList(), 800);
         } catch (e) {
           alert('저장 실패: ' + e.message);
         } finally {
@@ -6442,6 +6581,25 @@ window.addEventListener('resize', setTabAreaHeight);
   let tapCount = 0;
   let tapTimer = null;
   let adminUnlocked = false;
+  function unlockPanels() {
+    adminUnlocked = true;
+    btn.style.display = 'block';
+    if (hallPanel) hallPanel.style.display = 'block';
+    if (heartPanel) heartPanel.style.display = 'block';
+    if (feedbackPanel) {
+      feedbackPanel.style.display = 'block';
+      renderAdminFeedbackList();
+    }
+    if (jellyTestPanel) jellyTestPanel.style.display = 'block';
+    if (donateLogPanel) donateLogPanel.style.display = 'block';
+    if (catSkinPanel) catSkinPanel.style.display = 'block';
+  }
+  window.openAdminPanelDirect = async function() {
+    let trusted = false;
+    try { trusted = localStorage.getItem(ADMIN_DEVICE_KEY) === '1'; } catch {}
+    if (!trusted) return;
+    unlockPanels();
+  };
   titleEl.addEventListener('click', () => {
     tapCount++;
     clearTimeout(tapTimer);
@@ -6466,17 +6624,8 @@ window.addEventListener('resize', setTabAreaHeight);
       const code = prompt('🔒 관리자 로그인\n암호를 입력하세요');
       if (code === null) return; // 취소
       if (code !== 'oing-admin-7x9qz-2026') { alert('암호가 틀렸습니다.'); return; }
-      adminUnlocked = true;
-      btn.style.display = 'block';
-      if (hallPanel) hallPanel.style.display = 'block';
-      if (heartPanel) heartPanel.style.display = 'block';
-      if (feedbackPanel) {
-        feedbackPanel.style.display = 'block';
-        renderAdminFeedbackList();
-      }
-      if (jellyTestPanel) jellyTestPanel.style.display = 'block';
-      if (donateLogPanel) donateLogPanel.style.display = 'block';
-      if (catSkinPanel) catSkinPanel.style.display = 'block';
+      try { localStorage.setItem(ADMIN_DEVICE_KEY, '1'); } catch {}
+      unlockPanels();
     }
   });
 
@@ -6631,6 +6780,8 @@ window.addEventListener('resize', setTabAreaHeight);
 setTimeout(() => renderRanking(), 300);
 setTimeout(() => backfillFriendHearts(), 500);
 setTimeout(() => refreshMyCatSkin(), 600);
+setTimeout(() => checkUnreadReply(), 800);
+setTimeout(() => checkAdminUnreadInquiries(), 1000);
 
 // iOS 홈화면 추가 안내
 function dismissIOSPopup() {
