@@ -4776,6 +4776,7 @@ async function renderRanking() {
 
     list.forEach((entry, i) => {
       const rank = i + 1;
+      if (rank <= 3) return; // 1~3위는 시상대에 표시되므로 리스트에서 제외
       const isMe = myNick && entry.nickname === myNick;
       const isNew = justUpdated && entry.nickname === justUpdated;
       const isTop10 = rank <= 10;
@@ -4897,6 +4898,7 @@ async function renderWeeklyRanking() {
     rankEmpty.style.display = 'none';
     list.forEach((entry, i) => {
       const rank = i + 1;
+      if (rank <= 3) return; // 1~3위는 시상대에 표시되므로 리스트에서 제외
       const isMe = myNick && entry.nickname === myNick;
       const isNew = justUpdated && entry.nickname === justUpdated;
       const isTop10 = rank <= 10;
