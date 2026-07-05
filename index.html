@@ -2000,6 +2000,7 @@ body.light .cell.cat.answer {
                   text-decoration:underline;
                 ">💌 문의하기</button>
               </div>
+              <div style="margin-top:6px; font-size:10.5px; color:var(--border2);">build #1783253846</div>
             </div>
           </div>
         </div>
@@ -5441,6 +5442,23 @@ document.addEventListener('click', async (e) => {
 });
 
 async function renderRanking() {
+  try {
+    await renderRankingInner();
+  } catch (e) {
+    console.warn('전체 랭킹 렌더 실패:', e);
+    const rankEmptyEl = document.getElementById('rankEmpty');
+    if (rankEmptyEl) {
+      rankEmptyEl.style.display = 'block';
+      rankEmptyEl.innerHTML = '랭킹을 불러오는 중 문제가 생겼어요 🙏<br><span style="font-size:12.5px; color:var(--muted);">(네트워크 상태를 확인하고 다시 시도해보세요)</span><br><button id="rankRetryBtn2" style="margin-top:10px; padding:7px 16px; border-radius:20px; border:1px solid var(--blue-bright); background:var(--surface2); color:var(--blue-light); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;">🔄 다시 시도</button>';
+      const retryBtn = document.getElementById('rankRetryBtn2');
+      if (retryBtn) retryBtn.addEventListener('click', () => renderRanking());
+    }
+    const podiumEl = document.getElementById('podiumWrap');
+    if (podiumEl) podiumEl.innerHTML = '';
+  }
+}
+
+async function renderRankingInner() {
   await loadSkinsCache();
   if (currentRankMode === 'week') { await renderWeeklyRanking(); return; }
   renderWeeklyThanks();
@@ -5614,6 +5632,23 @@ async function mergeWeeklyRankSnapshot(partialRanksDotted) {
 }
 
 async function renderWeeklyRanking() {
+  try {
+    await renderWeeklyRankingInner();
+  } catch (e) {
+    console.warn('이번주 랭킹 렌더 실패:', e);
+    const rankEmptyEl = document.getElementById('rankEmpty');
+    if (rankEmptyEl) {
+      rankEmptyEl.style.display = 'block';
+      rankEmptyEl.innerHTML = '랭킹을 불러오는 중 문제가 생겼어요 🙏<br><span style="font-size:12.5px; color:var(--muted);">(네트워크 상태를 확인하고 다시 시도해보세요)</span><br><button id="rankRetryBtn" style="margin-top:10px; padding:7px 16px; border-radius:20px; border:1px solid var(--blue-bright); background:var(--surface2); color:var(--blue-light); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;">🔄 다시 시도</button>';
+      const retryBtn = document.getElementById('rankRetryBtn');
+      if (retryBtn) retryBtn.addEventListener('click', () => renderRanking());
+    }
+    const podiumEl = document.getElementById('podiumWrap');
+    if (podiumEl) podiumEl.innerHTML = '';
+  }
+}
+
+async function renderWeeklyRankingInner() {
   const list = await loadWeeklyRankings();
   const myNick = loadNickname();
   const justUpdated = sessionStorage.getItem('oeing_just_updated');
