@@ -2828,13 +2828,23 @@ async function getOrCreateRefCode(nickname) {
 //  STORAGE
 // ══════════════════════════════
 const NICK_KEY = 'oeing_nickname_v1';
-const MAX_RANKS = 500;
+const MAX_RANKS = 150; // 랭킹 화면에서 한 번에 불러오는 최대 인원 — 너무 크면 읽기 비용이 불필요하게 커짐
+
+let _rankingsCache = null, _rankingsCacheTs = 0;
+const RANKING_CACHE_TTL = 20000; // 20초 — 짧은 시간 안에 탭을 왔다갔다 해도 매번 다시 안 읽게 캐싱
+
+function invalidateRankingsCache() { _rankingsCache = null; }
 
 async function loadRankings() {
+  if (_rankingsCache && Date.now() - _rankingsCacheTs < RANKING_CACHE_TTL) {
+    return _rankingsCache;
+  }
   try {
     const q = query(collection(db, 'rankings'), orderBy('score', 'desc'), limit(MAX_RANKS));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ nickname: d.id, score: d.data().score, ts: d.data().ts }));
+    const list = snap.docs.map(d => ({ nickname: d.id, score: d.data().score, ts: d.data().ts }));
+    _rankingsCache = list; _rankingsCacheTs = Date.now();
+    return list;
   } catch (e) {
     console.warn('Firebase load 실패, 로컬 폴백:', e);
     try {
@@ -2909,6 +2919,7 @@ async function addWeeklyScore(nickname, newScore) {
     const existingScore = snap.exists() ? snap.data().score : null;
     if (existingScore === null || newScore > existingScore) {
       await setDoc(docRef, { score: newScore, ts: Date.now() });
+      invalidateWeeklyRankingsCache();
     }
   } catch (e) {
     console.warn('주간 랭킹 저장 실패(권한/네트워크), 로컬 폴백:', e);
@@ -2925,12 +2936,21 @@ async function addWeeklyScore(nickname, newScore) {
   }
 }
 
+let _weeklyRankingsCache = null, _weeklyRankingsCacheTs = 0, _weeklyRankingsCacheWeekId = null;
+
+function invalidateWeeklyRankingsCache() { _weeklyRankingsCache = null; }
+
 async function loadWeeklyRankings() {
   const weekId = getWeekId();
+  if (_weeklyRankingsCache && _weeklyRankingsCacheWeekId === weekId && Date.now() - _weeklyRankingsCacheTs < RANKING_CACHE_TTL) {
+    return _weeklyRankingsCache;
+  }
   try {
     const q = query(collection(db, 'weekly_rankings', weekId, 'scores'), orderBy('score', 'desc'), limit(MAX_RANKS));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ nickname: d.id, score: d.data().score, ts: d.data().ts }));
+    const list = snap.docs.map(d => ({ nickname: d.id, score: d.data().score, ts: d.data().ts }));
+    _weeklyRankingsCache = list; _weeklyRankingsCacheTs = Date.now(); _weeklyRankingsCacheWeekId = weekId;
+    return list;
   } catch (e) {
     console.warn('주간 랭킹 로드 실패, 로컬 폴백:', e);
     try {
@@ -3125,6 +3145,7 @@ async function addScore(nickname, newScore) {
     const existingScore = snap.exists() ? snap.data().score : null;
     if (existingScore === null || newScore > existingScore) {
       await setDoc(docRef, { score: newScore, ts: Date.now() });
+      invalidateRankingsCache();
     }
   } catch (e) {
     console.warn('Firebase save 실패, 로컬 폴백:', e);
@@ -5270,9 +5291,11 @@ document.getElementById('startRankBtn').addEventListener('click', () => {
 // 명예의전당 칭호
 const HALL_TITLE_KEY = 'oeing_hall_titles';
 function getHallTitle(nickname) {
-  // Firebase에서 가져온 데이터 우선
-  if (window._champCounts && window._champCounts[nickname]) {
-    return window._champCounts[nickname];
+  // 서버(champions)에서 카운트를 이미 불러온 상태라면, 그게 유일한 정답 —
+  // 서버에 없으면(초기화 등) 0으로 취급하고, 예전 localStorage 값으로 폴백하지 않음
+  // (폴백하면 왕관 초기화 후에도 각 기기에 옛 왕관이 계속 남아 보이는 버그 발생)
+  if (window._champCounts) {
+    return window._champCounts[nickname] || 0;
   }
   try {
     const data = JSON.parse(localStorage.getItem(HALL_TITLE_KEY) || '{}');
@@ -5442,14 +5465,8 @@ async function renderRanking() {
   const champCounts = await getChampCounts();
   // champCounts를 전역으로 저장 (모든 칭호 표시에 사용)
   window._champCounts = champCounts;
-  // localStorage도 동기화 (오프라인 대비)
-  Object.keys(champCounts).forEach(nick => {
-    try {
-      const data = JSON.parse(localStorage.getItem(HALL_TITLE_KEY) || '{}');
-      data[nick] = champCounts[nick];
-      localStorage.setItem(HALL_TITLE_KEY, JSON.stringify(data));
-    } catch {}
-  });
+  // localStorage도 서버 데이터로 완전히 덮어씀 (기존 값에 추가만 하면 삭제된 왕관이 로컬에 남아버림)
+  try { localStorage.setItem(HALL_TITLE_KEY, JSON.stringify(champCounts)); } catch {}
 
   // 순위 변동 비교용 — 스냅샷은 하루 동안 그대로 유지하고, 새로 등장한 닉네임만 추가로 병합
   // (전체를 자주 덮어쓰면 기존 유저들의 ▲▼ 변동 표시가 다 사라져버려서, 새 참가자만 콕 집어 추가함)
@@ -7428,6 +7445,7 @@ window.addEventListener('resize', setTabAreaHeight);
       }
 
       try { localStorage.removeItem('oeing_rankings_v1'); } catch {}
+      invalidateRankingsCache();
 
       alert(`완료! rankings ${rankSnap.size}개, user_stats ${statsSnap.size}개 삭제됨.\n${crownMsg}`);
       btn.style.display = 'none';
@@ -7453,6 +7471,9 @@ window.addEventListener('resize', setTabAreaHeight);
       try {
         const weekSnap = await getDocs(collection(db, 'weekly_rankings', weekId, 'scores'));
         for (const d of weekSnap.docs) await deleteDoc(doc(db, 'weekly_rankings', weekId, 'scores', d.id));
+        // 주간 순위변동 비교용 스냅샷도 같이 지움 (안 지우면 리셋 후 옛 순위와 비교돼 이상한 변동폭이 뜸)
+        await deleteDoc(doc(db, 'meta', 'weeklyRankSnapshot')).catch(() => {});
+        invalidateWeeklyRankingsCache();
         alert(`완료! 이번주(${weekId}) 랭킹 ${weekSnap.size}개 삭제됨.`);
         btnWeek.style.display = 'none';
         renderRanking();
