@@ -370,22 +370,25 @@ html, body {
   background-position: 3px 3px;
   perspective: 700px;
 }
-/* 게임 종료 후 — 결과창 여백 확보를 위해 grid-wrap을 스크롤 가능하게 하고,
-   grid는 찌그러지지 않도록 고정 비율로 전환 */
+/* 게임 종료 후 — 스크롤 대신 보드를 세로로 납작하게 압축해서
+   결과창 위 공간 안에 답지 전체가 한눈에 들어오게 함 */
 .grid-wrap.ended {
-  overflow-y: auto;
+  overflow: hidden;
   display: block;
 }
 .grid-wrap.ended .grid {
   flex: none;
   min-height: unset;
   width: 100%;
-  aspect-ratio: 9 / 13;
-  grid-template-rows: unset;
+  height: 100%;
+  grid-template-rows: repeat(13, 1fr);
+  transition: all 0.4s ease;
 }
 .grid-wrap.ended .cell {
   height: unset;
-  aspect-ratio: 1;
+  aspect-ratio: unset;
+  min-height: 0;
+  font-size: clamp(10px, 2.6vw, 14px);
 }
 
 /* 보드 리셋(재배치) 카드 셔플 연출 */
@@ -599,6 +602,18 @@ body.light .cell.empty {
   35%  { transform: translate(-50%,-50%) scale(1); }
   75%  { opacity: 1; transform: translate(-50%,-50%) scale(1); }
   100% { opacity: 0; transform: translate(-50%,-60%) scale(0.9); }
+}
+@keyframes boardFlash {
+  0%   { opacity: 0; }
+  25%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes boardPopIn {
+  0%   { opacity: 0; transform: translate(-50%,-50%) scale(0.4); }
+  35%  { opacity: 1; transform: translate(-50%,-50%) scale(1.18); }
+  55%  { transform: translate(-50%,-50%) scale(1); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%,-62%) scale(0.95); }
 }
 
 /* ── 오버레이 ── */
@@ -1880,6 +1895,12 @@ body.light .cell.cat.answer {
       <!-- 하단 고정 바: 힌트 + 다시하기 -->
       <div id="bottomBar" class="bottom-bar" style="display:none; align-items:center; gap:8px;">
         <button class="hint-btn" id="hintBtn" style="flex:1;">💡 힌트 사용</button>
+        <button id="shuffleBtn" style="
+          background:var(--surface2); border:1px solid #8aa8d9;
+          color:#b9c9ea; font-family:inherit; font-size:13px; font-weight:800;
+          padding:6px 12px; border-radius:20px; cursor:pointer; flex-shrink:0;
+          white-space:nowrap;
+        ">🔀 셔플 (1)</button>
         <button id="freeModeEndBtn" style="
           display:none;
           background:var(--accent-orange); border:none;
@@ -2000,7 +2021,7 @@ body.light .cell.cat.answer {
                   text-decoration:underline;
                 ">💌 문의하기</button>
               </div>
-              <div style="margin-top:6px; font-size:10.5px; color:var(--border2);">build #1783253846</div>
+              <div style="margin-top:6px; font-size:10.5px; color:var(--border2);">build #1783261577</div>
             </div>
           </div>
         </div>
@@ -2054,44 +2075,12 @@ body.light .cell.cat.answer {
         </div>
 
 
-        <!-- 관리자 전용: 랭킹 초기화 (숨김, 타이틀 5회 탭 시 노출) -->
-        <button id="adminResetBtn" style="display:none; margin:6px auto 4px; padding:6px 14px; font-size:13px; font-weight:700; color:#fca5a5; background:rgba(239,68,68,0.12); border:1px solid #ef4444; border-radius:10px;">
-          ⚠️ 랭킹 전체 초기화 (관리자)
-        </button>
-        <button id="adminResetWeekBtn" style="display:none; margin:0 auto 10px; padding:6px 14px; font-size:13px; font-weight:700; color:#fca5a5; background:rgba(239,68,68,0.12); border:1px solid #ef4444; border-radius:10px;">
-          ⚠️ 이번주 랭킹만 초기화 (관리자)
-        </button>
-        <button id="adminResetCrownBtn" style="display:none; margin:0 auto 10px; padding:6px 14px; font-size:13px; font-weight:700; color:#fde68a; background:rgba(251,191,36,0.12); border:1px solid #fbbf24; border-radius:10px;">
-          👑 왕관 기록만 초기화 (관리자)
-        </button>
-        <div id="adminHallPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:260px; background:rgba(251,191,36,0.08); border:1px solid #fbbf24; border-radius:10px; text-align:center;">
-          <div style="font-size:12px; color:#fbbf24; font-weight:700; margin-bottom:6px;">👑 명전 횟수 수동 설정</div>
-          <div style="display:flex; gap:4px; margin-bottom:6px;">
-            <input id="adminHallNick" type="text" placeholder="닉네임" style="flex:1; min-width:0; font-size:13px; padding:5px 6px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text);">
-            <input id="adminHallCount" type="number" min="0" placeholder="횟수" style="width:54px; font-size:13px; padding:5px 6px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text);">
-          </div>
-          <button id="adminHallSetBtn" style="width:100%; padding:5px; font-size:13px; font-weight:700; color:#fde68a; background:rgba(251,191,36,0.15); border:1px solid #fbbf24; border-radius:8px; margin-bottom:5px;">설정 저장</button>
-          <button id="adminHallSyncBtn" style="width:100%; padding:5px; font-size:12px; font-weight:700; color:#93c5fd; background:rgba(59,130,246,0.12); border:1px solid #3b82f6; border-radius:8px;">현재 1등을 챔피언으로 동기화</button>
-        </div>
-
-        <!-- 관리자 전용: 피드백 게시판 관리 -->
-        <div id="adminFeedbackPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:300px; background:rgba(59,130,246,0.08); border:1px solid #3b82f6; border-radius:10px; text-align:left;">
-          <div style="font-size:12px; color:#93c5fd; font-weight:700; margin-bottom:6px; text-align:center;">💌 피드백 관리</div>
-          <div id="adminFeedbackList" style="display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto;"></div>
-        </div>
-
         <!-- 관리자 전용: 응원자 감사 메시지 (당분간 누적으로 운영) -->
         <div id="adminThanksPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:300px; background:rgba(218,152,69,0.1); border:1px solid #DA9845; border-radius:10px; text-align:center;">
           <div style="font-size:12px; color:#f0d8a8; font-weight:700; margin-bottom:6px;">🐾 이번달 응원자 감사 메시지 (닉네임만 쉼표로 구분)</div>
           <textarea id="adminThanksText" placeholder="예: 제제, 준석리, 쿠앙" style="width:100%; min-height:44px; font-size:13px; padding:6px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:inherit; resize:vertical; margin-bottom:6px; box-sizing:border-box;"></textarea>
           <button id="adminThanksSaveBtn" style="width:100%; padding:6px; font-size:13px; font-weight:700; color:#f0d8a8; background:rgba(218,152,69,0.2); border:1px solid #DA9845; border-radius:8px; margin-bottom:5px;">저장 (랭킹 화면 하단에 표시됨)</button>
           <button id="adminThanksClearBtn" style="width:100%; padding:5px; font-size:12px; font-weight:700; color:var(--muted); background:none; border:1px solid var(--border); border-radius:8px;">비우기 (표시 숨김)</button>
-        </div>
-
-        <!-- 관리자 전용: 응원 클릭 로그 -->
-        <div id="adminDonateLogPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:300px; background:rgba(240,169,60,0.1); border:1px solid #DA9845; border-radius:10px; text-align:center;">
-          <div style="font-size:12px; color:#DA9845; font-weight:700; margin-bottom:6px;">💛 응원 클릭 로그</div>
-          <button id="adminDonateLogBtn" style="width:100%; padding:6px; font-size:13px; font-weight:700; color:#f0d8a8; background:rgba(240,169,60,0.2); border:1px solid #DA9845; border-radius:8px;">클릭 로그 보기</button>
         </div>
 
         <!-- 관리자 전용: 고양이 스킨 부여 -->
@@ -2104,7 +2093,41 @@ body.light .cell.cat.answer {
             <button id="adminCatSkinGrantBtn" style="flex:1; padding:5px; font-size:13px; font-weight:700; color:#bcdcff; background:rgba(111,168,232,0.2); border:1px solid #6fa8e8; border-radius:8px;">스킨 적용</button>
             <button id="adminCatSkinRevokeBtn" style="flex:1; padding:5px; font-size:13px; font-weight:700; color:var(--muted); background:none; border:1px solid var(--border); border-radius:8px;">해제</button>
           </div>
+          <button id="adminThanksNoteBtn" style="width:100%; margin-top:5px; padding:5px; font-size:13px; font-weight:700; color:#f0d8a8; background:rgba(218,152,69,0.15); border:1px solid #DA9845; border-radius:8px;">😻 감사 쪽지만 보내기 (리워드 없이)</button>
         </div>
+
+        <!-- 관리자 전용: 피드백 게시판 관리 -->
+        <div id="adminFeedbackPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:300px; background:rgba(59,130,246,0.08); border:1px solid #3b82f6; border-radius:10px; text-align:left;">
+          <div style="font-size:12px; color:#93c5fd; font-weight:700; margin-bottom:6px; text-align:center;">💌 피드백 관리</div>
+          <div id="adminFeedbackList" style="display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto;"></div>
+        </div>
+
+        <!-- 관리자 전용: 응원 클릭 로그 -->
+        <div id="adminDonateLogPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:300px; background:rgba(240,169,60,0.1); border:1px solid #DA9845; border-radius:10px; text-align:center;">
+          <div style="font-size:12px; color:#DA9845; font-weight:700; margin-bottom:6px;">💛 응원 클릭 로그</div>
+          <button id="adminDonateLogBtn" style="width:100%; padding:6px; font-size:13px; font-weight:700; color:#f0d8a8; background:rgba(240,169,60,0.2); border:1px solid #DA9845; border-radius:8px;">클릭 로그 보기</button>
+        </div>
+
+        <div id="adminHallPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:260px; background:rgba(251,191,36,0.08); border:1px solid #fbbf24; border-radius:10px; text-align:center;">
+          <div style="font-size:12px; color:#fbbf24; font-weight:700; margin-bottom:6px;">👑 명전 횟수 수동 설정</div>
+          <div style="display:flex; gap:4px; margin-bottom:6px;">
+            <input id="adminHallNick" type="text" placeholder="닉네임" style="flex:1; min-width:0; font-size:13px; padding:5px 6px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text);">
+            <input id="adminHallCount" type="number" min="0" placeholder="횟수" style="width:54px; font-size:13px; padding:5px 6px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text);">
+          </div>
+          <button id="adminHallSetBtn" style="width:100%; padding:5px; font-size:13px; font-weight:700; color:#fde68a; background:rgba(251,191,36,0.15); border:1px solid #fbbf24; border-radius:8px; margin-bottom:5px;">설정 저장</button>
+          <button id="adminHallSyncBtn" style="width:100%; padding:5px; font-size:12px; font-weight:700; color:#93c5fd; background:rgba(59,130,246,0.12); border:1px solid #3b82f6; border-radius:8px;">현재 1등을 챔피언으로 동기화</button>
+        </div>
+
+        <!-- 관리자 전용: 랭킹 초기화 (숨김, 타이틀 5회 탭 시 노출) -->
+        <button id="adminResetBtn" style="display:none; margin:6px auto 4px; padding:6px 14px; font-size:13px; font-weight:700; color:#fca5a5; background:rgba(239,68,68,0.12); border:1px solid #ef4444; border-radius:10px;">
+          ⚠️ 랭킹 전체 초기화 (관리자)
+        </button>
+        <button id="adminResetWeekBtn" style="display:none; margin:0 auto 10px; padding:6px 14px; font-size:13px; font-weight:700; color:#fca5a5; background:rgba(239,68,68,0.12); border:1px solid #ef4444; border-radius:10px;">
+          ⚠️ 이번주 랭킹만 초기화 (관리자)
+        </button>
+        <button id="adminResetCrownBtn" style="display:none; margin:0 auto 10px; padding:6px 14px; font-size:13px; font-weight:700; color:#fde68a; background:rgba(251,191,36,0.12); border:1px solid #fbbf24; border-radius:10px;">
+          👑 왕관 기록만 초기화 (관리자)
+        </button>
 
         <!-- 시상대 -->
         <div class="podium-wrap" id="podiumWrap"></div>
@@ -2353,12 +2376,22 @@ body.light .cell.cat.answer {
 <div id="skinNotifyOverlay" class="overlay" style="display:none;">
   <div class="overlay-card" style="max-width:300px; text-align:center;">
     <div style="font-size:44px; margin-bottom:6px;">🐱</div>
-    <div class="overlay-title" style="font-size:18px;">리워드 배송왔다냥~😸</div>
-    <div style="font-size:14.5px; color:var(--text); margin-top:6px; line-height:1.5;">게임창에서 확인해보라냥!</div>
+    <div class="overlay-title" style="font-size:17px;" id="skinNotifyTitle">응원해주셔서 감사합니다냥😻</div>
+    <div style="font-size:15px; color:var(--text); margin-top:6px; line-height:1.6;">리워드 배송왔다냥~🐾<br><span style="font-size:13px; color:var(--muted);">게임창에서 확인해보라냥!</span></div>
     <button id="skinNotifyCloseBtn" class="action-btn" style="width:100%; margin-top:16px;">확인했다냥!</button>
     <div style="font-size:11.5px; color:var(--muted); margin-top:12px; line-height:1.5;">
       혹시 안 보이면 새로고침하거나 창을 껐다 다시 켜보세요.<br>그래도 안 보이면 문의하기로 남겨주세요.
     </div>
+  </div>
+</div>
+
+<!-- 감사 쪽지 팝업 (스킨 없이 감사 인사만 보낼 때) -->
+<div id="thanksNoteOverlay" class="overlay" style="display:none;">
+  <div class="overlay-card" style="max-width:300px; text-align:center;">
+    <div style="font-size:44px; margin-bottom:6px;">😻</div>
+    <div class="overlay-title" style="font-size:17px;" id="thanksNoteTitle">응원해주셔서 감사합니다냥😻</div>
+    <div style="font-size:13.5px; color:var(--muted); margin-top:8px; line-height:1.5;">덕분에 게임이 계속 자란다냥🐾</div>
+    <button id="thanksNoteCloseBtn" class="action-btn" style="width:100%; margin-top:16px;">😸</button>
   </div>
 </div>
 
@@ -2455,7 +2488,7 @@ body.light .cell.cat.answer {
       <div id="resCombo2">최고 콤보 ×0</div>
     </div>
   </div>
-  <div id="scoreComment" style="text-align:center; font-size:19px; font-weight:900; color:var(--blue-light); margin:8px 0 16px;"></div>
+  <div id="scoreComment" style="text-align:center; font-family:'Jua','Malgun Gothic',sans-serif; font-weight:400; font-size:20px; color:var(--blue-light); margin:8px 0 16px;"></div>
   <div id="beatMsg" style="display:none; text-align:center; font-size:14px; font-weight:800; color:#DA9845; margin:-2px 0 14px;"></div>
   <div id="nickSection2">
     <div id="firstTimeWelcome" style="display:none; text-align:center; font-size:13.5px; color:var(--blue-light); font-weight:700; margin-bottom:10px; line-height:1.5;">
@@ -2502,6 +2535,9 @@ body.light .cell.cat.answer {
         <li>▫️ 콤보 점수 배율 상한(25) 도입 — 상위권과 나머지 점수 격차 완화</li>
         <li>▫️ <b>전체 랭킹 점수 초기화</b></li>
         <li>▫️ 👑 왕관 지급 방식 개편 (매주 1회, 그 주 마지막 1등) + 기존 왕관 기록 초기화</li>
+        <li>▫️ 🔀 셔플 버튼 추가 — 판당 1회, 남은 숫자들의 자리를 뒤섞어요. 조합이 안 보일 때 탈출용!</li>
+        <li>▫️ 판을 완전히 비우면 ✨PERFECT✨ 연출 등장</li>
+        <li>▫️ 연습모드 추가 — 4분 넉넉하게, 랭킹 반영 없이 편하게 연습</li>
       </ul>
       <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
 
@@ -2860,12 +2896,15 @@ async function loadRankings() {
 //  전체 랭킹(rankings)은 그대로 두고, weekly_rankings/{weekId}/scores 서브컬렉션에 별도 저장
 // ══════════════════════════════
 function getWeekId() {
+  return '2026-06-29'; // 이번 주만 임시 고정 — 다음 패치 때 아래 정상 로직으로 복구
+  /* 정상 로직:
   const d = new Date();
-  const day = d.getDay(); // 0=일 1=월 ... 6=토
+  const day = d.getDay();
   const diffToMonday = day === 0 ? 6 : day - 1;
   const monday = new Date(d);
   monday.setDate(d.getDate() - diffToMonday);
   return `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+  */
 }
 
 // 지난주(저번주 월요일) weekId — "지난주 대비" 순위변동 비교 기준으로 사용
@@ -3199,9 +3238,11 @@ async function checkAndRecordChampion(nickname, knownTopNick, knownTopScore) {
 
 // 왕관(👑) 지급 방식 — 실시간으로 1등이 바뀔 때마다가 아니라, "주가 넘어갔을 때 그 시점 전체 1등"에게
 // 딱 한 번만 지급. 하루에도 여러 번 엎치락뒤치락하는 걸 다 왕관으로 잡던 예전 방식보다 훨씬 안정적.
+let _crownCheckedWeekId = null; // 이번 세션에서 이미 확인 완료한 주차 — 랭킹 열 때마다 다시 읽지 않게
 async function checkWeeklyCrownSnapshot() {
   try {
     const weekId = getWeekId();
+    if (_crownCheckedWeekId === weekId) return;
     const stateRef = doc(db, 'meta', 'weeklyCrownState');
 
     // 트랜잭션으로 "이번 주 왕관 처리"를 원자적으로 딱 한 번만 선점 —
@@ -3215,6 +3256,7 @@ async function checkWeeklyCrownSnapshot() {
       tx.set(stateRef, { lastCrownedWeek: weekId }, { merge: true });
       hadPrevWeek = !!lastCrownedWeek;
     });
+    _crownCheckedWeekId = weekId; // 확인 완료 — 이번 세션에선 다시 안 읽음
     shouldAward = hadPrevWeek; // 최초 실행(이전 기록 없음)이면 기준만 세우고 왕관은 안 줌
 
     if (!shouldAward) return;
@@ -3567,6 +3609,7 @@ let gameEndTime = 0; // Date.now 기반 종료 시각
 let sel1 = null;
 let hintsUsed = 0; // 판당 힌트 사용 횟수
 const MAX_HINTS = 2; // 판당 최대 힌트 사용 가능 횟수
+let shuffleUsed = false; // 판당 셔플 1회 — 막혔을 때 탈출용
 // 콤보는 계속 올라가지만(연출·재미용), 점수 계산에 쓰이는 배율은 여기서 상한을 둠
 // (상한 없으면 한 판 안에서 콤보가 무한히 커지면서 점수가 복리로 폭주해 최상위 격차가 감당 안 되게 벌어짐)
 const COMBO_SCORE_CAP = 25;
@@ -3750,7 +3793,7 @@ function makeBoard() {
   // 작은 수는 여러 조합에 두루 쓰일 수 있어서 많아도 활용도가 높음.
   // 1:18, 2:16, 3:14, 4:13, 5:13, 6:12, 7:10, 8:8, 9:6 = 110
   const pool = [];
-  const NUM_COUNTS = { 1: 18, 2: 16, 3: 14, 4: 13, 5: 13, 6: 12, 7: 10, 8: 8, 9: 6 };
+  const NUM_COUNTS = { 1: 18, 2: 16, 3: 14, 4: 12, 5: 14, 6: 12, 7: 10, 8: 8, 9: 6 }; // 합계 470 (10의 배수 — 이론상 완전 소진 가능)
   Object.keys(NUM_COUNTS).forEach(numStr => {
     const n = Number(numStr);
     for (let i = 0; i < NUM_COUNTS[numStr]; i++) pool.push(n);
@@ -4414,6 +4457,14 @@ function playReshuffleIn() {
 
 function triggerBoardReset() {
   resetCount++;
+  // 남은 숫자칸이 0이면 "완전 클리어" — 큰 연출, 아니면 가벼운 새 판 연출
+  let leftoverNums = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      const d = board[r][c];
+      if (!d.empty && !d.cat && !d.bomb && !d.clock && !d.hint && !d.megabomb && !d.freeze && !d.lucky) leftoverNums++;
+    }
+  showBoardTransitionPop(leftoverNums === 0);
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       if (board[r][c].empty) continue;
@@ -4430,6 +4481,33 @@ function triggerBoardReset() {
     updateHintBtn2();
     playReshuffleIn();
   }, 420);
+}
+
+// 판 전환 연출 — 짧고 강하게, 게임 조작은 안 막음 (pointer-events:none)
+function showBoardTransitionPop(isPerfect) {
+  const flash = document.createElement('div');
+  flash.style.cssText = `
+    position:fixed; inset:0; z-index:290; pointer-events:none;
+    background:radial-gradient(circle at 50% 45%, ${isPerfect ? 'rgba(255,213,94,0.28)' : 'rgba(126,194,240,0.18)'} 0%, transparent 60%);
+    animation:boardFlash 0.55s ease forwards;
+  `;
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 600);
+
+  const pop = document.createElement('div');
+  pop.style.cssText = `
+    position:fixed; top:38%; left:50%; transform:translate(-50%,-50%);
+    font-family:'Jua','Malgun Gothic',sans-serif;
+    font-size:${isPerfect ? '34px' : '22px'}; font-weight:400;
+    color:${isPerfect ? '#ffd55e' : '#7ec2f0'};
+    text-shadow:0 0 10px ${isPerfect ? 'rgba(255,213,94,0.7)' : 'rgba(126,194,240,0.6)'};
+    pointer-events:none; z-index:291; white-space:nowrap;
+    animation:boardPopIn 0.85s cubic-bezier(0.2,1.4,0.4,1) forwards;
+  `;
+  pop.textContent = isPerfect ? '✨ PERFECT! ✨' : '🌊 새 판이다냥!';
+  document.body.appendChild(pop);
+  if (isPerfect) { try { playCombo10(); } catch {} }
+  setTimeout(() => pop.remove(), 900);
 }
 
 function hasValidMove() {
@@ -4683,7 +4761,7 @@ function startGame() {
   resumeAC();
   document.body.classList.add('game-active');
   const gridWrap = document.querySelector('.grid-wrap');
-  if (gridWrap) { gridWrap.style.paddingBottom = ''; gridWrap.classList.remove('ended'); }
+  if (gridWrap) { gridWrap.style.paddingBottom = ''; gridWrap.style.marginBottom = ''; gridWrap.classList.remove('ended'); }
 
   // 기존 타이머/카운트다운 완전 정리
   clearInterval(timerInterval);
@@ -4696,6 +4774,8 @@ function startGame() {
   timeLeft = isFreeMode ? 240 : 120; sel1 = null; gameRunning = false;
   maxTimeSeen = 120;
   hintsUsed = 0;
+  shuffleUsed = false;
+  updateShuffleBtn();
   bonusHintGiven = false;
   // 이전 게임에서 타임프리즈가 풀리지 않은 채로 남아있으면 새 게임에서 아이템이 먹통이 되는 버그 방지
   freezeActive = false;
@@ -4885,7 +4965,7 @@ async function endGame() {
 
   // 답지가 resultPanel에 안 가려지게 grid-wrap에 여백 추가
   const gridWrap = document.querySelector('.grid-wrap');
-  if (gridWrap) { gridWrap.classList.add('ended'); gridWrap.style.paddingBottom = '320px'; }
+  if (gridWrap) { gridWrap.classList.add('ended'); gridWrap.style.paddingBottom = '0'; gridWrap.style.marginBottom = '300px'; }
 
   // 결과 패널 표시
   document.getElementById('finalScore').textContent = score;
@@ -5129,6 +5209,50 @@ document.getElementById('hintBtn').addEventListener('click', () => {
         if (el) el.classList.remove('answer');
       }
   }, 1600);
+});
+
+// 셔플 버튼 — 판당 1회, 남은 숫자들의 "위치만" 서로 뒤섞음 (개수/합계 불변, 고양이·아이템·빈칸은 그대로)
+function updateShuffleBtn() {
+  const btn = document.getElementById('shuffleBtn');
+  if (!btn) return;
+  if (shuffleUsed) {
+    btn.textContent = '🔀 사용완료';
+    btn.style.opacity = '0.45';
+  } else {
+    btn.textContent = '🔀 셔플 (1)';
+    btn.style.opacity = '1';
+  }
+}
+document.getElementById('shuffleBtn').addEventListener('click', () => {
+  if (!gameRunning || shuffleUsed) return;
+  shuffleUsed = true;
+  updateShuffleBtn();
+  // 숫자칸 좌표와 값 수집
+  const spots = [];
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      const d = board[r][c];
+      if (!d.empty && !d.cat && !d.bomb && !d.clock && !d.hint && !d.megabomb && !d.freeze && !d.lucky) spots.push({ r, c });
+    }
+  if (spots.length < 2) return;
+  const vals = spots.map(({r,c}) => board[r][c].num);
+  for (let i = vals.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [vals[i], vals[j]] = [vals[j], vals[i]];
+  }
+  // 나가는 애니메이션 → 값 재배치 → 재렌더
+  spots.forEach(({r,c}, idx) => {
+    const el = cellEl(r, c);
+    if (el) { el.style.animationDelay = (idx % 12) * 12 + 'ms'; el.classList.add('reshuffle-out'); }
+  });
+  try { playHint(); } catch {}
+  setTimeout(() => {
+    spots.forEach(({r,c}, i) => { board[r][c].num = vals[i]; });
+    renderGrid();
+    try { playReshuffleIn(); } catch {}
+    // 섞고 나서도 답이 없으면(희박) 그냥 새 판으로
+    if (!hasValidMove()) setTimeout(() => triggerBoardReset(), 350);
+  }, 380);
 });
 
 // ── 닉네임 등록 공통 로직 (PIN 검증 포함) ──
@@ -5393,11 +5517,15 @@ function rankChangeHtml(prevRank, currentRank, podium) {
 
 let currentRankMode = 'week'; // 'all' | 'week' — 이번주를 기본으로
 
+let _skinsCacheTs = 0;
+const SKINS_CACHE_TTL = 120000; // 2분 — 스킨은 자주 안 바뀌므로 매 렌더마다 전체 컬렉션을 다시 읽지 않음
 async function loadSkinsCache() {
+  if (_skinsCacheTs && Date.now() - _skinsCacheTs < SKINS_CACHE_TTL) return;
   try {
     const snap = await getDocs(collection(db, 'nickname_skins'));
     Object.keys(skinsCache).forEach(k => delete skinsCache[k]);
     snap.forEach(d => { skinsCache[d.id] = { skin: d.data().skin || null, frame: d.data().frame || null, bubble: d.data().bubble || null }; });
+    _skinsCacheTs = Date.now();
   } catch (e) { console.warn('스킨 로드 실패:', e); }
 }
 function skinnedNickHtml(nickname, plainText) {
@@ -7019,12 +7147,36 @@ async function checkSkinNotification() {
   try {
     const ref = doc(db, 'nickname_skins', myNick);
     const snap = await getDoc(ref);
-    if (!snap.exists() || !snap.data().notifyPending) return;
-    const overlay = document.getElementById('skinNotifyOverlay');
-    if (overlay) overlay.style.display = 'flex';
-    await setDoc(ref, { notifyPending: false }, { merge: true });
-  } catch (e) { console.warn('스킨 알림 확인 실패:', e); }
+    if (!snap.exists()) return;
+    const d = snap.data();
+    if (d.notifyPending) {
+      // 리워드(스킨) 배송 알림
+      const titleEl = document.getElementById('skinNotifyTitle');
+      if (titleEl) titleEl.textContent = `${myNick}님, 응원해주셔서 감사합니다냥😻`;
+      const overlay = document.getElementById('skinNotifyOverlay');
+      if (overlay) overlay.style.display = 'flex';
+      await setDoc(ref, { notifyPending: false, thanksPending: false }, { merge: true });
+    } else if (d.thanksPending) {
+      // 감사 쪽지만 (리워드 없이)
+      const titleEl = document.getElementById('thanksNoteTitle');
+      if (titleEl) titleEl.textContent = `${myNick}님, 응원해주셔서 감사합니다냥😻`;
+      const overlay = document.getElementById('thanksNoteOverlay');
+      if (overlay) {
+        overlay.style.display = 'flex';
+        // 잠시 후 자동으로 스르륵 사라짐 (탭해서 바로 닫기도 가능)
+        setTimeout(() => {
+          overlay.style.transition = 'opacity 0.6s';
+          overlay.style.opacity = '0';
+          setTimeout(() => { overlay.style.display = 'none'; overlay.style.opacity = '1'; overlay.style.transition = ''; }, 650);
+        }, 4500);
+      }
+      await setDoc(ref, { thanksPending: false }, { merge: true });
+    }
+  } catch (e) { console.warn('스킨/감사 알림 확인 실패:', e); }
 }
+document.getElementById('thanksNoteCloseBtn').addEventListener('click', () => {
+  document.getElementById('thanksNoteOverlay').style.display = 'none';
+});
 
 async function checkUnreadReply() {
   const myNick = loadNickname();
@@ -7422,7 +7574,7 @@ window.addEventListener('resize', setTabAreaHeight);
       if (!nick) { alert('닉네임을 입력하세요.'); return; }
       catSkinGrantBtn.disabled = true;
       try {
-        await setDoc(doc(db, 'nickname_skins', nick), { cat: true }, { merge: true });
+        await setDoc(doc(db, 'nickname_skins', nick), { cat: true, notifyPending: true }, { merge: true });
         alert(`'${nick}' 님에게 고양이 스킨을 적용했어요.`);
         document.getElementById('adminCatSkinNick').value = '';
       } catch (e) {
@@ -7446,6 +7598,25 @@ window.addEventListener('resize', setTabAreaHeight);
         alert('해제 실패: ' + e.message);
       } finally {
         catSkinRevokeBtn.disabled = false;
+      }
+    });
+  }
+
+  // 감사 쪽지만 보내기 — 리워드 없이, 다음 접속시 "OO님, 응원해주셔서 감사합니다냥😻" 팝업 1회
+  const thanksNoteBtn = document.getElementById('adminThanksNoteBtn');
+  if (thanksNoteBtn) {
+    thanksNoteBtn.addEventListener('click', async () => {
+      const nick = document.getElementById('adminCatSkinNick').value.trim();
+      if (!nick) { alert('닉네임을 입력하세요.'); return; }
+      thanksNoteBtn.disabled = true;
+      try {
+        await setDoc(doc(db, 'nickname_skins', nick), { thanksPending: true }, { merge: true });
+        alert(`'${nick}' 님에게 감사 쪽지를 보냈어요.\n다음 접속 때 팝업으로 한 번 떠요.`);
+        document.getElementById('adminCatSkinNick').value = '';
+      } catch (e) {
+        alert('전송 실패: ' + e.message);
+      } finally {
+        thanksNoteBtn.disabled = false;
       }
     });
   }
