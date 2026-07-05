@@ -2739,7 +2739,7 @@ body.light .cell.cat.answer {
 //  FIREBASE 초기화
 // ══════════════════════════════
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, getDoc, orderBy, query, limit, deleteDoc, addDoc, increment, where }
+import { getFirestore, collection, getDocs, doc, setDoc, getDoc, orderBy, query, limit, deleteDoc, addDoc, increment, where, runTransaction }
   from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -3181,27 +3181,35 @@ async function checkWeeklyCrownSnapshot() {
   try {
     const weekId = getWeekId();
     const stateRef = doc(db, 'meta', 'weeklyCrownState');
-    const stateSnap = await getDoc(stateRef);
-    const lastCrownedWeek = stateSnap.exists() ? stateSnap.data().lastCrownedWeek : null;
-    if (lastCrownedWeek === weekId) return; // 이번 주는 이미 처리됨
+
+    // 트랜잭션으로 "이번 주 왕관 처리"를 원자적으로 딱 한 번만 선점 —
+    // 여러 명이 동시에 접속해도 그 중 하나만 통과하게 막아줌 (동시접속 시 왕관이 여러 명한테 새던 버그 수정)
+    let shouldAward = false;
+    let hadPrevWeek = false;
+    await runTransaction(db, async (tx) => {
+      const stateSnap = await tx.get(stateRef);
+      const lastCrownedWeek = stateSnap.exists() ? stateSnap.data().lastCrownedWeek : null;
+      if (lastCrownedWeek === weekId) return; // 이번 주는 이미 처리(또는 처리 중)됨
+      tx.set(stateRef, { lastCrownedWeek: weekId }, { merge: true });
+      hadPrevWeek = !!lastCrownedWeek;
+    });
+    shouldAward = hadPrevWeek; // 최초 실행(이전 기록 없음)이면 기준만 세우고 왕관은 안 줌
+
+    if (!shouldAward) return;
 
     const q = query(collection(db, 'rankings'), orderBy('score', 'desc'), limit(1));
     const topSnap = await getDocs(q);
-    // 새 주로 넘어온 첫 체크 시점의 1등을 지난주 몫 왕관 수령자로 지급
-    // (lastCrownedWeek가 아예 없던 최초 실행 때는 기준만 저장하고 왕관은 안 줌)
-    if (!topSnap.empty) {
-      const topNick = topSnap.docs[0].id;
-      const topScore = topSnap.docs[0].data().score || 0;
-      const MIN_CHAMPION_SCORE = 3000;
-      if (lastCrownedWeek && topScore >= MIN_CHAMPION_SCORE) {
-        const countRef = doc(db, 'champions', topNick);
-        const countSnap = await getDoc(countRef);
-        const count = (countSnap.exists() ? (countSnap.data().count || 0) : 0) + 1;
-        await setDoc(countRef, { count, lastCrownedAt: Date.now() });
-        await setDoc(doc(db, 'meta', 'currentChampion'), { nickname: topNick, ts: Date.now() });
-      }
-    }
-    await setDoc(stateRef, { lastCrownedWeek: weekId }, { merge: true });
+    if (topSnap.empty) return;
+    const topNick = topSnap.docs[0].id;
+    const topScore = topSnap.docs[0].data().score || 0;
+    const MIN_CHAMPION_SCORE = 3000;
+    if (topScore < MIN_CHAMPION_SCORE) return;
+
+    const countRef = doc(db, 'champions', topNick);
+    const countSnap = await getDoc(countRef);
+    const count = (countSnap.exists() ? (countSnap.data().count || 0) : 0) + 1;
+    await setDoc(countRef, { count, lastCrownedAt: Date.now() });
+    await setDoc(doc(db, 'meta', 'currentChampion'), { nickname: topNick, ts: Date.now() });
   } catch (e) {
     console.warn('주간 왕관 체크 실패:', e);
   }
