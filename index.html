@@ -1377,9 +1377,9 @@ body.light .hall-title { color: #5a3aaa; }
 .mrs-change:empty { display: none; }
 .mrs-change.up { color: var(--accent-green); }
 .mrs-change.crown { color: #EAC275; }
-.mrs-divider { width: 1.5px; align-self: stretch; background: rgba(126,194,240,0.35); margin-right: 15px; }
+.mrs-divider { width: 1.5px; align-self: stretch; background: rgba(126,194,240,0.35); margin-right: 15px; margin-left: -5px; }
 .mrs-next {
-  flex: 0 1 auto; max-width: 180px; min-width: 0; text-align: center; padding: 8px 12px;
+  flex: 0 1 auto; max-width: 195px; min-width: 0; text-align: center; padding: 9px 14px;
   background: rgba(126,194,240,0.14); border: 1.5px solid rgba(126,194,240,0.55);
   border-radius: 12px; overflow: hidden;
 }
@@ -2019,9 +2019,9 @@ body.light .cell.cat.answer {
                   background:none; border:none; color:var(--muted);
                   font-size:13px; font-family:inherit; cursor:pointer;
                   text-decoration:underline;
-                ">💌 문의하기</button>
+                ">💌 문의하기 <span id="contactBtnNew" style="display:none;background:#DD6032;color:white;font-size:11px;font-weight:900;padding:1px 5px;border-radius:8px;">NEW</span></button>
               </div>
-              <div style="margin-top:6px; font-size:10.5px; color:var(--border2);">build #1783261577</div>
+              <div style="margin-top:6px; font-size:10.5px; color:var(--border2);">build #1783274424</div>
             </div>
           </div>
         </div>
@@ -2100,12 +2100,6 @@ body.light .cell.cat.answer {
         <div id="adminFeedbackPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:300px; background:rgba(59,130,246,0.08); border:1px solid #3b82f6; border-radius:10px; text-align:left;">
           <div style="font-size:12px; color:#93c5fd; font-weight:700; margin-bottom:6px; text-align:center;">💌 피드백 관리</div>
           <div id="adminFeedbackList" style="display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto;"></div>
-        </div>
-
-        <!-- 관리자 전용: 응원 클릭 로그 -->
-        <div id="adminDonateLogPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:300px; background:rgba(240,169,60,0.1); border:1px solid #DA9845; border-radius:10px; text-align:center;">
-          <div style="font-size:12px; color:#DA9845; font-weight:700; margin-bottom:6px;">💛 응원 클릭 로그</div>
-          <button id="adminDonateLogBtn" style="width:100%; padding:6px; font-size:13px; font-weight:700; color:#f0d8a8; background:rgba(240,169,60,0.2); border:1px solid #DA9845; border-radius:8px;">클릭 로그 보기</button>
         </div>
 
         <div id="adminHallPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:260px; background:rgba(251,191,36,0.08); border:1px solid #fbbf24; border-radius:10px; text-align:center;">
@@ -2421,18 +2415,7 @@ body.light .cell.cat.answer {
   </div>
 </div>
 
-<!-- 관리자 전용: 응원 클릭 로그 오버레이 -->
-<div id="donateLogOverlay" class="overlay" style="display:none;">
-  <div class="overlay-card" style="max-width:340px; max-height:78vh; display:flex; flex-direction:column;">
-    <div class="overlay-title" style="font-size:16px; flex-shrink:0;">💛 응원 클릭 로그</div>
-    <div style="font-size:13px; color:var(--muted); margin:4px 0 10px; flex-shrink:0;">최근 순으로 표시돼요</div>
-    <div style="font-size:13px; font-weight:800; color:#DA9845; margin-bottom:4px;">💛 응원하기 버튼 (상단)</div>
-    <div id="donateLogTopList" style="display:flex; flex-direction:column; gap:4px; overflow-y:auto; max-height:20vh; margin-bottom:10px;"></div>
-    <div style="font-size:13px; font-weight:800; color:#FEE500; margin-bottom:4px;">💰 990원 버튼</div>
-    <div id="donateLogPayList" style="display:flex; flex-direction:column; gap:4px; overflow-y:auto; flex:1;"></div>
-    <button id="donateLogCloseBtn" style="width:100%; margin-top:12px; flex-shrink:0; background:var(--surface2); border:1px solid var(--border2); color:var(--muted); border-radius:10px; padding:10px; font-family:inherit;">닫기</button>
-  </div>
-</div>
+
 
 <!-- 피드백 글쓰기 오버레이 -->
 <div id="feedbackWriteOverlay" class="overlay" style="display:none;">
@@ -2788,6 +2771,20 @@ const firebaseConfig = {
   appId: "1:974542803508:web:0b01327dd02c9b08b23061"
 };
 const fbApp = initializeApp(firebaseConfig);
+
+/* ── 🛡️ App Check (봇/외부도구의 DB 접근 차단) — 활성화 방법 ──
+   1) Firebase 콘솔 → App Check → 웹 앱 등록 → reCAPTCHA v3 선택 → 사이트 키 발급
+   2) 아래 두 줄 주석 해제하고 YOUR_RECAPTCHA_SITE_KEY 자리에 키 붙여넣기
+   3) 파일 상단 import에 아래 한 줄 추가:
+      import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app-check.js";
+   4) 사이트 배포 후 며칠간 콘솔 App Check 지표에서 "확인된 요청" 비율 확인
+   5) 정상 확인되면 콘솔에서 Firestore에 대해 "적용(Enforce)" 켜기
+      → 이후부터는 내 사이트에서 온 요청만 DB 접근 가능 (REST 조작·복제 사이트 차단)
+// const appCheck = initializeAppCheck(fbApp, {
+//   provider: new ReCaptchaV3Provider('YOUR_RECAPTCHA_SITE_KEY'),
+//   isTokenAutoRefreshEnabled: true
+// });
+*/
 const db = getFirestore(fbApp);
 
 // ══════════════════════════════
@@ -5490,7 +5487,7 @@ function renderMyRankSummary(list, myIdx, prevRank, periodLabel) {
   } else {
     const need = list[myIdx - 1].score - score;
     nextLabelEl.textContent = '다음 순위까지';
-    nextBigEl.textContent = `${need}pt 남았다냥!`;
+    nextBigEl.innerHTML = `<b style="font-size:16px;">${need}</b>pt 남았다냥!`;
   }
 
   // 하락/동일은 표시하지 않고, 상승 또는 신규 진입만 긍정적으로 보여줌
@@ -6004,8 +6001,8 @@ document.getElementById('themeBtn').addEventListener('click', toggleTheme);
   let pressedRow = null;
   let startX = 0, startY = 0;
   let firedForThisPress = false;
-  const LONG_PRESS_MS = 500;
-  const MOVE_TOLERANCE = 12; // px — 손가락이 살짝 흔들려도 취소되지 않도록 허용 오차
+  const LONG_PRESS_MS = 750; // 스크롤하다 실수로 눌리지 않게 시간 늘림
+  const MOVE_TOLERANCE = 6; // px — 스크롤 중 손가락이 조금만 움직여도 바로 취소되게 허용 오차 축소
 
   function doAddFriend(row) {
     const nick = row.dataset.nick;
@@ -6961,7 +6958,11 @@ document.getElementById('jshopBubbleOffBtn').addEventListener('click', async () 
 // 페이지 로드 시 잔액 미리 표시 (닉네임 있으면)
 loadJellyBalance();
 
-document.getElementById('contactBtnGame').addEventListener('click', openContactOverlay);
+document.getElementById('contactBtnGame').addEventListener('click', () => {
+  openContactOverlay();
+  const contactBadge = document.getElementById('contactBtnNew');
+  if (contactBadge) contactBadge.style.display = 'none';
+});
 document.getElementById('contactCloseBtn').addEventListener('click', closeContactOverlay);
 document.getElementById('skinNotifyCloseBtn').addEventListener('click', () => {
   document.getElementById('skinNotifyOverlay').style.display = 'none';
@@ -7242,7 +7243,11 @@ async function checkAdminUnreadInquiries() {
         try { localStorage.setItem(versionKey, currentVersion); } catch {}
       }
     });
-    if (freshDocs.length > 0) showAdminNotifyBanner(freshDocs.length);
+    if (freshDocs.length > 0) {
+      showAdminNotifyBanner(freshDocs.length);
+      const contactBadge = document.getElementById('contactBtnNew');
+      if (contactBadge) contactBadge.style.display = 'inline-block';
+    }
   } catch (e) { console.warn('관리자 알림 확인 실패:', e); }
 }
 function showAdminNotifyBanner(count) {
@@ -7257,6 +7262,8 @@ function showAdminNotifyBanner(count) {
     banner.removeEventListener('click', onOpen);
     document.getElementById('tabRank').click();
     await openAdminPanelDirect();
+    const contactBadge = document.getElementById('contactBtnNew');
+    if (contactBadge) contactBadge.style.display = 'none';
   };
   banner.addEventListener('click', onOpen);
 }
@@ -7308,52 +7315,7 @@ function formatFullDateTime(ts) {
   const pad = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-async function renderDonateLog() {
-  const topListEl = document.getElementById('donateLogTopList');
-  const payListEl = document.getElementById('donateLogPayList');
-  if (topListEl) {
-    topListEl.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px;">불러오는 중...</div>';
-    try {
-      const q = query(collection(db, 'support_topbtn_clicks'), orderBy('ts', 'desc'), limit(50));
-      const snap = await getDocs(q);
-      if (snap.empty) {
-        topListEl.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px;">아직 없어요</div>';
-      } else {
-        topListEl.innerHTML = '';
-        snap.docs.forEach(d => {
-          const data = d.data();
-          const row = document.createElement('div');
-          row.style.cssText = 'display:flex;justify-content:space-between;padding:6px 8px;border-radius:8px;background:var(--surface);border:1px solid var(--border);font-size:13px;';
-          row.innerHTML = `<span>${data.nickname}</span><span style="color:var(--muted);">${formatFullDateTime(data.ts)}</span>`;
-          topListEl.appendChild(row);
-        });
-      }
-    } catch (e) {
-      topListEl.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px;">불러오기 실패</div>';
-    }
-  }
-  if (payListEl) {
-    payListEl.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px;">불러오는 중...</div>';
-    try {
-      const q2 = query(collection(db, 'donate_clicks'), orderBy('ts', 'desc'), limit(50));
-      const snap2 = await getDocs(q2);
-      if (snap2.empty) {
-        payListEl.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px;">아직 없어요</div>';
-      } else {
-        payListEl.innerHTML = '';
-        snap2.docs.forEach(d => {
-          const data = d.data();
-          const row = document.createElement('div');
-          row.style.cssText = 'display:flex;justify-content:space-between;padding:6px 8px;border-radius:8px;background:var(--surface);border:1px solid #FEE500;font-size:13px;';
-          row.innerHTML = `<span>${data.nickname}</span><span style="color:#DA9845;font-weight:700;">${formatFullDateTime(data.ts)}</span>`;
-          payListEl.appendChild(row);
-        });
-      }
-    } catch (e) {
-      payListEl.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:6px;">불러오기 실패</div>';
-    }
-  }
-}
+
 
 async function renderAdminFeedbackList() {
   const listEl = document.getElementById('adminFeedbackList');
@@ -7435,7 +7397,7 @@ window.addEventListener('resize', setTabAreaHeight);
   const hallPanel = document.getElementById('adminHallPanel');
   const feedbackPanel = document.getElementById('adminFeedbackPanel');
   const thanksPanel = document.getElementById('adminThanksPanel');
-  const donateLogPanel = document.getElementById('adminDonateLogPanel');
+  const donateLogPanel = null;
   const catSkinPanel = document.getElementById('adminCatSkinPanel');
   const refreshBtn = document.getElementById('rankRefreshBtn');
   if (refreshBtn) {
@@ -7503,7 +7465,7 @@ window.addEventListener('resize', setTabAreaHeight);
     if (!trusted) return;
     unlockPanels();
   };
-  titleEl.addEventListener('click', () => {
+  titleEl.addEventListener('click', async () => {
     tapCount++;
     clearTimeout(tapTimer);
     tapTimer = setTimeout(() => { tapCount = 0; }, 1500);
@@ -7527,7 +7489,11 @@ window.addEventListener('resize', setTabAreaHeight);
       }
       const code = prompt('🔒 관리자 로그인\n암호를 입력하세요');
       if (code === null) return; // 취소
-      if (code !== 'oing-admin-7x9qz-2026') { alert('암호가 틀렸습니다.'); return; }
+      // 소스코드에는 해시만 저장 — 코드를 읽어도 비밀번호를 알 수 없음
+      const ADMIN_PW_HASH = '465a52b9d22e363d84d6e6cf7c7cb87793160b58fe2dffffce74da2130962ea4';
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code));
+      const hash = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+      if (hash !== ADMIN_PW_HASH) { alert('암호가 틀렸습니다.'); return; }
       try { localStorage.setItem(ADMIN_DEVICE_KEY, '1'); } catch {}
       unlockPanels();
     }
@@ -7555,17 +7521,6 @@ window.addEventListener('resize', setTabAreaHeight);
       } catch (e) { alert('실패: ' + e.message); }
     });
   }
-
-  const donateLogBtn = document.getElementById('adminDonateLogBtn');
-  if (donateLogBtn) {
-    donateLogBtn.addEventListener('click', async () => {
-      document.getElementById('donateLogOverlay').style.display = 'flex';
-      await renderDonateLog();
-    });
-  }
-  document.getElementById('donateLogCloseBtn').addEventListener('click', () => {
-    document.getElementById('donateLogOverlay').style.display = 'none';
-  });
 
   const catSkinGrantBtn = document.getElementById('adminCatSkinGrantBtn');
   if (catSkinGrantBtn) {
