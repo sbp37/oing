@@ -2057,6 +2057,9 @@ body.light .cell.cat.answer {
         <button id="adminResetBtn" style="display:none; margin:6px auto 4px; padding:6px 14px; font-size:13px; font-weight:700; color:#fca5a5; background:rgba(239,68,68,0.12); border:1px solid #ef4444; border-radius:10px;">
           ⚠️ 랭킹 전체 초기화 (관리자)
         </button>
+        <button id="adminResetWeekBtn" style="display:none; margin:0 auto 10px; padding:6px 14px; font-size:13px; font-weight:700; color:#fca5a5; background:rgba(239,68,68,0.12); border:1px solid #ef4444; border-radius:10px;">
+          ⚠️ 이번주 랭킹만 초기화 (관리자)
+        </button>
         <div id="adminHallPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:260px; background:rgba(251,191,36,0.08); border:1px solid #fbbf24; border-radius:10px; text-align:center;">
           <div style="font-size:12px; color:#fbbf24; font-weight:700; margin-bottom:6px;">👑 명전 횟수 수동 설정</div>
           <div style="display:flex; gap:4px; margin-bottom:6px;">
@@ -7198,6 +7201,7 @@ window.addEventListener('resize', setTabAreaHeight);
 (function setupAdminReset() {
   const titleEl = document.getElementById('rankTitleTap');
   const btn = document.getElementById('adminResetBtn');
+  const btnWeek = document.getElementById('adminResetWeekBtn');
   const hallPanel = document.getElementById('adminHallPanel');
   const feedbackPanel = document.getElementById('adminFeedbackPanel');
   const thanksPanel = document.getElementById('adminThanksPanel');
@@ -7246,6 +7250,7 @@ window.addEventListener('resize', setTabAreaHeight);
   function unlockPanels() {
     adminUnlocked = true;
     btn.style.display = 'block';
+    if (btnWeek) btnWeek.style.display = 'block';
     if (hallPanel) hallPanel.style.display = 'block';
     if (feedbackPanel) {
       feedbackPanel.style.display = 'block';
@@ -7277,6 +7282,7 @@ window.addEventListener('resize', setTabAreaHeight);
         // 이미 인증된 상태면 그냥 토글
         const show = btn.style.display === 'none';
         btn.style.display = show ? 'block' : 'none';
+        if (btnWeek) btnWeek.style.display = show ? 'block' : 'none';
         if (hallPanel) hallPanel.style.display = show ? 'block' : 'none';
         if (feedbackPanel) {
           feedbackPanel.style.display = show ? 'block' : 'none';
@@ -7401,6 +7407,31 @@ window.addEventListener('resize', setTabAreaHeight);
       btn.textContent = '⚠️ 랭킹 전체 초기화 (관리자)';
     }
   });
+
+  if (btnWeek) {
+    btnWeek.addEventListener('click', async () => {
+      const weekId = getWeekId();
+      const ok = confirm(`이번주(${weekId}) 랭킹만 초기화할까요?\n전체 랭킹은 그대로 유지됩니다.\n이 작업은 되돌릴 수 없습니다.`);
+      if (!ok) return;
+      const ok2 = confirm('마지막 확인입니다.\n이번주 랭킹이 전부 삭제되고 0부터 다시 시작됩니다.\n진행할까요?');
+      if (!ok2) return;
+
+      btnWeek.disabled = true;
+      btnWeek.textContent = '초기화 중...';
+      try {
+        const weekSnap = await getDocs(collection(db, 'weekly_rankings', weekId, 'scores'));
+        for (const d of weekSnap.docs) await deleteDoc(doc(db, 'weekly_rankings', weekId, 'scores', d.id));
+        alert(`완료! 이번주(${weekId}) 랭킹 ${weekSnap.size}개 삭제됨.`);
+        btnWeek.style.display = 'none';
+        renderRanking();
+      } catch (e) {
+        alert('초기화 중 오류 발생: ' + e.message);
+      } finally {
+        btnWeek.disabled = false;
+        btnWeek.textContent = '⚠️ 이번주 랭킹만 초기화 (관리자)';
+      }
+    });
+  }
 
   // 명전 횟수 수동 설정
   const setBtn = document.getElementById('adminHallSetBtn');
