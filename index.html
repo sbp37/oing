@@ -2021,7 +2021,7 @@ body.light .cell.cat.answer {
                   text-decoration:underline;
                 ">💌 문의하기 <span id="contactBtnNew" style="display:none;background:#DD6032;color:white;font-size:11px;font-weight:900;padding:1px 5px;border-radius:8px;">NEW</span></button>
               </div>
-              <div style="margin-top:6px; font-size:10.5px; color:var(--border2);">build #1783274424</div>
+              <div style="margin-top:6px; font-size:10.5px; color:var(--border2);">build #1783275984</div>
             </div>
           </div>
         </div>
@@ -5003,7 +5003,13 @@ async function endGame() {
 
       const work = (async () => {
         const prevList = await loadRankings();
-        const prevBest = prevList.find(e => e.nickname === savedNick);
+        // 최고기록 비교는 목록 검색이 아니라 본인 문서를 직접 읽음
+        // (목록은 상위 150명만 가져오므로, 그 밖 순위면 기록이 있어도 "첫 기록"으로 오탐하던 버그 수정)
+        let prevBest = null;
+        try {
+          const mySnap = await getDoc(doc(db, 'rankings', savedNick));
+          if (mySnap.exists()) prevBest = { nickname: savedNick, score: mySnap.data().score };
+        } catch {}
         const isNewRecord = !prevBest || score > prevBest.score;
 
         // 최고 기록 대비 표시 — 못했을 때는 마이너스 대신 그냥 %만 조용히
