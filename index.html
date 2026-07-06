@@ -2907,15 +2907,16 @@ async function loadRankings() {
 //  전체 랭킹(rankings)은 그대로 두고, weekly_rankings/{weekId}/scores 서브컬렉션에 별도 저장
 // ══════════════════════════════
 function getWeekId() {
-  return '2026-06-29'; // 이번 주만 임시 고정 — 다음 패치 때 아래 정상 로직으로 복구
-  /* 정상 로직:
+  // 이번 주는 일요일 오후 6시에 특별히 일찍 리셋해서 6/29로 고정된 상태 — 이번 주는 그대로 유지.
+  // 다음 리셋 시점(7/13 월) 전까지는 고정값 반환, 그 이후엔 자동으로 정상 로직(매주 월요일 계산)으로 복귀.
+  const NEXT_RESET = new Date('2026-07-13T00:00:00+09:00').getTime();
+  if (Date.now() < NEXT_RESET) return '2026-06-29';
   const d = new Date();
   const day = d.getDay();
   const diffToMonday = day === 0 ? 6 : day - 1;
   const monday = new Date(d);
   monday.setDate(d.getDate() - diffToMonday);
   return `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
-  */
 }
 
 // 지난주(저번주 월요일) weekId — "지난주 대비" 순위변동 비교 기준으로 사용
@@ -5879,9 +5880,30 @@ async function renderRankingInner() {
   }
   if (currentRankMode === 'friends') {
     const friends = loadFriends();
-    const friendSet = new Set(friends);
-    if (myNick) friendSet.add(myNick);
-    list = list.filter(e => friendSet.has(e.nickname));
+    const wanted = new Set(friends);
+    if (myNick) wanted.add(myNick);
+    // 전체 상위 150명 목록에 없는 친구(점수가 낮아 컷 밖인 경우)는 개별로 직접 조회해서 보완
+    // — 안 그러면 친구 추가는 됐는데 목록엔 안 뜨는 버그가 생김
+    const already = new Set(list.map(e => e.nickname));
+    const missing = [...wanted].filter(n => !already.has(n));
+    if (missing.length > 0) {
+      const fetched = await Promise.all(missing.map(async (nick) => {
+        try {
+          const snap = await getDoc(doc(db, 'rankings', nick));
+          if (snap.exists()) {
+            const d = snap.data();
+            // 아직 점수를 한 번도 제출 안 한 닉네임(핀만 발급된 상태 등)이면 score 필드가 아예 없을 수 있음
+            // → "undefinedpt"로 보이는 대신 0점으로 안전하게 표시
+            const sc = typeof d.score === 'number' ? d.score : 0;
+            return { nickname: nick, score: sc, ts: d.ts || 0 };
+          }
+        } catch (e) { console.warn('친구 개별 조회 실패:', nick, e); }
+        return null;
+      }));
+      fetched.forEach(e => { if (e) list.push(e); });
+    }
+    list = list.filter(e => wanted.has(e.nickname));
+    list.sort((a, b) => (b.score || 0) - (a.score || 0));
   }
   // 방금 점수 등록한 닉네임 + 그 직전 순위 (시상대/목록 공통 사용)
   const justUpdated = sessionStorage.getItem('oeing_just_updated');
