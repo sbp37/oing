@@ -5932,13 +5932,24 @@ async function renderRankingInner() {
       const fetched = await Promise.all(missing.map(async (nick) => {
         try {
           const snap = await getDoc(doc(db, 'rankings', nick));
-          if (snap.exists()) {
-            const d = snap.data();
-            // 아직 점수를 한 번도 제출 안 한 닉네임(핀만 발급된 상태 등)이면 score 필드가 아예 없을 수 있음
-            // → "undefinedpt"로 보이는 대신 0점으로 안전하게 표시
-            const sc = typeof d.score === 'number' ? d.score : 0;
-            return { nickname: nick, score: sc, ts: d.ts || 0 };
+          const d = snap.exists() ? snap.data() : null;
+          let sc = (d && typeof d.score === 'number') ? d.score : 0;
+          // 전체 점수가 0/없음이면 주간 점수를 확인 — 점수 저장 버그(score 필드 누락)에 당한
+          // 친구는 주간에만 점수가 살아있음. 높은 쪽을 표시하고, 그 자리에서 전체 기록도 복구.
+          if (sc <= 0) {
+            try {
+              const wSnap = await getDoc(doc(db, 'weekly_rankings', getWeekId(), 'scores', nick));
+              const wScore = (wSnap.exists() && typeof wSnap.data().score === 'number') ? wSnap.data().score : 0;
+              if (wScore > sc) {
+                sc = wScore;
+                // 열람하는 김에 복구 기록 써주기 (실패해도 표시엔 지장 없음)
+                const payload = { score: wScore, ts: Date.now() };
+                if (d && d.pin) payload.pin = d.pin;
+                setDoc(doc(db, 'rankings', nick), payload).catch(() => {});
+              }
+            } catch {}
           }
+          if (d || sc > 0) return { nickname: nick, score: sc, ts: (d && d.ts) || 0 };
         } catch (e) { console.warn('친구 개별 조회 실패:', nick, e); }
         return null;
       }));
