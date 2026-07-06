@@ -2982,12 +2982,43 @@ function daysUntilNextMonday() {
   return day === 0 ? 1 : (8 - day) % 7 === 0 ? 7 : (8 - day);
 }
 
+// 이미 이 버그에 당한 유저 자가 복구 — 주간 점수는 살아있으므로,
+// 내 전체(rankings) 점수가 주간보다 낮거나 없으면 주간 최고점으로 복원해준다.
+// 앱을 열 때 1회만 실행 (읽기 2회 비용).
+let _scoreRepairDone = false;
+async function repairMyAllTimeScore() {
+  if (_scoreRepairDone) return;
+  _scoreRepairDone = true;
+  try {
+    const nick = loadNickname();
+    if (!nick) return;
+    const weekId = getWeekId();
+    const [rankSnap, weekSnap] = await Promise.all([
+      getDoc(doc(db, 'rankings', nick)),
+      getDoc(doc(db, 'weekly_rankings', weekId, 'scores', nick)),
+    ]);
+    const rankData = rankSnap.exists() ? rankSnap.data() : null;
+    const rankScore = (rankData && typeof rankData.score === 'number') ? rankData.score : 0;
+    const weekScore = (weekSnap.exists() && typeof weekSnap.data().score === 'number') ? weekSnap.data().score : 0;
+    if (weekScore > rankScore) {
+      const payload = { score: weekScore, ts: Date.now() };
+      if (rankData && rankData.pin) payload.pin = rankData.pin;
+      try { await setDoc(doc(db, 'rankings', nick), payload); }
+      catch { await setDoc(doc(db, 'rankings', nick), { score: weekScore, ts: Date.now() }); }
+      invalidateRankingsCache();
+      console.log('전체 랭킹 점수 복원:', nick, rankScore, '→', weekScore);
+    }
+  } catch (e) { console.warn('점수 자가 복구 실패(무시):', e); }
+}
+setTimeout(() => repairMyAllTimeScore(), 3000); // 앱 로드 3초 후 백그라운드로
+
 async function addWeeklyScore(nickname, newScore) {
   const weekId = getWeekId();
   try {
     const docRef = doc(db, 'weekly_rankings', weekId, 'scores', nickname);
     const snap = await getDoc(docRef);
-    const existingScore = snap.exists() ? snap.data().score : null;
+    const d0 = snap.exists() ? snap.data() : null;
+    const existingScore = (d0 && typeof d0.score === 'number') ? d0.score : null;
     if (existingScore === null || newScore > existingScore) {
       await setDoc(docRef, { score: newScore, ts: Date.now() });
       invalidateWeeklyRankingsCache();
@@ -3213,9 +3244,20 @@ async function addScore(nickname, newScore) {
   try {
     const docRef = doc(db, 'rankings', nickname);
     const snap = await getDoc(docRef);
-    const existingScore = snap.exists() ? snap.data().score : null;
+    const prev = snap.exists() ? snap.data() : null;
+    // 버그 수정: 핀만 발급되고 아직 게임 전인 문서는 score 필드가 없음 →
+    // undefined와 비교하면 항상 false가 돼서 점수가 영영 저장 안 되던 문제 (로로 케이스)
+    const existingScore = (prev && typeof prev.score === 'number') ? prev.score : null;
     if (existingScore === null || newScore > existingScore) {
-      await setDoc(docRef, { score: newScore, ts: Date.now() });
+      // 핀 보존: 통째로 덮어쓰면 pin 필드가 지워져서 본인확인이 풀리던 잠복 버그도 함께 수정
+      const payload = { score: newScore, ts: Date.now() };
+      if (prev && prev.pin) payload.pin = prev.pin;
+      try {
+        await setDoc(docRef, payload);
+      } catch (e2) {
+        // 보안 규칙이 pin 필드를 아직 허용 안 하는 경우 대비 — score/ts만으로 재시도
+        await setDoc(docRef, { score: newScore, ts: Date.now() });
+      }
       invalidateRankingsCache();
     }
   } catch (e) {
