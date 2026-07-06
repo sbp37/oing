@@ -2412,6 +2412,10 @@ body.light .cell.cat.answer {
 <div id="feedbackBoardOverlay" class="overlay" style="display:none;">
   <div class="overlay-card" style="max-width:320px; max-height:75vh; display:flex; flex-direction:column;">
     <div class="overlay-title" style="font-size:16px; flex-shrink:0;">📋 피드백 게시판</div>
+    <div id="myFeedbackPinned" style="display:none; flex-shrink:0; margin-top:8px; padding-bottom:8px; border-bottom:1px solid var(--border);">
+      <div style="font-size:12px; font-weight:700; color:var(--muted); margin-bottom:6px;">📌 내 글</div>
+      <div id="myFeedbackPinnedList" style="display:flex; flex-direction:column; gap:6px;"></div>
+    </div>
     <div id="feedbackBoard" style="display:flex; flex-direction:column; gap:6px; margin-top:10px; overflow-y:auto; flex:1;"></div>
     <button id="feedbackBoardCloseBtn" style="width:100%; margin-top:12px; flex-shrink:0; background:var(--surface2); border:1px solid var(--border2); color:var(--muted); border-radius:10px; padding:10px; font-family:inherit;">닫기</button>
   </div>
@@ -7590,6 +7594,43 @@ async function renderFeedbackBoard() {
   const myNick = loadNickname();
   let isAdminDevice = false;
   try { isAdminDevice = localStorage.getItem(ADMIN_DEVICE_KEY) === '1'; } catch {}
+
+  // ── 내 글 고정 섹션 — 최근 30개 목록에서 밀려나도 항상 보이게 (답글 사라짐 버그 방지) ──
+  const pinnedWrap = document.getElementById('myFeedbackPinned');
+  const pinnedList = document.getElementById('myFeedbackPinnedList');
+  const pinnedIds = new Set();
+  if (myNick && pinnedWrap && pinnedList && !isAdminDevice) {
+    try {
+      const myQ = query(collection(db, 'feedback'), where('nickname', '==', myNick));
+      const mySnap = await getDocs(myQ);
+      if (!mySnap.empty) {
+        const mine = mySnap.docs.map(d => ({ id: d.id, data: d.data() }))
+          .sort((a, b) => (b.data.lastTs || b.data.ts || 0) - (a.data.lastTs || a.data.ts || 0));
+        pinnedList.innerHTML = '';
+        mine.forEach(({ id, data }) => {
+          pinnedIds.add(id);
+          const hasReply = getFeedbackMessages(data).some(m => m.from === 'admin');
+          const row = document.createElement('div');
+          row.style.cssText = `display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;border:1px solid var(--blue-bright);background:var(--blue-dim);font-size:13px;cursor:pointer;`;
+          row.innerHTML = `
+            <span style="color:var(--blue-light);">🔒 내 글${hasReply ? ' 💬 답글 있음' : ''}</span>
+            <span style="color:var(--muted);font-size:12px;">${formatFeedbackDate(data.ts)}</span>
+          `;
+          row.addEventListener('click', () => openMyFeedbackDetail(id, data, false));
+          pinnedList.appendChild(row);
+        });
+        pinnedWrap.style.display = 'block';
+      } else {
+        pinnedWrap.style.display = 'none';
+      }
+    } catch (e) {
+      pinnedWrap.style.display = 'none';
+      console.warn('내 글 고정 섹션 로드 실패:', e);
+    }
+  } else if (pinnedWrap) {
+    pinnedWrap.style.display = 'none';
+  }
+
   try {
     const q = query(collection(db, 'feedback'), orderBy('ts', 'desc'), limit(30));
     const snap = await getDocs(q);
@@ -7599,6 +7640,7 @@ async function renderFeedbackBoard() {
     }
     boardEl.innerHTML = '';
     snap.docs.forEach(d => {
+      if (pinnedIds.has(d.id)) return; // 위 고정 섹션에 이미 나와 있으니 중복 표시 방지
       const data = d.data();
       const isMine = (myNick && data.nickname === myNick) || isAdminDevice;
       const row = document.createElement('div');
