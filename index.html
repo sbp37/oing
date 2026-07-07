@@ -11,6 +11,13 @@
 <title>오잉게임 v3</title>
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" type="image/png" href="icon.png">
+<!-- 카톡 등 SNS 공유 시 링크 미리보기 썸네일 -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="오잉게임 — 2분 안에 나이길 수 있겠냥?">
+<meta property="og:description" content="합 10 만들기 퍼즐게임 오잉게임">
+<meta property="og:image" content="https://sbp37.github.io/oing/share-thumbnail.jpg">
+<meta property="og:url" content="https://sbp37.github.io/oing/">
+<meta name="twitter:card" content="summary_large_image">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
@@ -2047,7 +2054,7 @@ body.light .cell.cat.answer {
                 margin-top: 6px;
               ">랭킹 확인</button>
               <button class="action-btn" id="freeModeBtn" style="
-                display: block;
+                display: none;
                 width: auto;
                 margin: 8px auto 0;
                 padding: 7px 18px;
@@ -3333,10 +3340,15 @@ function renderStartScreenGoal() {
   }
   const phrase = DAILY_GOAL_SHORT_PHRASE[goalType] || '해보라냥 🐾';
   const streak = ENABLE_STREAK_DISPLAY ? (d.goalStreak || 0) : 0;
-  line1El.textContent = `오늘 목표 · ${goalScore.toLocaleString()}점 넘기`;
-  if (streak > 0) {
+  const achievedToday = d.dailyGoalDate === todayStr && !!d.dailyGoalAchievedToday;
+  if (achievedToday) {
+    line1El.textContent = '오늘 목표 달성 완료 ✅';
+    line2El.textContent = streak > 0 ? `🔥 ${streak}일 연속 달성 중` : '가볍게 한 판 더 해보라냥';
+  } else if (streak > 0) {
+    line1El.textContent = `오늘 목표 · ${goalScore.toLocaleString()}점 넘기`;
     line2El.textContent = `🔥 ${streak}일 연속 · ${phrase}`;
   } else {
+    line1El.textContent = `오늘 목표 · ${goalScore.toLocaleString()}점 넘기`;
     line2El.textContent = `${goalType} · ${phrase}`;
   }
   wrap.style.display = 'block';
@@ -3354,12 +3366,19 @@ function renderDailyGoalResult(stats, prevStats, curScore) {
     return;
   }
   const goal = stats.dailyGoalScore;
-  const achieved = curScore >= goal;
+  // 오늘 하루 기준 달성 플래그가 최우선 — 이번 판 점수가 낮아도 이미 달성했으면 "미달" 문구를 띄우지 않음
+  const achievedToday = !!stats.dailyGoalAchievedToday;
+  const wasAlreadyAchieved = !!(prevStats && prevStats.dailyGoalDate === stats.dailyGoalDate && prevStats.dailyGoalAchievedToday);
   let lines;
-  if (achieved) {
+  if (achievedToday) {
     const streak = ENABLE_STREAK_DISPLAY ? (stats.goalStreak || 0) : 0;
-    const line2 = streak >= 2 ? `🔥 ${streak}일 연속 달성 중` : '🔥 오늘부터 시작이다냥';
-    lines = ['오늘 목표 달성!', line2];
+    if (wasAlreadyAchieved) {
+      // 이번 판 전에 이미 오늘 목표를 달성해둔 상태 — 이번 판 점수와 무관하게 달성 완료로 표시
+      lines = ['오늘 목표 달성 완료 ✅', streak >= 2 ? `🔥 ${streak}일 연속 달성 중` : '오늘은 이미 도장 찍었다냥'];
+    } else {
+      const line2 = streak >= 2 ? `🔥 ${streak}일 연속 달성 중` : '🔥 오늘부터 시작이다냥';
+      lines = ['오늘 목표 달성!', line2];
+    }
     el.style.color = 'var(--blue-light)';
   } else {
     const diff = goal - curScore;
