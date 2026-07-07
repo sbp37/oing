@@ -2965,6 +2965,73 @@ async function getOrCreateRefCode(nickname) {
 const NICK_KEY = 'oeing_nickname_v1';
 const MAX_RANKS = 150; // 랭킹 화면에서 한 번에 불러오는 최대 인원 — 너무 크면 읽기 비용이 불필요하게 커짐
 
+// ══════════════════════════════
+//  방문 세션 로그 (저비용) — visit_sessions
+//  세션당 쓰기 목표: 진입 1회 + heartbeat 최대 3회 + game_start/game_end/hidden/pagehide
+// ══════════════════════════════
+const VISIT_SESSION_ID = 'vs_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+const VISIT_MAX_HEARTBEAT = 3;
+const VISIT_MIN_WRITE_GAP = 15000;   // 같은 reason 15초 이내 중복 저장 방지
+const VISIT_DURATION_CAP_SEC = 7200; // durationSec 최대 2시간
+let visitEnterTs = Date.now();
+let visitPlayStarted = false;
+let visitPlayCount = 0;
+let visitLastWriteAt = 0;
+let visitHeartbeatCount = 0;
+
+function getOrCreateAnonVisitorId() {
+  try {
+    let id = localStorage.getItem('oeing_visitor_id');
+    if (!id) {
+      id = 'anon-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+      localStorage.setItem('oeing_visitor_id', id);
+    }
+    return id;
+  } catch { return 'anon-' + Math.random().toString(36).slice(2, 6).toUpperCase(); }
+}
+function getVisitorKey() {
+  const nick = loadNickname();
+  return nick ? ('nick:' + nick) : getOrCreateAnonVisitorId();
+}
+async function writeVisitSession(reason) {
+  try {
+    const now = Date.now();
+    const isPriority = (reason === 'game_start' || reason === 'game_end' || reason === 'hidden' || reason === 'pagehide');
+    if (!isPriority && now - visitLastWriteAt < VISIT_MIN_WRITE_GAP) return;
+    let durationSec = Math.round((now - visitEnterTs) / 1000);
+    if (durationSec > VISIT_DURATION_CAP_SEC) durationSec = VISIT_DURATION_CAP_SEC;
+    await setDoc(doc(db, 'visit_sessions', VISIT_SESSION_ID), {
+      sessionId: VISIT_SESSION_ID,
+      visitorKey: getVisitorKey(),
+      nickname: loadNickname() || '',
+      date: getTodayDateStr(),
+      enterTs: visitEnterTs,
+      lastSeenTs: now,
+      durationSec,
+      playStarted: visitPlayStarted,
+      playCount: visitPlayCount
+    }, { merge: true });
+    visitLastWriteAt = now;
+  } catch (e) {
+    console.warn('방문 세션 로그 실패:', e); // 로그 실패가 게임 진행을 막으면 안 됨
+  }
+}
+writeVisitSession('enter');
+(function scheduleVisitHeartbeat() {
+  const FIRST_DELAY = 60000, INTERVAL = 120000;
+  function tick() {
+    if (visitHeartbeatCount >= VISIT_MAX_HEARTBEAT) return;
+    visitHeartbeatCount++;
+    writeVisitSession('heartbeat');
+    if (visitHeartbeatCount < VISIT_MAX_HEARTBEAT) setTimeout(tick, INTERVAL);
+  }
+  setTimeout(tick, FIRST_DELAY);
+})();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') writeVisitSession('hidden');
+});
+window.addEventListener('pagehide', () => { writeVisitSession('pagehide'); });
+
 let _rankingsCache = null, _rankingsCacheTs = 0;
 const RANKING_CACHE_TTL = 20000; // 20초 — 짧은 시간 안에 탭을 왔다갔다 해도 매번 다시 안 읽게 캐싱
 
@@ -5521,6 +5588,7 @@ let countdownId = 0; // 카운트다운 세션 ID (중복 방지)
 
 function startGame() {
   resumeAC();
+  if (!visitPlayStarted) { visitPlayStarted = true; writeVisitSession('game_start'); }
   document.body.classList.add('game-active');
   const gridWrap = document.querySelector('.grid-wrap');
   if (gridWrap) {
@@ -5724,6 +5792,8 @@ function playCombo10() {
 async function endGame() {
   if (gameEnding) return; // 중복 방지
   gameEnding = true;
+  visitPlayCount++;
+  writeVisitSession('game_end');
   clearInterval(timerInterval);
   timerInterval = null;
   stopComboDecay();
