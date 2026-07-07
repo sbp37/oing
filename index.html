@@ -2036,6 +2036,10 @@ body.light .cell.cat.answer {
                 margin-bottom: 8px;
               ">튜토리얼 해보라냥 <span style="font-size:12px; color:var(--muted); font-weight:700;">(처음이면 클릭!)</span></button>
               <button class="action-btn" id="startBtn">게임 시작</button>
+              <div id="dailyGoalStartLine" style="display:none; text-align:center; margin:6px 0 0; line-height:1.45;">
+                <div id="dailyGoalStartLine1" style="font-size:12.5px; font-weight:700; color:var(--blue-light); letter-spacing:-0.2px;"></div>
+                <div id="dailyGoalStartLine2" style="font-size:11px; font-weight:500; color:var(--muted); letter-spacing:-0.2px; margin-top:1px;"></div>
+              </div>
               <button class="action-btn" id="startRankBtn" style="
                 background: var(--surface2);
                 border: 1px solid var(--border2);
@@ -2523,7 +2527,7 @@ body.light .cell.cat.answer {
     </div>
     <div style="flex:2; text-align:center;">
       <div style="font-size:32px; font-weight:900; color:var(--blue-bright); letter-spacing:-1px;" id="finalScore">0</div>
-      <div id="bestCompare" style="font-size:13px; font-weight:700; margin-top:4px; min-height:14px; letter-spacing:-0.2px;"></div>
+      <div id="bestCompare" style="font-size:15px; font-weight:800; margin-top:4px; min-height:16px; letter-spacing:-0.2px;"></div>
     </div>
     <div style="flex:1; font-size:13px; color:var(--muted); text-align:right; line-height:2;">
       <div id="resClear2">클리어 0회</div>
@@ -2533,6 +2537,8 @@ body.light .cell.cat.answer {
   <div id="scoreComment" style="text-align:center; font-family:'Jua','Malgun Gothic',sans-serif; font-weight:400; font-size:20px; color:var(--blue-light); margin:4px 0 5px;"></div>
   <div id="nextGoal" style="display:none; text-align:center; font-size:14px; font-weight:700; color:#DA9845; margin:0 0 12px; letter-spacing:-0.2px;"></div>
   <div id="beatMsg" style="display:none; text-align:center; font-size:14px; font-weight:800; color:#DA9845; margin:-2px 0 14px;"></div>
+  <div id="dailyGoalResult" style="display:none; text-align:center; font-size:13.5px; font-weight:700; color:var(--blue-light); margin:0 0 4px; letter-spacing:-0.2px; line-height:1.5;"></div>
+  <div id="dailyGoalTotalLine" style="display:none; text-align:center; font-size:11.5px; font-weight:600; color:var(--muted); margin:0 0 10px;"></div>
   <div id="nickSection2">
     <div id="firstTimeWelcome" style="display:none; text-align:center; font-size:13.5px; color:var(--blue-light); font-weight:700; margin-bottom:10px; line-height:1.5;">
       🎉 첫 판 완주했다냥! 이 점수가 너의 시작점이다냥.<br>닉네임 등록하면 다음 판부터 "내 최고기록"이 생겨요
@@ -2540,7 +2546,7 @@ body.light .cell.cat.answer {
     <input class="nick-input" id="nickInput" type="text" maxlength="6" placeholder="닉네임 입력 후 등록" style="margin-top:0; margin-bottom:10px;">
     <button class="action-btn" id="submitScore" style="margin-top:0; margin-bottom:10px;">🏆 점수 등록하기</button>
   </div>
-  <div id="nickDone" style="display:none; color:var(--blue-light); font-size:14px; font-weight:700; text-align:center; margin-bottom:12px;"></div>
+  <div id="nickDone" style="display:none; color:var(--muted); font-size:12px; font-weight:600; text-align:center; margin-bottom:8px;"></div>
   <div style="display:flex; gap:10px; margin-top:8px;">
     <button id="resultRestartBtn" style="
       flex:2.4; padding:15px;
@@ -2567,6 +2573,20 @@ body.light .cell.cat.answer {
       게임 방향성 디자인은 계속 다듬는 중이다냥!<br>일부 기능은 예고 없이 바뀌거나 사라질 수 있다냥~
     </div>
     <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
+
+      <!-- v3.4 -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v3.4</div>
+        <span id="newBadge34" style="display:none;background:#DD6032;color:white;font-size:11px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:#DA9845;margin-bottom:5px;">🎉 새 기능</div>
+      <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
+        <li>▫️ 오늘의 목표가 생겼어요! 매일 내 컨디션에 맞는 목표가 자동으로 나와요</li>
+        <li>▫️ 최고기록을 못 깨도 오늘 목표를 넘기면 성공이다냥👍</li>
+        <li>▫️ 고양이 칸에서 가끔 🍬 도움사탕이 나와요</li>
+        <li>▫️ 사탕을 먹으면 정답 힌트를 살짝 보여준다냥</li>
+      </ul>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
 
       <!-- v3.3 -->
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
@@ -3142,6 +3162,153 @@ function isConsecutiveDay(prevDateStr, todayStr) {
   return diffDays === 1;
 }
 
+// ══════════════════════════════
+//  오늘의 목표 (컨디션 기반) — 계산 유틸
+//  랭킹/친구 비교 없이, "나 vs 어제의 나"로만 프레이밍
+// ══════════════════════════════
+function hashSeed(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) { h = (h * 31 + str.charCodeAt(i)) >>> 0; }
+  return h;
+}
+function medianOf(arr) {
+  const s = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+const DAILY_GOAL_TYPES = [
+  { label: '가볍냥', mult: 0.95 },
+  { label: '보통냥', mult: 1.00 },
+  { label: '도전냥', mult: 1.05 },
+];
+// recentScores: 일반 랭킹 점수만 최근 10개 저장된 배열, bestScore: 개인 최고기록
+// nickname+날짜 seed로 목표타입을 정해 하루 동안 고정, 계산식(배율/median)은 화면에 노출 안 함
+function computeDailyGoal(recentScores, bestScore, nickname, dateStr) {
+  const seed = hashSeed(nickname + '_' + dateStr);
+  const type = DAILY_GOAL_TYPES[seed % 3];
+  let base;
+  if (recentScores && recentScores.length >= 3) {
+    base = medianOf(recentScores.slice(-7));
+  } else {
+    const pct = 0.70 + ((seed >> 3) % 6) / 100; // 70~75%
+    base = (bestScore || 0) * pct;
+  }
+  let goal = base * type.mult;
+  goal = Math.floor(goal / 100) * 100;
+  if (bestScore > 0) {
+    const cap = Math.floor((bestScore * 0.85) / 100) * 100;
+    goal = Math.min(goal, cap);
+  }
+  goal = Math.max(goal, 500);
+  return { score: goal, label: type.label };
+}
+
+// ══════════════════════════════
+//  저득점자 배려용 클로버 확률 — 하드컷 없이 완만한 3단계+
+// ══════════════════════════════
+function getMyCloverSkillMetric() {
+  const nick = loadNickname();
+  if (!nick) return null; // 게스트 → 가장 배려받는 구간으로 취급
+  try {
+    const raw = localStorage.getItem('oeing_local_stats_' + nick);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    const recent = d.recentScores || [];
+    if (recent.length >= 3) {
+      const arr = recent.slice(-5);
+      return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }
+    return d.bestScore || null;
+  } catch { return null; }
+}
+function computeCloverChance() {
+  const points = [0, 3000, 6000, 10000, 16000];
+  const probs  = [0.25, 0.18, 0.10, 0.06, 0.03];
+  const metric = (myCloverSkillMetric == null) ? 0 : myCloverSkillMetric;
+  if (metric <= points[0]) return probs[0];
+  for (let i = 1; i < points.length; i++) {
+    if (metric <= points[i]) {
+      const t = (metric - points[i - 1]) / (points[i] - points[i - 1]);
+      return probs[i - 1] + (probs[i] - probs[i - 1]) * t;
+    }
+  }
+  return probs[probs.length - 1];
+}
+
+// ══════════════════════════════
+//  오늘의 목표 — 화면 표시 (랭킹/친구비교 요소 없음, "나 vs 어제의 나"만)
+// ══════════════════════════════
+const DAILY_GOAL_SHORT_PHRASE = {
+  '가볍냥': '가볍게 해보라냥 🐾',
+  '보통냥': '무리 말고 해보라냥 🐾',
+  '도전냥': '한번 도전해보라냥 🐾',
+};
+function renderStartScreenGoal() {
+  const wrap = document.getElementById('dailyGoalStartLine');
+  const line1El = document.getElementById('dailyGoalStartLine1');
+  const line2El = document.getElementById('dailyGoalStartLine2');
+  if (!wrap || !line1El || !line2El) return;
+  if (!ENABLE_DAILY_GOAL) { wrap.style.display = 'none'; return; }
+  const nick = loadNickname();
+  if (!nick) { wrap.style.display = 'none'; return; }
+  let d = {};
+  try {
+    const raw = localStorage.getItem('oeing_local_stats_' + nick);
+    if (raw) d = JSON.parse(raw);
+  } catch {}
+  const todayStr = getLocalDateStr();
+  let goalScore, goalType;
+  if (d.dailyGoalDate === todayStr && d.dailyGoalScore) {
+    goalScore = d.dailyGoalScore; goalType = d.dailyGoalType;
+  } else {
+    const g = computeDailyGoal(d.recentScores || [], d.bestScore || 0, nick, todayStr);
+    goalScore = g.score; goalType = g.label;
+  }
+  const phrase = DAILY_GOAL_SHORT_PHRASE[goalType] || '해보라냥 🐾';
+  const streak = ENABLE_STREAK_DISPLAY ? (d.goalStreak || 0) : 0;
+  line1El.textContent = `오늘 목표 · ${goalScore.toLocaleString()}점 넘기`;
+  if (streak > 0) {
+    line2El.textContent = `🔥 ${streak}일 연속 · ${phrase}`;
+  } else {
+    line2El.textContent = `${goalType} · ${phrase}`;
+  }
+  wrap.style.display = 'block';
+}
+
+// 결과창의 오늘의 목표 성공/실패 문구 — 신기록 축하가 항상 위에 먼저 뜨고(bestCompare), 이 줄은 그 아래 보조로만 노출
+function renderDailyGoalResult(stats, prevStats, curScore) {
+  const el = document.getElementById('dailyGoalResult');
+  const totalEl = document.getElementById('dailyGoalTotalLine');
+  if (!el) return;
+  if (!ENABLE_DAILY_GOAL || !stats || !stats.dailyGoalScore) {
+    el.innerHTML = '';
+    el.style.display = 'none';
+    if (totalEl) totalEl.style.display = 'none';
+    return;
+  }
+  const goal = stats.dailyGoalScore;
+  const achieved = curScore >= goal;
+  let lines;
+  if (achieved) {
+    const streak = ENABLE_STREAK_DISPLAY ? (stats.goalStreak || 0) : 0;
+    const line2 = streak >= 2 ? `🔥 ${streak}일 연속 달성 중` : '🔥 오늘부터 시작이다냥';
+    lines = ['오늘 목표 달성!', line2];
+    el.style.color = 'var(--blue-light)';
+  } else {
+    const diff = goal - curScore;
+    lines = [`목표까지 ${diff.toLocaleString()}점 남았다냥`, '한 판만 더 해보라냥'];
+    el.style.color = 'var(--muted)';
+  }
+  el.innerHTML = lines.join('<br>');
+  el.style.display = 'block';
+  if (ENABLE_GOAL_TOTAL_COUNT && totalEl) {
+    totalEl.textContent = `지금까지 오늘 목표 ${(stats.goalTotalCount || 0).toLocaleString()}번 달성`;
+    totalEl.style.display = 'block';
+  } else if (totalEl) {
+    totalEl.style.display = 'none';
+  }
+}
+
 async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg, sessionMaxComboArg) {
   // 에러를 던져서 호출부에서 잡을 수 있게 함
   const docRef = doc(db, 'user_stats', nickname);
@@ -3163,6 +3330,38 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
     } else {
       streak = 1;
     }
+
+    // ── 오늘의 목표 (컨디션 기반) — 날짜 바뀌면 어제까지의 기록으로 새로 계산, 하루 동안 고정 ──
+    const prevRecentScores = d.recentScores || [];
+    const prevBestScore = d.bestScore || 0;
+    let dailyGoalDate = d.dailyGoalDate || '';
+    let dailyGoalScore = d.dailyGoalScore || 0;
+    let dailyGoalType = d.dailyGoalType || '';
+    let goalStreak = d.goalStreak || 0;
+    let goalStreakLastDate = d.goalStreakLastDate || '';
+    let goalTotalCount = d.goalTotalCount || 0;
+    let dailyGoalAchievedToday = !!d.dailyGoalAchievedToday;
+
+    if (dailyGoalDate !== todayStr) {
+      const newGoal = computeDailyGoal(prevRecentScores, prevBestScore, nickname, todayStr);
+      dailyGoalScore = newGoal.score;
+      dailyGoalType = newGoal.label;
+      dailyGoalDate = todayStr;
+      dailyGoalAchievedToday = false;
+      // 스트릭 연속성: 마지막 성공일이 어제가 아니면(끊겼거나 미접속) 조용히 초기화
+      if (!goalStreakLastDate || (!isConsecutiveDay(goalStreakLastDate, todayStr) && goalStreakLastDate !== todayStr)) {
+        goalStreak = 0;
+      }
+    }
+    const goalAchievedNow = score >= dailyGoalScore;
+    if (goalAchievedNow && !dailyGoalAchievedToday) {
+      goalTotalCount += 1;
+      goalStreak += 1;
+      goalStreakLastDate = todayStr;
+      dailyGoalAchievedToday = true;
+    }
+    const newRecentScores = [...prevRecentScores, score].slice(-10);
+
     statsOut = {
       playCount: (d.playCount || 0) + 1,
       totalPlayTime: (d.totalPlayTime || 0) + playTimeSeconds,
@@ -3181,8 +3380,13 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
       refBy: d.refBy || '',
       jelly: d.jelly || 0, // 게임 플레이로는 젤리를 지급하지 않음 (출석/최초등록만)
       jellyLastClaim: d.jellyLastClaim || '',
+      recentScores: newRecentScores,
+      dailyGoalDate, dailyGoalScore, dailyGoalType, dailyGoalAchievedToday,
+      goalStreak, goalStreakLastDate, goalTotalCount,
     };
   } else {
+    const newGoal = computeDailyGoal([], 0, nickname, todayStr);
+    const goalAchievedNow = score >= newGoal.score;
     statsOut = {
       playCount: 1,
       totalPlayTime: playTimeSeconds,
@@ -3201,6 +3405,14 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
       refBy: sessionStorage.getItem('oeing_ref_by') || '',
       jelly: 10, // 최초 랭킹 등록 보상 10개 (신규/기존 모두 최초 1회)
       jellyLastClaim: '',
+      recentScores: [score],
+      dailyGoalDate: todayStr,
+      dailyGoalScore: newGoal.score,
+      dailyGoalType: newGoal.label,
+      dailyGoalAchievedToday: goalAchievedNow,
+      goalStreak: goalAchievedNow ? 1 : 0,
+      goalStreakLastDate: goalAchievedNow ? todayStr : '',
+      goalTotalCount: goalAchievedNow ? 1 : 0,
     };
   }
   await setDoc(docRef, statsOut);
@@ -3963,6 +4175,19 @@ function playGameOver() {
 }
 
 // ══════════════════════════════
+//  기능 플래그
+// ══════════════════════════════
+const ENABLE_DAILY_GOAL = true;
+const ENABLE_STREAK_DISPLAY = true;
+const ENABLE_GOAL_TOTAL_COUNT = false; // v3.4: 문구가 어색하고 화면이 복잡해져서 일단 숨김 (goalTotalCount 저장 자체는 계속함)
+const ENABLE_CLOVER_REWARD = true;
+const ENABLE_JELLY_REWARD = false;
+const ENABLE_JELLY_SHOP = false;
+const ENABLE_EXTRA_SHUFFLE = false;
+const ENABLE_DAILY_OING = false;
+const ENABLE_NEWBIE_AUTO_HINT = false;
+
+// ══════════════════════════════
 //  GAME
 // ══════════════════════════════
 const ROWS = 13, COLS = 9;
@@ -3992,6 +4217,7 @@ let timeWarned = false; // 10초 경고음 1회 제한
 const COMBO_SCORE_CAP = 25;
 let comboCapReached = false; // 이번 판에서 "배율 MAX!" 연출을 이미 보여줬는지
 let bonusHintGiven = false; // 퍼펙트 클리어 임박 보너스 힌트, 판당 1회만
+let myCloverSkillMetric = null; // 이번 판 시작 시 캐싱해둔 "최근 실력 지표" — 저득점자 배려 클로버 확률 계산용
 
 const gridEl    = document.getElementById('grid');
 const scoreDisp = document.getElementById('scoreDisp');
@@ -4282,7 +4508,7 @@ function renderGrid() {
       } else if (d.freeze) {
         el.className = 'cell item-freeze'; el.textContent = '❄️';
       } else if (d.lucky) {
-        el.className = 'cell item-lucky'; el.textContent = '🍀';
+        el.className = 'cell item-lucky'; el.textContent = '🍬';
       } else {
         el.className = 'cell'; el.textContent = d.num;
       }
@@ -4433,9 +4659,9 @@ function onCellTap(e) {
     }
 
     if (d.lucky) {
-      // 클로버 = 힌트 역할: 정답 하나 하이라이트
+      // 클로버(=도움사탕) = 힌트 역할: 정답 하나 하이라이트 — 변수명 lucky는 유지, 화면 문구만 사탕으로
       board[r][c].empty = true;
-      showItemPop(r, c, '🍀 힌트!', 'hint');
+      showItemPop(r, c, '🍬 힌트사탕!', 'hint');
       playHint();
       setTimeout(() => {
         renderGrid();
@@ -4483,6 +4709,7 @@ function tryRemove(sel2) {
   const cMin = Math.min(sel1.c, sel2.c), cMax = Math.max(sel1.c, sel2.c);
 
   const cells = []; let catCells = 0;
+  const catCoords = []; // 클로버 배려 스폰용 — 제거되는 고양이 칸 좌표
   let hasBomb = false, hasClock = false, hasHint = false;
   let hasMegabomb = false, hasFreeze = false, hasLucky = false;
 
@@ -4490,7 +4717,7 @@ function tryRemove(sel2) {
     for (let c = cMin; c <= cMax; c++) {
       const d = board[r][c];
       if (d.empty) continue;
-      if (d.cat)      { catCells++; continue; }
+      if (d.cat)      { catCells++; catCoords.push({ r, c }); continue; }
       if (d.bomb)     { hasBomb     = true; continue; }
       if (d.clock)    { hasClock    = true; continue; }
       if (d.hint)     { hasHint     = true; continue; }
@@ -4601,11 +4828,27 @@ function tryRemove(sel2) {
     }
   }
 
+  // 저득점자 배려용 클로버(=도움사탕) — 고양이 칸을 제거해서 없앤 그 칸에서 확률적으로 등장
+  // (콤보 조건 없음, 현재 판 점수가 아니라 최근 실력 지표 기준으로 확률만 다르게)
+  // 확률 체크는 이번 클리어당 딱 1회만 — 고양이를 여러 칸 지웠다고 확률이 누적되지 않게
+  let cloverCellPicked = null;
+  if (ENABLE_CLOVER_REWARD && catCoords.length > 0) {
+    const p = computeCloverChance();
+    if (Math.random() < p) {
+      cloverCellPicked = catCoords[Math.floor(Math.random() * catCoords.length)];
+    }
+  }
+
   // 기본 셀 제거
   highlightRange(rMin, rMax, cMin, cMax, 'clearing');
   for (let r = rMin; r <= rMax; r++)
-    for (let c = cMin; c <= cMax; c++)
-      board[r][c].empty = true;
+    for (let c = cMin; c <= cMax; c++) {
+      if (cloverCellPicked && cloverCellPicked.r === r && cloverCellPicked.c === c) {
+        board[r][c] = { num:1, cat:false, bomb:false, clock:false, hint:false, megabomb:false, freeze:false, lucky:true, empty:false };
+      } else {
+        board[r][c].empty = true;
+      }
+    }
 
   sel1 = null; updateComboUI(combo % 7 === 0); updateStats();
 
@@ -4695,9 +4938,9 @@ function tryRemove(sel2) {
   }
 
   if (hasLucky) {
-    // 드래그로 클로버 선택 시: 셀 지우는 activateLucky 대신 힌트만 표시
+    // 드래그로 클로버(=도움사탕) 선택 시: 셀 지우는 activateLucky 대신 힌트만 표시
     playLucky(); // 🍀 반짝아르페지오 — 힌트 소리와 다르게
-    showItemPop(rMin, cMin, '🍀 럭키!', 'hint');
+    showItemPop(rMin, cMin, '🍬 도움사탕!', 'hint');
     setTimeout(() => {
       renderGrid();
       showAnswers();
@@ -4843,7 +5086,7 @@ function activateLucky(fromR, fromC) {
   score += luckyScore;
   updateStats();
   showScorePop(fromR, fromC, `+${luckyScore} 🍀`, false);
-  showItemPop(fromR, fromC, `🍀 럭키! +${luckyScore}`, 'hint');
+  showItemPop(fromR, fromC, `🍬 도움사탕! +${luckyScore}`, 'hint');
 }
 
 // 콤보 7배수 달성 시 아이템 생성
@@ -4865,22 +5108,23 @@ function spawnRandomItem() {
   const elapsed = Date.now() - gameStartTime;
   const cloverAllowed = timeLeft <= 70;
 
-  // 티어1: 폭탄60% 시계40% (클로버 허용 시 폭탄37.5% 시계25% 클로버37.5%)
-  // 티어2: 폭탄40% 시계40% 메가폭탄20% (클로버 허용 시 폭탄25% 시계25% 메가폭탄12.5% 클로버37.5%)
-  // 티어3: 시계50% 메가폭탄25% 프리즈25% (클로버 허용 시 시계33% 메가폭탄22% 프리즈11% 클로버33%)
+  // 티어1: 폭탄60% 시계40% (클로버 허용 시 폭탄50% 시계33% 클로버17%)
+  // 티어2: 폭탄40% 시계40% 메가폭탄20% (클로버 허용 시 폭탄33% 시계33% 메가폭탄17% 클로버17%)
+  // 티어3: 시계50% 메가폭탄25% 프리즈25% (클로버 허용 시 시계43% 메가폭탄29% 프리즈14% 클로버14%)
+  // v3.4: 고양이 칸 제거 시에도 별도로 클로버(도움사탕)가 나오게 돼서, 둘이 겹쳐 너무 자주 뜨지 않도록 여기 비중을 낮춤
   let pool;
   if (tier === 1) {
     pool = cloverAllowed
-      ? ['bomb','bomb','bomb','clock','clock','lucky','lucky','lucky']
+      ? ['bomb','bomb','bomb','clock','clock','lucky']
       : ['bomb','bomb','bomb','clock','clock'];
   } else if (tier === 2) {
     pool = cloverAllowed
-      ? ['bomb','bomb','clock','clock','megabomb','lucky','lucky','lucky']
+      ? ['bomb','bomb','clock','clock','megabomb','lucky']
       : ['bomb','bomb','clock','clock','megabomb'];
   } else {
-    // 티어3: 시계50% 메가폭탄25% 프리즈25% (클로버 추가시 ~33%)
+    // 티어3
     pool = cloverAllowed
-      ? ['clock','clock','clock','megabomb','megabomb','freeze','lucky','lucky','lucky']
+      ? ['clock','clock','clock','megabomb','megabomb','freeze','lucky']
       : ['clock','clock','clock','clock','megabomb','megabomb','freeze','freeze'];
   }
   const pick = pool[Math.floor(Math.random() * pool.length)];
@@ -5294,6 +5538,7 @@ function startGame() {
 
   score = 0; combo = 0; maxCombo = 0; comboCapReached = false;
   clearCount = 0; catBonus = 0; resetCount = 0; sessionCats = 0;
+  myCloverSkillMetric = getMyCloverSkillMetric(); // 이번 판 클로버 확률 기준 캐싱 (실력 지표, 현재 점수 아님)
   timeLeft = isFreeMode ? 240 : 120; sel1 = null; gameRunning = false;
   maxTimeSeen = 120;
   hintsUsed = 0;
@@ -5504,14 +5749,17 @@ async function endGame() {
   document.getElementById('resClear2').textContent = `클리어 ${clearCount}회`;
   document.getElementById('resCombo2').textContent = `최고 콤보 ×${maxCombo}`;
   document.getElementById('scoreComment').textContent = getScoreComment(score);
-  // 다음 목표 줄: 텍스트만 미리 세팅하고 기본은 숨김 —
-  // 등록유저가 최고기록 못 넘긴 판에서만 아래에서 노출 (신기록/자유모드/미등록 땐 안 뜸)
+  // 다음 목표 줄: 이제 "쉬는 멘트" 전용 — 기본 다음목표 문구는 결과창이 복잡해져서 노출 안 함
   const nextGoalEl0 = document.getElementById('nextGoal');
-  if (nextGoalEl0) { nextGoalEl0.textContent = getNextGoal(score); nextGoalEl0.style.display = 'none'; nextGoalEl0.style.color = '#DA9845'; }
+  if (nextGoalEl0) { nextGoalEl0.textContent = ''; nextGoalEl0.style.display = 'none'; nextGoalEl0.style.color = 'var(--blue-light)'; }
   countSessionGame(); // 쉬는 타이밍 판단용 (자유모드 포함 전부 카운트)
   document.getElementById('bestCompare').textContent = '';
   const beatMsgEl1 = document.getElementById('beatMsg');
   if (beatMsgEl1) { beatMsgEl1.style.display = 'none'; beatMsgEl1.textContent = ''; }
+  const dailyGoalResultEl0 = document.getElementById('dailyGoalResult');
+  if (dailyGoalResultEl0) { dailyGoalResultEl0.style.display = 'none'; dailyGoalResultEl0.textContent = ''; }
+  const dailyGoalTotalEl0 = document.getElementById('dailyGoalTotalLine');
+  if (dailyGoalTotalEl0) { dailyGoalTotalEl0.style.display = 'none'; dailyGoalTotalEl0.textContent = ''; }
 
   // resultPanel은 Firebase 결과와 무관하게 무조건 600ms 후 표시
   setTimeout(() => {
@@ -5536,6 +5784,9 @@ async function endGame() {
     document.getElementById('nickSection2').style.display = 'none';
     const nickDone = document.getElementById('nickDone');
     nickDone.style.display = 'block';
+    nickDone.style.fontSize = '12px';
+    nickDone.style.color = 'var(--muted)';
+    nickDone.style.fontWeight = '600';
     nickDone.textContent = `🎉 ${savedNick} 등록 중...`;
 
     try {
@@ -5580,26 +5831,7 @@ async function endGame() {
           }
         }
 
-        // 순위 추월 감지 — 값만 계산, DOM 반영은 뒤로 미룸 (위와 같은 이유)
-        let beatMsgText = '';
-        if (isNewRecord && score > 0 && prevBest) {
-          try {
-            const prevRank = prevList.findIndex(e => e.nickname === savedNick);
-            if (prevRank > 0) {
-              const newList = prevList
-                .filter(e => e.nickname !== savedNick)
-                .concat([{ nickname: savedNick, score }])
-                .sort((a, b) => b.score - a.score);
-              const newRank = newList.findIndex(e => e.nickname === savedNick);
-              if (newRank < prevRank) {
-                const beaten = prevList[newRank];
-                if (beaten && beaten.nickname !== savedNick) {
-                  beatMsgText = `🔥 ${beaten.nickname}님을 이겼다냥! (${newRank + 1}위 등극)`;
-                }
-              }
-            }
-          } catch (be) { console.warn('순위 추월 감지 실패:', be); }
-        }
+        // (v3.4: 순위 추월 비교 멘트는 설계 철학에 따라 삭제됨 — 타인과 비교하는 문구를 남기지 않기 위함)
 
         await addScore(savedNick, score);
         await addWeeklyScore(savedNick, score);
@@ -5608,6 +5840,8 @@ async function endGame() {
           updateJellyDisplay(stats.jelly);
           const prevBestCombo = prev ? (prev.bestCombo || 0) : 0;
           if (maxCombo > prevBestCombo && maxCombo > 0) showComboRecordPop(maxCombo);
+          if (ENABLE_DAILY_GOAL) renderDailyGoalResult(stats, prev, score);
+          renderStartScreenGoal();
         } catch (se) {
           console.warn('스탯 업데이트 실패:', se);
         }
@@ -5619,11 +5853,6 @@ async function endGame() {
           bestCompareEl.style.color = bestCompareColor;
           if (playRecordSfx) { try { playSfx('record', 0.4); } catch {} } // 신기록 빰빠밤 (음량 낮춤)
         }
-        const beatMsgEl = document.getElementById('beatMsg');
-        if (beatMsgEl && beatMsgText) {
-          beatMsgEl.textContent = beatMsgText;
-          beatMsgEl.style.display = 'block';
-        }
 
         if (isNewRecord && score > 0) {
           try {
@@ -5632,37 +5861,27 @@ async function endGame() {
             sessionStorage.setItem('oeing_just_updated_prevrank', prevIdx === -1 ? '' : String(prevIdx + 1));
           } catch {}
           renderRanking();
-          nickDone.innerHTML = `🎉 ${savedNick} 자동 등록 완료!<br><span style="color:#DA9845;font-size:15px;font-weight:900;">최고점수 등극! 대단하다냥🐱</span>`;
+          nickDone.style.fontSize = '12px';
+          nickDone.style.color = 'var(--muted)';
+          nickDone.style.fontWeight = '600';
+          nickDone.innerHTML = '🎉 자동 등록 완료';
           showNewRecordPop();
         } else {
           renderRanking();
           nickDone.style.display = 'block';
           nickDone.style.fontSize = '12px';
-          nickDone.innerHTML = `✓ ${savedNick} 자동 등록 완료`;
-          // 비기록 판 → 목표줄 노출. 우선순위: 쉬는멘트(세션 1회) > 라이벌 점차(15%) > 기본
-          // (라이벌 멘트가 너무 자주 뜨고 비교당하는 느낌이라 35% → 15%로 낮춤)
+          nickDone.style.color = 'var(--muted)';
+          nickDone.style.fontWeight = '600';
+          nickDone.innerHTML = '🎉 자동 등록 완료';
+          // 비기록 판 → 세션당 1회, 쉬는 타이밍이면 쉬는 멘트만 조용히 표시 (그 외엔 아무것도 안 뜸)
           const nextGoalEl = document.getElementById('nextGoal');
           if (nextGoalEl) {
             const restLine = getRestLineIfDue();
             if (restLine) {
               nextGoalEl.textContent = restLine;
               nextGoalEl.style.color = 'var(--blue-light)'; // 쉬는 멘트는 차분한 색
-            } else {
-              try {
-                // 바로 위 순위와의 점수 차 — 이미 받아둔 랭킹 목록 재사용 (추가 읽기 없음)
-                const myIdx = prevList.findIndex(e => e.nickname === savedNick);
-                if (myIdx > 0 && prevBest && Math.random() < 0.15) {
-                  const above = prevList[myIdx - 1];
-                  const gap = above ? above.score - prevBest.score : -1;
-                  // 차이가 너무 크면 김빠지니까 "따라잡을 만한" 거리일 때만 (300점 or 내 기록의 20% 이내)
-                  const reachable = gap > 0 && gap <= Math.max(300, Math.round(prevBest.score * 0.2));
-                  if (reachable) {
-                    nextGoalEl.textContent = `🎯 바로 위 ${above.nickname}님과 ${gap.toLocaleString()}점 차이다냥 😼`;
-                  }
-                }
-              } catch (re) { console.warn('라이벌 표시 실패:', re); }
+              nextGoalEl.style.display = 'block';
             }
-            if (nextGoalEl.textContent) nextGoalEl.style.display = 'block';
           }
         }
       })();
@@ -5989,19 +6208,28 @@ document.getElementById('submitScore').addEventListener('click', async () => {
   } catch (e) {
     statsMsg += ' (점수저장 실패)';
   }
+  let firstGoalMsg = false;
   try {
     const { stats, prev } = await updateUserStats(nick, playTimeSeconds, score, sessionCats, maxCombo);
     statsMsg += ' 📊✓';
     updateJellyDisplay(stats.jelly);
     const prevBestCombo2 = prev ? (prev.bestCombo || 0) : 0;
     if (maxCombo > prevBestCombo2 && maxCombo > 0) showComboRecordPop(maxCombo);
+    if (ENABLE_DAILY_GOAL) {
+      renderStartScreenGoal();
+      firstGoalMsg = true;
+    }
   } catch (e) {
     statsMsg += ' 📊✗';
   }
 
   btn.disabled = false;
   btn.textContent = '🏆 점수 등록하기';
-  nickDone.textContent = `🎉 ${nick} 등록 완료!${statsMsg}`;
+  if (firstGoalMsg) {
+    nickDone.innerHTML = `🎉 ${nick} 등록 완료!${statsMsg}<br><span style="font-size:12.5px; color:var(--muted);">다음 판부터 오늘의 목표가 보인다냥</span>`;
+  } else {
+    nickDone.textContent = `🎉 ${nick} 등록 완료!${statsMsg}`;
+  }
   renderRanking();
 });
 
@@ -7043,14 +7271,14 @@ document.addEventListener('mouseup', () => {
 });
 
 // 업데이트 내역 팝업
-const UPDATE_VERSION = 'v3.3';
-const SEEN_KEY = 'seenUpdate_v3.3';
+const UPDATE_VERSION = 'v3.4';
+const SEEN_KEY = 'seenUpdate_v3.4';
 
 function openUpdateLog() {
   document.getElementById('updateLog').style.display = 'flex';
   // NEW 뱃지 숨기기 + 본 것으로 저장
   localStorage.setItem(SEEN_KEY, '1');
-  const badge = document.getElementById('newBadge33');
+  const badge = document.getElementById('newBadge34');
   if (badge) badge.style.display = 'none';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'none';
@@ -7063,7 +7291,7 @@ document.getElementById('updateLogBtn').addEventListener('click', openUpdateLog)
 
 // 최초 방문 시 NEW 뱃지 표시
 if (!localStorage.getItem(SEEN_KEY)) {
-  const badge = document.getElementById('newBadge33');
+  const badge = document.getElementById('newBadge34');
   if (badge) badge.style.display = 'inline';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'inline';
@@ -7629,6 +7857,7 @@ document.getElementById('jshopBubbleOffBtn').addEventListener('click', async () 
 });
 // 페이지 로드 시 잔액 미리 표시 (닉네임 있으면)
 loadJellyBalance();
+renderStartScreenGoal();
 
 document.getElementById('contactBtnGame').addEventListener('click', () => {
   openContactOverlay();
