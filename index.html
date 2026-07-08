@@ -5708,17 +5708,19 @@ function spawnRandomItem() {
       ? ['clock','clock','megabomb','megabomb','freeze','bomb','lucky']
       : ['clock','clock','megabomb','megabomb','freeze','freeze','bomb'];
   }
-  if (cloverAllowed) pool = pool.concat(['clover']); // 🍀 콤보 7배수마다 한 칸 추가해서 확률에 끼워넣음
+  const CLOVER_TRIGGER_CHANCE = 0.15; // 🍀 럭키템이니 콤보 7배수 트리거마다 낮은 확률로만 시도
+  if (cloverAllowed && Math.random() < CLOVER_TRIGGER_CHANCE) {
+    board[r][c] = { num:1, cat:false, bomb:false, clock:false, hint:false,
+                    megabomb:false, freeze:false, lucky:true, luckyKind:'clover', empty:false };
+    cloverGivenThisGame = true;
+    return;
+  }
   const pick = pool[Math.floor(Math.random() * pool.length)];
 
   board[r][c] = { num:1, cat:false, bomb:false, clock:false, hint:false,
                   megabomb:false, freeze:false, lucky:false, empty:false };
-  if (pick === 'clover') {
-    board[r][c].lucky = true; board[r][c].luckyKind = 'clover'; cloverGivenThisGame = true;
-  } else {
-    board[r][c][pick] = true;
-    if (pick === 'lucky') { board[r][c].luckyKind = 'candy'; candyGivenThisGame = true; } // 콤보사탕은 판당 1개만
-  }
+  board[r][c][pick] = true;
+  if (pick === 'lucky') { board[r][c].luckyKind = 'candy'; candyGivenThisGame = true; } // 콤보사탕은 판당 1개만
 }
 
 // 판이 막혔을 때(더 이상 만들 수 있는 합이 없을 때) 보드를 새로 섞는 연출
