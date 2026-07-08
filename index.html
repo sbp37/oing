@@ -2841,7 +2841,7 @@ body.light .cell.cat.answer {
       </ul>
       <div style="font-size:13px;font-weight:700;color:#f87171;margin-bottom:5px;">🐛 버그 수정</div>
       <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
-        <li>▫️ 고양이 한 칸만 남으면 판이 안 넘어가던 문제 수정 (고양이 칸은 같은 칸 두 번 탭하면 바로 잡혀요)</li>
+        <li>▫️ 고양이 한 칸만 외따로 남아 판이 안 넘어가던 문제 수정 (이젠 자동으로 다음 판으로 넘어가요)</li>
         <li>▫️ 힌트가 계속 고양이 칸만 가리키던 문제 수정</li>
         <li>▫️ 간헐적으로 점수 등록이 실패하던 문제 수정</li>
       </ul>
@@ -5245,12 +5245,7 @@ function onCellTap(e) {
     sel1 = {r, c};
     applyHighlights();
   } else {
-    if (sel1.r === r && sel1.c === c) {
-      // 고양이 칸은 같은 칸을 두 번 탭하면 그 자리에서 바로 잡기(1x1 제거)
-      // — 외딴 고양이 하나 때문에 판이 영영 안 넘어가던 버그 수정
-      if (board[r][c].cat) { tryRemove({r, c}); return; }
-      sel1 = null; applyHighlights(); return;
-    }
+    if (sel1.r === r && sel1.c === c) { sel1 = null; applyHighlights(); return; }
     tryRemove({r, c});
   }
 }
@@ -5855,9 +5850,11 @@ function hasValidMove() {
         if (sum > 10) break;
       }
     if (hasNum && sum === 10) return true;
-    // 고양이 칸만으로 이뤄진 조합도 매치 가능한 유효한 수 — 숫자 조합만 검사하면
+    // 고양이 칸만으로 이뤄진 2칸 이상 조합은 매치 가능한 유효한 수 — 숫자 조합만 검사하면
     // 고양이만 남은 판을 "더 이상 할 수 있는 게 없다"고 잘못 판단해 판을 조기 리셋시켜버림
-    if (catCount > 0 && catCount === nonEmptyCount) return true;
+    // 단, 1칸짜리(r1===r2 && c1===c2)는 탭으로 선택을 완성할 방법이 없어서 실제로는 유효한 수가 아님 —
+    // 이걸 유효로 치면 외딴 고양이 1칸 때문에 판이 영영 안 넘어가는 버그가 생김
+    if (catCount > 0 && catCount === nonEmptyCount && nonEmptyCount >= 2) return true;
   }
   return false;
 }
@@ -6609,7 +6606,7 @@ function findAllAnswers() {
       }
     const sum = nums.reduce((a,b)=>a+b,0);
     const isNumMatch = nums.length > 0 && sum === 10;
-    const isCatOnly = catCount > 0 && catCount === nonEmptyCount; // 고양이만 있는 조합도 유효한 정답
+    const isCatOnly = catCount > 0 && catCount === nonEmptyCount && nonEmptyCount >= 2; // 고양이만 있는 2칸 이상 조합만 유효한 정답
     if (isNumMatch || isCatOnly) {
       const coords = [];
       for (let r = r1; r <= r2; r++)
