@@ -325,6 +325,10 @@ html, body {
 .cell.item-megabomb.in-range { background: #2a1508; border-color: #b34a26; }
 .cell.item-freeze.in-range   { background: #050f1a; border-color: #0099bb; }
 .cell.item-lucky.in-range    { background: #081f05; border-color: #11aa55; }
+/* 🍬 콤보사탕 — 🍀 클로버(초록)와 구분되게 핑크 계열로 */
+.cell.item-candy    { background: #1f0a16; border-color: #ff6fb0; }
+.cell.item-candy.sel    { background: #33102a; border-color: #ff8fc3; box-shadow: 0 0 0 1px #ff8fc3; color:white!important; }
+.cell.item-candy.in-range    { background: #250c1a; border-color: #cc4d88; }
 
 /* 타임프리즈 팝업 */
 .freeze-pop {
@@ -424,7 +428,7 @@ html, body {
   align-items: center;
   justify-content: center;
   border-radius: 5px;
-  font-size: clamp(12px, 3.8vw, 20px);
+  font-size: clamp(12.5px, 3.8vw, 20.5px);
   font-weight: 800;
   cursor: pointer;
   background: var(--surface2);
@@ -509,7 +513,7 @@ body.light .rank1 .podium-score { color: #6b4500; text-shadow: none; }
 
 /* PC에서 셀 크기 제한 */
 @media (min-width: 500px) {
-  .cell { font-size: clamp(14px, 2.5vw, 22px); }
+  .cell { font-size: clamp(14.5px, 2.5vw, 22.5px); }
   .cell.cat { font-size: clamp(16px, 3vw, 24px); }
 }
 
@@ -527,7 +531,7 @@ body.light .rank1 .podium-score { color: #6b4500; text-shadow: none; }
     max-height: calc(100vh - 220px);
     aspect-ratio: 9 / var(--grid-rows, 13);
   }
-  .cell { font-size: clamp(13px, 2.2vw, 22px); }
+  .cell { font-size: clamp(13.5px, 2.2vw, 22.5px); }
   .cell.cat { font-size: clamp(14px, 2.4vw, 24px); }
   .bottom-bar {
     max-width: 100%;
@@ -541,7 +545,7 @@ body.light .rank1 .podium-score { color: #6b4500; text-shadow: none; }
   }
 }
 @media (min-width: 650px) and (max-width: 1100px) {
-  .cell { font-size: clamp(18px, 3.2vw, 30px); }
+  .cell { font-size: clamp(18.5px, 3.2vw, 30.5px); }
   .cell.cat { font-size: clamp(20px, 3.5vw, 32px); }
 }
 
@@ -629,7 +633,7 @@ body.light .cell.empty {
   transform: translateX(-50%);
   width: 100%;
   max-width: 650px;
-  background: rgba(8,17,31,0.94);
+  background: rgb(8,17,31);
   display: flex; align-items: center; justify-content: center;
   z-index: 100; padding: 20px;
 }
@@ -1417,9 +1421,9 @@ body.light .section-divider-text {
 .podium-title-badge {
   font-size: 11px; font-weight: 800; color: var(--accent-lemon); white-space: nowrap; flex-shrink: 0;
 }
-/* 금/은/동 닉네임 — 예전 파일과 동일한 그라데이션 반짝임 */
+/* 금/은/동 닉네임 — 예전 파일과 동일한 그라데이션 반짝임 (긴 닉네임이 잘리는 문제로 크기 살짝 축소) */
 .rank1 .podium-nick-text {
-  font-size: 19px; font-weight: 900;
+  font-size: 16px; font-weight: 900;
   background: linear-gradient(90deg, #CFA05C, #fff6dd, #ffd984, #EAC275, #fff6dd, #CFA05C);
   background-size: 300% 100%;
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: var(--ivory);
@@ -1427,7 +1431,7 @@ body.light .section-divider-text {
   filter: drop-shadow(0 0 6px rgba(255,224,150,0.55));
 }
 .rank2 .podium-nick-text {
-  font-size: 18px; font-weight: 900;
+  font-size: 15px; font-weight: 900;
   background: linear-gradient(90deg, #8798a8, #ffffff, #d3dce6, #8798a8);
   background-size: 300% 100%;
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: var(--ivory);
@@ -1435,7 +1439,7 @@ body.light .section-divider-text {
   filter: drop-shadow(0 0 4px rgba(210,220,232,0.4));
 }
 .rank3 .podium-nick-text {
-  font-size: 18px; font-weight: 900;
+  font-size: 15px; font-weight: 900;
   background: linear-gradient(90deg, #8a5424, #ffcfa0, #d9915a, #8a5424);
   background-size: 300% 100%;
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: var(--ivory);
@@ -1531,7 +1535,7 @@ body.light .section-divider-text {
   --frame-color: var(--me-accent-glow, #7ec2f0);
   animation: frameGlow 2.4s ease-in-out infinite;
 }
-.rank-num { font-size: 15px; font-weight: 700; color: #c3d2ea; min-width: 26px; max-width: 26px; text-align: right; flex-shrink: 0; }
+.rank-num { font-size: 15.5px; font-weight: 700; color: #c3d2ea; min-width: 26px; max-width: 26px; text-align: right; flex-shrink: 0; }
 .rank-change { font-size: 13px; font-weight: 800; min-width: 34px; max-width: 34px; text-align: center; flex-shrink: 0; }
 .rank-change.up { color: var(--accent-green-light); text-shadow: none; }
 .rank-change.down { color: var(--accent-orange); text-shadow: none; }
@@ -1539,8 +1543,8 @@ body.light .section-divider-text {
 .podium-rank-change { font-size: 12px; font-weight: 900; margin-left: 2px; -webkit-text-stroke: 0.5px rgba(0,0,0,0.4); }
 .podium-rank-change.up { color: var(--accent-green-light); }
 .podium-rank-change.down { color: var(--accent-orange); }
-.rank-nick { flex: 1; min-width: 0; font-size: 15px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rank-pts { font-size: 14px; font-weight: 800; color: #dbe6f5; flex-shrink: 0; white-space: nowrap; }
+.rank-nick { flex: 1; min-width: 0; font-size: 15.5px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-pts { font-size: 14.5px; font-weight: 800; color: #dbe6f5; flex-shrink: 0; white-space: nowrap; }
 .rank-bubble-tag {
   position:relative; display:inline-flex; align-items:center; margin-left:5px;
   background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.22);
@@ -1603,6 +1607,8 @@ body.light .section-divider-text {
 .mrs-change { font-size: 12px; font-weight: 800; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
 .mrs-change:empty { display: none; }
 .mrs-change.up { color: var(--accent-green); }
+.mrs-change.down { color: var(--accent-orange); }
+.mrs-change.same { color: var(--muted); }
 .mrs-change.crown { color: #EAC275; }
 .mrs-divider { align-self: stretch; flex-shrink: 0; width: 3px; border-radius: 2px; background: var(--me-accent-soft, rgba(126,194,240,0.75)); }
 .mrs-next {
@@ -1623,15 +1629,15 @@ body.light .section-divider-text {
 
 /* 탑10 배지 */
 .rank-badge {
-  font-size: 10px; font-weight: 800; padding: 3px 6px;
-  border-radius: 8px; white-space: nowrap; flex-shrink: 0;
+  font-size: 11px; font-weight: 800; padding: 3.3px 6.6px;
+  border-radius: 9px; white-space: nowrap; flex-shrink: 0;
 }
 .rank-badge-top10 {
   background: linear-gradient(135deg, var(--blue-mid), var(--blue-bright));
   color: white; box-shadow: 0 0 6px rgba(47,126,201,0.5);
   display: inline-flex; align-items: center; gap: 3px;
 }
-.rank-badge-flame-img { width: 11px; height: 11px; object-fit: contain; vertical-align: middle; pointer-events: none; }
+.rank-badge-flame-img { width: 12px; height: 12px; object-fit: contain; vertical-align: middle; pointer-events: none; }
 .rank-badge-top30 {
   background: rgba(139,92,246,0.18);
   color: #c7b7f2; box-shadow: none;
@@ -1852,13 +1858,13 @@ body.light .hint-btn.pregame { background: #f5f5f5; border-color: #d0d0d0; color
   100% { opacity:0; transform: scale(1.1); }
 }
 @media (max-width: 500px) {
-  .cell { font-size: clamp(13.5px, 4vw, 18.5px); }
+  .cell { font-size: clamp(14px, 4vw, 19px); }
   .cell.cat { font-size: clamp(15px, 4.5vw, 20px); }
 }
 
 /* PC에서 셀 크기 제한 */
 @media (min-width: 500px) {
-  .cell { font-size: clamp(14px, 2.5vw, 22px); }
+  .cell { font-size: clamp(14.5px, 2.5vw, 22.5px); }
   .cell.cat { font-size: clamp(16px, 3vw, 24px); }
 }
 
@@ -1884,6 +1890,23 @@ body.light .hint-btn.pregame { background: #f5f5f5; border-color: #d0d0d0; color
 .cell.cat.answer {
   background: var(--accent-green-dim) !important;
   border-color: var(--accent-green) !important;
+}
+@keyframes answerBlinkPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.cell.answer-blink {
+  background: var(--accent-green-dim) !important;
+  border-color: var(--accent-green) !important;
+  color: var(--accent-green-light) !important;
+  box-shadow: inset 0 0 0 1px var(--accent-green);
+  animation: answerBlinkPulse 0.8s ease-in-out infinite;
+}
+body.light .cell.answer-blink {
+  background: #ffffff !important;
+  border-color: #16a34a !important;
+  color: #1a3060 !important;
+  box-shadow: 0 0 0 2px #16a34a !important;
 }
 body.light .cell.answer {
   background: #ffffff !important;
@@ -1943,7 +1966,7 @@ body.light .cell.cat.answer {
             background-size: calc((100% - 6px) / 9) calc((100% - 6px) / 13);
             background-position: 3px 3px;
         }
-        .cell { font-size: clamp(16px, 2.2vw, 30px); }
+        .cell { font-size: clamp(16.5px, 2.2vw, 30.5px); }
         .cell.cat { font-size: clamp(18px, 2.4vw, 32px); }
 
         /* 모바일 전용 요소 숨기기 */
@@ -3563,6 +3586,8 @@ function renderStartScreenGoal() {
 }
 
 // 결과창의 오늘의 목표 성공/실패 문구 — 신기록 축하가 항상 위에 먼저 뜨고(bestCompare), 이 줄은 그 아래 보조로만 노출
+// v3.7: "달성 완료" 반복 노출이 지겹다는 피드백 → 그날 처음 달성한 판에만 한 줄로 반짝 보여주고,
+// 이미 달성해둔 상태로 다시 플레이할 땐 이 블록을 아예 숨김(그 자리엔 scoreComment 플레이버 멘트만 남음)
 function renderDailyGoalResult(stats, prevStats, curScore) {
   const el = document.getElementById('dailyGoalResult');
   const totalEl = document.getElementById('dailyGoalTotalLine');
@@ -3577,23 +3602,25 @@ function renderDailyGoalResult(stats, prevStats, curScore) {
   // 오늘 하루 기준 달성 플래그가 최우선 — 이번 판 점수가 낮아도 이미 달성했으면 "미달" 문구를 띄우지 않음
   const achievedToday = !!stats.dailyGoalAchievedToday;
   const wasAlreadyAchieved = !!(prevStats && prevStats.dailyGoalDate === stats.dailyGoalDate && prevStats.dailyGoalAchievedToday);
-  let lines;
+  if (achievedToday && wasAlreadyAchieved) {
+    // 이미 오늘 달성해둔 상태로 또 플레이한 판 — 반복 노출 방지, 조용히 숨김
+    el.innerHTML = '';
+    el.style.display = 'none';
+    if (totalEl) totalEl.style.display = 'none';
+    return;
+  }
+  let line;
   if (achievedToday) {
+    // 이번 판에 방금 처음 달성 — 딱 한 줄로만 축하
     const streak = ENABLE_STREAK_DISPLAY ? (stats.goalStreak || 0) : 0;
-    if (wasAlreadyAchieved) {
-      // 이번 판 전에 이미 오늘 목표를 달성해둔 상태 — 이번 판 점수와 무관하게 달성 완료로 표시
-      lines = ['오늘 목표 달성 완료 ✅', streak >= 2 ? `🔥 ${streak}일 연속 달성 중` : '오늘은 이미 도장 찍었다냥'];
-    } else {
-      const line2 = streak >= 2 ? `🔥 ${streak}일 연속 달성 중` : '🔥 오늘부터 시작이다냥';
-      lines = ['오늘 목표 달성!', line2];
-    }
+    line = streak >= 2 ? `🔥 오늘 목표 ${streak}일연속 달성중 ✅` : '🔥 오늘 목표 달성 ✅';
     el.style.color = 'var(--blue-light)';
   } else {
     const diff = goal - curScore;
-    lines = [`목표까지 ${diff.toLocaleString()}점 남았다냥`, '한 판만 더 해보라냥'];
+    line = `목표까지 ${diff.toLocaleString()}점 남았다냥 · 한 판만 더 해보라냥`;
     el.style.color = 'var(--muted)';
   }
-  el.innerHTML = lines.join('<br>');
+  el.innerHTML = line;
   el.style.display = 'block';
   if (ENABLE_GOAL_TOTAL_COUNT && totalEl) {
     totalEl.textContent = `지금까지 오늘 목표 ${(stats.goalTotalCount || 0).toLocaleString()}번 달성`;
@@ -4257,6 +4284,11 @@ function playSfx(key, vol = 1, rate = 1) {
   } catch {}
 }
 
+// 진동 피드백 — 정답/아이템 발동 시 짧게. 지원 안 하는 환경(iOS Safari 등)은 조용히 무시
+function vibrateFeedback(pattern) {
+  try { if (navigator.vibrate) navigator.vibrate(pattern); } catch {}
+}
+
 // 조용한 카드 섞는 소리 — 필터 노이즈 스윽스윽 2번
 function playShuffleSoft() {
   resumeAC();
@@ -4499,7 +4531,7 @@ const ENABLE_JELLY_REWARD = false;
 const ENABLE_JELLY_SHOP = false;
 const ENABLE_EXTRA_SHUFFLE = false;
 const ENABLE_DAILY_OING = false;
-const ENABLE_NEWBIE_AUTO_HINT = false;
+const ENABLE_NEWBIE_AUTO_HINT = true;
 
 // ══════════════════════════════
 //  GAME
@@ -4531,6 +4563,15 @@ let timeWarned = false; // 10초 경고음 1회 제한
 const COMBO_SCORE_CAP = 25;
 let comboCapReached = false; // 이번 판에서 "배율 MAX!" 연출을 이미 보여줬는지
 let bonusHintGiven = false; // 퍼펙트 클리어 임박 보너스 힌트, 판당 1회만
+let candyGivenThisGame = false; // 🍬 콤보사탕 — 판당 딱 1개만 나오게 제한 (클로버는 별개, 제한 없음)
+let newbieHintGiven = false; // 뉴비 자동힌트 — 판당 1회만
+let newbieSkillMetric = null; // 이번 판 시작 시점의 실력 지표(캐싱)
+let lastInteractionAt = 0; // 마지막으로 화면을 누른 시각
+let newbieHintCoords = null;
+let newbieHintClearTimer = null;
+const NEWBIE_SCORE_THRESHOLD = 2000; // 이 이하 실력 지표만 자동힌트 대상
+const NEWBIE_IDLE_MS = 6000; // 6초간 조작 없으면 발동
+const NEWBIE_HINT_TIME_WINDOW = 40; // 남은 시간 40초 이하일 때만 발동 가능
 let myCloverSkillMetric = null; // 이번 판 시작 시 캐싱해둔 "최근 실력 지표" — 저득점자 배려 클로버 확률 계산용
 
 const gridEl    = document.getElementById('grid');
@@ -4636,28 +4677,67 @@ function playFreeze() {
 function playComboCandy() {
   resumeAC();
   const now = AC.currentTime;
-  // 🍬 통통 튀는 귀여운 뿅뿅 상승음 (사탕=콤보UP 전용)
-  [[880,0],[1175,0.09],[1568,0.18]].forEach(([f,dt]) => {
+  // 🍬 콤보사탕 — 또르르 굴러가듯 부드럽게 통통 튀는 상승음
+  // (square는 귀에 거슬린다는 피드백 반영해 triangle로 순화 + 끝에 살짝 반짝임 추가)
+  [[740,0],[988,0.08],[1319,0.16]].forEach(([f,dt]) => {
     const o = AC.createOscillator(); const g = AC.createGain();
     o.connect(g); g.connect(AC.destination);
-    o.type = 'square'; o.frequency.setValueAtTime(f, now+dt);
+    o.type = 'triangle'; o.frequency.setValueAtTime(f, now+dt);
     g.gain.setValueAtTime(0, now+dt);
-    g.gain.linearRampToValueAtTime(0.11, now+dt+0.015);
-    g.gain.exponentialRampToValueAtTime(0.001, now+dt+0.2);
-    o.start(now+dt); o.stop(now+dt+0.22);
+    g.gain.linearRampToValueAtTime(0.14, now+dt+0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, now+dt+0.22);
+    o.start(now+dt); o.stop(now+dt+0.24);
   });
+  const t2 = now + 0.22;
+  const o2 = AC.createOscillator(); const g2 = AC.createGain();
+  o2.connect(g2); g2.connect(AC.destination);
+  o2.type = 'sine'; o2.frequency.setValueAtTime(1760, t2);
+  g2.gain.setValueAtTime(0.09, t2);
+  g2.gain.exponentialRampToValueAtTime(0.001, t2+0.18);
+  o2.start(t2); o2.stop(t2+0.2);
 }
 
-// 🍬 사탕 효과: 콤보 +2 (답 두 개 맞춘 만큼)
+// 🍬 콤보사탕 효과: 콤보 +2 (답 두 개 맞춘 만큼)
 function applyCandyCombo(r, c) {
   const before = combo;
   combo += 2;
   if (combo > maxCombo) maxCombo = combo;
   playComboCandy();
-  showItemPop(r, c, '🍬 콤보UP! +2', 'hint');
+  showItemPop(r, c, '🍬 콤보사탕! +2', 'hint');
   const crossed = Math.floor(combo / 7) > Math.floor(before / 7);
   updateComboUI(crossed);
   if (crossed) spawnRandomItem();
+}
+
+// 폭탄 반경 안에 걸린 다른 아이템도 그냥 사라지지 않고 함께 발동되도록 처리(연쇄).
+// 폭탄/메가폭탄이 또 걸리면 그 자리에서 1단계 더 확장해서 터지되, 무한연쇄 방지를 위해 chainDepth를 1씩 소모.
+function triggerCaughtItem(bd, rr, cc, chainDepth) {
+  let extra = 0;
+  if (bd.clock) {
+    timeLeft = Math.min(timeLeft + 8, 999);
+    gameEndTime += 8000;
+  } else if (bd.freeze) {
+    activateFreeze(15);
+  } else if (bd.lucky) {
+    combo += 2;
+    if (combo > maxCombo) maxCombo = combo;
+  } else if ((bd.bomb || bd.megabomb) && chainDepth > 0) {
+    const isMega2 = !!bd.megabomb;
+    const rSpan = isMega2 ? 2 : 1, cSpan = isMega2 ? 3 : 2;
+    for (let rr2 = Math.max(0, rr - rSpan); rr2 <= Math.min(ROWS - 1, rr + rSpan); rr2++)
+      for (let cc2 = Math.max(0, cc - cSpan); cc2 <= Math.min(COLS - 1, cc + cSpan); cc2++) {
+        if (board[rr2][cc2].empty) continue;
+        const bd2 = board[rr2][cc2];
+        if (bd2.cat) { extra += 5; sessionCats++; }
+        else if (!bd2.bomb && !bd2.clock && !bd2.hint && !bd2.megabomb && !bd2.freeze && !bd2.lucky) extra += bd2.num;
+        else extra += triggerCaughtItem(bd2, rr2, cc2, chainDepth - 1);
+        board[rr2][cc2].empty = true;
+        const el3 = cellEl(rr2, cc2);
+        if (el3) el3.classList.add('exploding');
+      }
+    extra += isMega2 ? 40 : 20;
+  }
+  return extra;
 }
 
 function playLucky() {
@@ -4676,6 +4756,21 @@ function playHint() {
     g.gain.setValueAtTime(0.15,t);
     g.gain.exponentialRampToValueAtTime(0.001,t+0.14);
     o.start(t); o.stop(t+0.16);
+  });
+}
+
+// 오답 — "디딕~" 짧고 가벼운 두번 블립 (기운 빠지는 하강음 대신 경쾌하게)
+function playWrongSoft() {
+  resumeAC();
+  const now = AC.currentTime;
+  [[520,0],[520,0.09]].forEach(([f,dt]) => {
+    const o = AC.createOscillator(); const g = AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    o.type = 'triangle'; o.frequency.setValueAtTime(f, now+dt);
+    g.gain.setValueAtTime(0, now+dt);
+    g.gain.linearRampToValueAtTime(0.14, now+dt+0.008);
+    g.gain.exponentialRampToValueAtTime(0.001, now+dt+0.09);
+    o.start(now+dt); o.stop(now+dt+0.1);
   });
 }
 
@@ -4849,7 +4944,11 @@ function renderGrid() {
       } else if (d.freeze) {
         el.className = 'cell item-freeze'; el.textContent = '❄️';
       } else if (d.lucky) {
-        el.className = 'cell item-lucky'; el.textContent = '🍬';
+        if (d.luckyKind === 'clover') {
+          el.className = 'cell item-lucky item-clover'; el.textContent = '🍀';
+        } else {
+          el.className = 'cell item-lucky item-candy'; el.textContent = '🍬';
+        }
       } else {
         el.className = 'cell'; el.textContent = d.num;
       }
@@ -4860,6 +4959,7 @@ function renderGrid() {
   }
   applyHighlights();
   reapplyAnswerHighlight();
+  reapplyNewbieHintHighlight();
 
   // 퍼펙트 클리어 임박(남은 칸 5개 이하) 시, 힌트를 이미 썼다면 1회 한정 보너스 힌트 지급
   if (gameRunning && hintsUsed >= MAX_HINTS && !bonusHintGiven) {
@@ -4904,6 +5004,7 @@ function cellEl(r, c) { return gridEl.children[r * COLS + c]; }
 function onCellTap(e) {
   if (!gameRunning) return;
   resumeAC();
+  lastInteractionAt = Date.now();
   const r = +e.currentTarget.dataset.r;
   const c = +e.currentTarget.dataset.c;
   const d = board[r][c];
@@ -4925,6 +5026,7 @@ function onCellTap(e) {
 
     if (d.bomb) {
       playBomb();
+      vibrateFeedback(25);
       showItemPop(r, c, '💣 폭발!', 'bomb');
       setTimeout(() => {
         const targets = [];
@@ -4937,6 +5039,7 @@ function onCellTap(e) {
           if (bd.cat) bombScore += 5;
           if (bd.cat) sessionCats++;
           else if (!bd.bomb && !bd.clock && !bd.hint && !bd.megabomb && !bd.freeze && !bd.lucky) bombScore += bd.num;
+          else bombScore += triggerCaughtItem(bd, rr, cc, 1);
           board[rr][cc].empty = true;
           const el2 = cellEl(rr,cc);
           if (el2) el2.classList.add('exploding');
@@ -4955,6 +5058,7 @@ function onCellTap(e) {
 
     if (d.megabomb) {
       playMegaBomb();
+      vibrateFeedback(35);
       showItemPop(r, c, '💥 메가폭발!', 'bomb');
       setTimeout(() => {
         const targets = [];
@@ -4967,6 +5071,7 @@ function onCellTap(e) {
           if (bd.cat) bombScore += 5;
           if (bd.cat) sessionCats++;
           else if (!bd.bomb && !bd.clock && !bd.hint && !bd.megabomb && !bd.freeze && !bd.lucky) bombScore += bd.num;
+          else bombScore += triggerCaughtItem(bd, rr, cc, 1);
           board[rr][cc].empty = true;
           const el2 = cellEl(rr,cc);
           if (el2) el2.classList.add('exploding');
@@ -4987,6 +5092,7 @@ function onCellTap(e) {
 
     if (d.clock) {
       playClock();
+      vibrateFeedback(15);
       timeLeft = Math.min(timeLeft + 8, 999);
       gameEndTime += 8000;
       updateTimer();
@@ -4996,13 +5102,20 @@ function onCellTap(e) {
 
     if (d.freeze) {
       activateFreeze(15);
+      vibrateFeedback(20);
       setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350); }, 380);
     }
 
     if (d.lucky) {
-      // 🍬 사탕 = 콤보 +2 (힌트 → 콤보 부스트로 변경)
+      const kind = d.luckyKind;
       board[r][c].empty = true;
-      applyCandyCombo(r, c);
+      if (kind === 'clover') {
+        vibrateFeedback([15,40,15,40,20]);
+        activateLucky(r, c); // 🍀 클로버 — 정답 여러 개를 한번에 찾아 클리어해주는 원래의 럭키 효과
+      } else {
+        vibrateFeedback(15);
+        applyCandyCombo(r, c); // 🍬 콤보사탕 — 콤보 +2
+      }
       setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350); }, 380);
     }
 
@@ -5046,6 +5159,7 @@ function tryRemove(sel2) {
   const catCoords = []; // 클로버 배려 스폰용 — 제거되는 고양이 칸 좌표
   let hasBomb = false, hasClock = false, hasHint = false;
   let hasMegabomb = false, hasFreeze = false, hasLucky = false;
+  let luckyKindCaught = null;
 
   for (let r = rMin; r <= rMax; r++)
     for (let c = cMin; c <= cMax; c++) {
@@ -5057,7 +5171,7 @@ function tryRemove(sel2) {
       if (d.hint)     { hasHint     = true; continue; }
       if (d.megabomb) { hasMegabomb = true; continue; }
       if (d.freeze)   { hasFreeze   = true; continue; }
-      if (d.lucky)    { hasLucky    = true; continue; }
+      if (d.lucky)    { hasLucky    = true; luckyKindCaught = d.luckyKind; continue; }
       cells.push(d);
     }
 
@@ -5067,7 +5181,7 @@ function tryRemove(sel2) {
   const valid = onlyCat || onlyItem || sum === 10;
 
   if (!valid) {
-    try { playSfx('wrong', 0.4); } catch {} // 오답 — 기분 안 나쁘게 소프트
+    try { playWrongSoft(); } catch {} // 오답 — "디딕~" 가벼운 소리로 교체 (기운빠지는 음 대신)
     highlightRange(rMin, rMax, cMin, cMax, 'err');
     combo = Math.floor(combo * 0.7); updateComboUI();
     setTimeout(() => { sel1 = null; applyHighlights(); }, 290);
@@ -5078,6 +5192,7 @@ function tryRemove(sel2) {
   combo++;
   if (combo > maxCombo) maxCombo = combo;
   startComboDecay(); // no-op
+  vibrateFeedback(15); // 정답 진동
 
   // 콤보 7 배수 달성 시 팝업 + 효과음
   if (combo % 7 === 0) {
@@ -5178,7 +5293,7 @@ function tryRemove(sel2) {
   for (let r = rMin; r <= rMax; r++)
     for (let c = cMin; c <= cMax; c++) {
       if (cloverCellPicked && cloverCellPicked.r === r && cloverCellPicked.c === c) {
-        board[r][c] = { num:1, cat:false, bomb:false, clock:false, hint:false, megabomb:false, freeze:false, lucky:true, empty:false };
+        board[r][c] = { num:1, cat:false, bomb:false, clock:false, hint:false, megabomb:false, freeze:false, lucky:true, luckyKind:'clover', empty:false };
       } else {
         board[r][c].empty = true;
       }
@@ -5189,6 +5304,7 @@ function tryRemove(sel2) {
   // ── 아이템 처리 ──
   if (hasBomb) {
     playBomb();
+    vibrateFeedback(25);
     showItemPop(rMin, cMin, '💣 폭발!', 'bomb');
     setTimeout(() => {
       const targets = [];
@@ -5202,6 +5318,7 @@ function tryRemove(sel2) {
         if (bd.cat) bombScore += 5;
         if (bd.cat) sessionCats++;
         else if (bd.num && !bd.bomb && !bd.clock && !bd.hint) bombScore += (bd.num || 0);
+        else bombScore += triggerCaughtItem(bd, r, c, 1);
         board[r][c].empty = true;
         const el = cellEl(r,c);
         if (el) el.classList.add('exploding');
@@ -5220,6 +5337,7 @@ function tryRemove(sel2) {
 
   if (hasClock) {
     playClock();
+    vibrateFeedback(15);
     timeLeft = Math.min(timeLeft + 8, 999);
     gameEndTime += 8000;
     updateTimer();
@@ -5240,6 +5358,7 @@ function tryRemove(sel2) {
 
   if (hasMegabomb) {
     playBomb();
+    vibrateFeedback(35);
     showItemPop(rMin, cMin, '💥 메가폭발!', 'bomb');
     setTimeout(() => {
       const targets = [];
@@ -5252,6 +5371,7 @@ function tryRemove(sel2) {
         if (bd.cat) bombScore += 5;
         if (bd.cat) sessionCats++;
         else if (!bd.bomb && !bd.clock && !bd.hint && !bd.megabomb && !bd.freeze && !bd.lucky) bombScore += bd.num;
+        else bombScore += triggerCaughtItem(bd, r, c, 1);
         board[r][c].empty = true;
         const el = cellEl(r,c);
         if (el) el.classList.add('exploding');
@@ -5269,11 +5389,17 @@ function tryRemove(sel2) {
 
   if (hasFreeze) {
     activateFreeze(15);
+    vibrateFeedback(20);
   }
 
   if (hasLucky) {
-    // 드래그로 🍬 사탕 포함 선택 시: 콤보 +2
-    applyCandyCombo(rMin, cMin);
+    if (luckyKindCaught === 'clover') {
+      vibrateFeedback([15,40,15,40,20]);
+      activateLucky(rMin, cMin); // 🍀 드래그로 클로버 포함 선택 시
+    } else {
+      vibrateFeedback(15);
+      applyCandyCombo(rMin, cMin); // 🍬 드래그로 콤보사탕 포함 선택 시: 콤보 +2
+    }
     setTimeout(() => {
       renderGrid();
       if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350);
@@ -5394,7 +5520,7 @@ function activateFreeze(secs) {
   }, secs * 1000);
 }
 
-// ── 럭키 ──
+// ── 🍀 클로버(럭키) — 정답 조합 3~5개를 한번에 찾아서 클리어해주는 잭팟 효과 ──
 function activateLucky(fromR, fromC) {
   const answers = findAllAnswers();
   if (answers.length === 0) return;
@@ -5416,7 +5542,7 @@ function activateLucky(fromR, fromC) {
   score += luckyScore;
   updateStats();
   showScorePop(fromR, fromC, `+${luckyScore} 🍀`, false);
-  showItemPop(fromR, fromC, `🍬 도움사탕! +${luckyScore}`, 'hint');
+  showItemPop(fromR, fromC, `🍀 클로버 럭키! +${luckyScore}`, 'hint');
 }
 
 // 콤보 7배수 달성 시 아이템 생성
@@ -5436,32 +5562,33 @@ function spawnRandomItem() {
 
   const tier = combo >= 21 ? 3 : combo >= 14 ? 2 : 1;
   const elapsed = Date.now() - gameStartTime;
-  const cloverAllowed = timeLeft <= 70;
+  const candyAllowed = timeLeft <= 70 && !candyGivenThisGame && resetCount <= 1; // 콤보사탕은 스테이지 1~2까지만
 
-  // 티어1: 폭탄60% 시계40% (클로버 허용 시 폭탄50% 시계33% 클로버17%)
-  // 티어2: 폭탄40% 시계40% 메가폭탄20% (클로버 허용 시 폭탄33% 시계33% 메가폭탄17% 클로버17%)
-  // 티어3: 시계50% 메가폭탄25% 프리즈25% (클로버 허용 시 시계43% 메가폭탄29% 프리즈14% 클로버14%)
-  // v3.4: 고양이 칸 제거 시에도 별도로 클로버(도움사탕)가 나오게 돼서, 둘이 겹쳐 너무 자주 뜨지 않도록 여기 비중을 낮춤
+  // 티어1(초보): 폭탄60% 시계40% (콤보사탕 허용 시 폭탄50% 시계33% 콤보사탕17%) — 후하게 유지
+  // 티어2(중수): 폭탄40% 시계40% 메가폭탄20% (콤보사탕 허용 시 폭탄33% 시계33% 메가폭탄17% 콤보사탕17%)
+  // 티어3(고수, combo 21+): v3.7 — 폭탄을 다시 넣어서 고콤보 유지가 살짝 빡빡해지게 조정.
+  //   프리즈 비중은 원래대로 유지하고, 대신 시계 비중을 줄여서 폭탄 자리를 만듦 (초보/중수 풀은 손대지 않음)
   let pool;
   if (tier === 1) {
-    pool = cloverAllowed
+    pool = candyAllowed
       ? ['bomb','bomb','bomb','clock','clock','lucky']
       : ['bomb','bomb','bomb','clock','clock'];
   } else if (tier === 2) {
-    pool = cloverAllowed
+    pool = candyAllowed
       ? ['bomb','bomb','clock','clock','megabomb','lucky']
       : ['bomb','bomb','clock','clock','megabomb'];
   } else {
     // 티어3
-    pool = cloverAllowed
-      ? ['clock','clock','clock','megabomb','megabomb','freeze','lucky']
-      : ['clock','clock','clock','clock','megabomb','megabomb','freeze','freeze'];
+    pool = candyAllowed
+      ? ['clock','clock','megabomb','megabomb','freeze','bomb','lucky']
+      : ['clock','clock','megabomb','megabomb','freeze','freeze','bomb'];
   }
   const pick = pool[Math.floor(Math.random() * pool.length)];
 
   board[r][c] = { num:1, cat:false, bomb:false, clock:false, hint:false,
                   megabomb:false, freeze:false, lucky:false, empty:false };
   board[r][c][pick] = true;
+  if (pick === 'lucky') { board[r][c].luckyKind = 'candy'; candyGivenThisGame = true; } // 콤보사탕은 판당 1개만
 }
 
 // 판이 막혔을 때(더 이상 만들 수 있는 합이 없을 때) 보드를 새로 섞는 연출
@@ -5567,7 +5694,11 @@ function hasValidMove() {
   for (let r = 0; r < ROWS; r++)
     for (let c = 0; c < COLS; c++) {
       const d = board[r][c];
-      if (!d.empty && !d.cat && !d.bomb && !d.clock && !d.hint && !d.megabomb && !d.freeze && !d.lucky) numCellCount++;
+      if (d.empty) continue;
+      // 아이템 칸(폭탄/시계/메가폭탄/프리즈/클로버·콤보사탕)은 탭 한 번으로 바로 발동되는
+      // 그 자체로 유효한 행동 — 이걸 무시하면 막 나온 클로버가 판 리셋으로 지워져버리는 버그가 생김
+      if (d.bomb || d.clock || d.hint || d.megabomb || d.freeze || d.lucky) return true;
+      if (!d.cat) numCellCount++;
     }
   if (numCellCount === 0) return false;
 
@@ -5880,6 +6011,10 @@ function startGame() {
   timeWarned = false;
   updateShuffleBtn();
   bonusHintGiven = false;
+  candyGivenThisGame = false;
+  newbieHintGiven = false;
+  newbieSkillMetric = getMyCloverSkillMetric();
+  lastInteractionAt = Date.now();
   // 이전 게임에서 타임프리즈가 풀리지 않은 채로 남아있으면 새 게임에서 아이템이 먹통이 되는 버그 방지
   freezeActive = false;
   if (freezeTimeoutId) { clearTimeout(freezeTimeoutId); freezeTimeoutId = null; }
@@ -5963,6 +6098,7 @@ function startGame() {
             if (freezeActive) { updateTimer(); return; } // 프리즈 중엔 차감 안 하되 ❄️ 표시는 유지
             timeLeft = Math.max(0, Math.round((gameEndTime - Date.now()) / 1000));
             updateTimer();
+            checkNewbieAutoHint();
             if (timeLeft <= 0) {
               clearInterval(timerInterval);
               timerInterval = null;
@@ -6205,7 +6341,7 @@ async function endGame() {
           nickDone.style.color = 'var(--muted)';
           nickDone.style.fontWeight = '600';
           nickDone.innerHTML = '🎉 자동 등록 완료';
-          showNewRecordPop();
+          if (isResultScreenVisible()) showNewRecordPop();
         } else {
           renderRanking();
           nickDone.style.display = 'block';
@@ -6213,13 +6349,18 @@ async function endGame() {
           nickDone.style.color = 'var(--muted)';
           nickDone.style.fontWeight = '600';
           nickDone.innerHTML = '🎉 자동 등록 완료';
-          // 비기록 판 → 세션당 1회, 쉬는 타이밍이면 쉬는 멘트만 조용히 표시 (그 외엔 아무것도 안 뜸)
+          // 비기록 판 → 두 번째 줄에 "다음 목표" 멘트를 기본으로 보여주고,
+          // 세션당 1회 쉬는 타이밍이면 그 자리에 쉬는 멘트를 대신 표시
           const nextGoalEl = document.getElementById('nextGoal');
           if (nextGoalEl) {
             const restLine = getRestLineIfDue();
             if (restLine) {
               nextGoalEl.textContent = restLine;
               nextGoalEl.style.color = 'var(--blue-light)'; // 쉬는 멘트는 차분한 색
+              nextGoalEl.style.display = 'block';
+            } else {
+              nextGoalEl.textContent = getNextGoal(score);
+              nextGoalEl.style.color = '#DA9845';
               nextGoalEl.style.display = 'block';
             }
           }
@@ -6237,6 +6378,15 @@ async function endGame() {
     const welcome = document.getElementById('firstTimeWelcome');
     if (welcome) welcome.style.display = 'block';
   }
+}
+
+// Firebase 저장은 비동기라 몇 초 걸릴 수 있는데, 그 사이 유저가 랭킹 탭으로 넘어가거나
+// 새 판을 시작해버리면 "최고점수 등극" 팝업이 엉뚱한 화면 위에 뒤늦게 뜨는 문제가 있었음 —
+// 팝업 띄우기 직전에 결과창이 여전히 보이는 상태인지 확인
+function isResultScreenVisible() {
+  const rp = document.getElementById('resultPanel');
+  const gamePanel = document.getElementById('panelGame');
+  return !!(rp && rp.style.display !== 'none' && gamePanel && gamePanel.classList.contains('active'));
 }
 
 function showNewRecordPop() {
@@ -6342,6 +6492,60 @@ function clearAnswerHighlight() {
     for (let c = 0; c < COLS; c++) {
       const el = cellEl(r, c);
       if (el) el.classList.remove('answer');
+    }
+}
+
+// ══════════════════════════════
+//  뉴비 자동힌트 — 판당 1회, 실력 지표 낮은 유저가 40초 남은 시점부터
+//  6초 이상 화면을 안 누르면 정답 하나를 깜빡여서 보여줌
+// ══════════════════════════════
+function checkNewbieAutoHint() {
+  if (!ENABLE_NEWBIE_AUTO_HINT || newbieHintGiven || !gameRunning) return;
+  if (timeLeft > NEWBIE_HINT_TIME_WINDOW || timeLeft <= 0) return;
+  const metric = (newbieSkillMetric == null) ? 0 : newbieSkillMetric;
+  if (metric > NEWBIE_SCORE_THRESHOLD) return;
+  if (Date.now() - lastInteractionAt < NEWBIE_IDLE_MS) return;
+  newbieHintGiven = true;
+  showNewbieBlinkHint();
+}
+
+function showNewbieBlinkHint() {
+  const found = findAllAnswers();
+  if (found.length === 0) return;
+  const filtered = found.filter(ans => {
+    let numCount = 0;
+    for (let r = ans.r1; r <= ans.r2; r++)
+      for (let c = ans.c1; c <= ans.c2; c++) {
+        const d = board[r][c];
+        if (!d.empty && !d.cat && !d.bomb && !d.clock && !d.hint && !d.megabomb && !d.freeze && !d.lucky) numCount++;
+      }
+    return numCount >= 3;
+  });
+  const pool = filtered.length > 0 ? filtered : found;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  newbieHintCoords = pick.coords.slice();
+  reapplyNewbieHintHighlight();
+  if (newbieHintClearTimer) clearTimeout(newbieHintClearTimer);
+  newbieHintClearTimer = setTimeout(clearNewbieHintHighlight, 3200);
+}
+
+// 재렌더가 일어나도 깜빡임이 유지되도록 다시 붙임
+function reapplyNewbieHintHighlight() {
+  if (!newbieHintCoords) return;
+  newbieHintCoords.forEach(({r, c}) => {
+    if (board[r] && board[r][c] && board[r][c].empty) return;
+    const el = cellEl(r, c);
+    if (el) el.classList.add('answer-blink');
+  });
+}
+
+function clearNewbieHintHighlight() {
+  newbieHintCoords = null;
+  if (newbieHintClearTimer) { clearTimeout(newbieHintClearTimer); newbieHintClearTimer = null; }
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      const el = cellEl(r, c);
+      if (el) el.classList.remove('answer-blink');
     }
 }
 
@@ -6690,7 +6894,7 @@ function renderMyRankSummary(list, myIdx, prevRank, periodLabel) {
     nextBigEl.innerHTML = `<b style="font-size:16px;">${need}</b>pt 남았다냥!`;
   }
 
-  // 친구 탭은 등수변동 대신 "친구 N명 중 M위"를, 그 외에는 상승/신규만 긍정적으로 보여줌
+  // 친구 탭은 등수변동 대신 "친구 N명 중 M위"를, 그 외에는 상승/하락/동일을 모두 작게 표시
   const changeEl = document.getElementById('mrsChange');
   if (isFriends) {
     changeEl.className = 'mrs-change';
@@ -6701,7 +6905,8 @@ function renderMyRankSummary(list, myIdx, prevRank, periodLabel) {
   } else {
     const diff = prevRank - rank;
     if (diff > 0) { changeEl.className = 'mrs-change up'; changeEl.textContent = `▲${diff} ${period}`; }
-    else { changeEl.className = 'mrs-change'; changeEl.textContent = ''; }
+    else if (diff < 0) { changeEl.className = 'mrs-change down'; changeEl.textContent = `▼${Math.abs(diff)} ${period}`; }
+    else { changeEl.className = 'mrs-change same'; changeEl.textContent = `－ ${period}`; }
   }
 }
 
