@@ -2328,7 +2328,7 @@ body.light #shuffleBtn2 {
                   text-decoration:underline;
                 ">💌 문의하기 <span id="contactBtnNew" style="display:none;background:#DD6032;color:white;font-size:11px;font-weight:900;padding:1px 5px;border-radius:8px;">NEW</span></button>
               </div>
-              <div id="buildTag" style="margin-top:6px; font-size:10.5px; color:var(--border2);">build #1783282219</div>
+              <div id="buildTag" style="margin-top:6px; font-size:10.5px; color:var(--border2);">build #1783587335</div>
             </div>
           </div>
         </div>
@@ -2394,54 +2394,6 @@ body.light #shuffleBtn2 {
           </div>
         </div>
 
-
-        <!-- 관리자 전용: 응원자 감사 메시지 (당분간 누적으로 운영) -->
-        <div id="adminThanksPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:300px; background:rgba(218,152,69,0.1); border:1px solid #DA9845; border-radius:10px; text-align:center;">
-          <div style="font-size:12px; color:#f0d8a8; font-weight:700; margin-bottom:6px;">🐾 이번달 응원자 감사 메시지 (닉네임만 쉼표로 구분)</div>
-          <textarea id="adminThanksText" placeholder="예: 제제, 준석리, 쿠앙" style="width:100%; min-height:44px; font-size:13px; padding:6px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:inherit; resize:vertical; margin-bottom:6px; box-sizing:border-box;"></textarea>
-          <button id="adminThanksSaveBtn" style="width:100%; padding:6px; font-size:13px; font-weight:700; color:#f0d8a8; background:rgba(218,152,69,0.2); border:1px solid #DA9845; border-radius:8px; margin-bottom:5px;">저장 (랭킹 화면 하단에 표시됨)</button>
-          <button id="adminThanksClearBtn" style="width:100%; padding:5px; font-size:12px; font-weight:700; color:var(--muted); background:none; border:1px solid var(--border); border-radius:8px;">비우기 (표시 숨김)</button>
-        </div>
-
-        <!-- 관리자 전용: 고양이 스킨 부여 -->
-        <div id="adminCatSkinPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:260px; background:rgba(111,168,232,0.1); border:1px solid #6fa8e8; border-radius:10px; text-align:center;">
-          <div style="font-size:12px; color:#bcdcff; font-weight:700; margin-bottom:6px;">🐱 고양이 스킨 부여 (후원자)</div>
-          <div style="display:flex; gap:4px; margin-bottom:6px;">
-            <input id="adminCatSkinNick" type="text" placeholder="닉네임" style="flex:1; min-width:0; font-size:13px; padding:5px 6px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text);">
-          </div>
-          <div style="display:flex; gap:4px;">
-            <button id="adminCatSkinGrantBtn" style="flex:1; padding:5px; font-size:13px; font-weight:700; color:#bcdcff; background:rgba(111,168,232,0.2); border:1px solid #6fa8e8; border-radius:8px;">스킨 적용</button>
-            <button id="adminCatSkinRevokeBtn" style="flex:1; padding:5px; font-size:13px; font-weight:700; color:var(--muted); background:none; border:1px solid var(--border); border-radius:8px;">해제</button>
-          </div>
-          <button id="adminThanksNoteBtn" style="width:100%; margin-top:5px; padding:5px; font-size:13px; font-weight:700; color:#f0d8a8; background:rgba(218,152,69,0.15); border:1px solid #DA9845; border-radius:8px;">😻 감사 쪽지만 보내기 (리워드 없이)</button>
-        </div>
-
-        <!-- 관리자 전용: 피드백 게시판 관리 -->
-        <div id="adminFeedbackPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:300px; background:rgba(59,130,246,0.08); border:1px solid #3b82f6; border-radius:10px; text-align:left;">
-          <div style="font-size:12px; color:#93c5fd; font-weight:700; margin-bottom:6px; text-align:center;">💌 피드백 관리</div>
-          <div id="adminFeedbackList" style="display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto;"></div>
-        </div>
-
-        <div id="adminHallPanel" style="display:none; margin:0 auto 10px; padding:8px; max-width:260px; background:rgba(251,191,36,0.08); border:1px solid #fbbf24; border-radius:10px; text-align:center;">
-          <div style="font-size:12px; color:#fbbf24; font-weight:700; margin-bottom:6px;">👑 명전 횟수 수동 설정</div>
-          <div style="display:flex; gap:4px; margin-bottom:6px;">
-            <input id="adminHallNick" type="text" placeholder="닉네임" style="flex:1; min-width:0; font-size:13px; padding:5px 6px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text);">
-            <input id="adminHallCount" type="number" min="0" placeholder="횟수" style="width:54px; font-size:13px; padding:5px 6px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text);">
-          </div>
-          <button id="adminHallSetBtn" style="width:100%; padding:5px; font-size:13px; font-weight:700; color:#fde68a; background:rgba(251,191,36,0.15); border:1px solid #fbbf24; border-radius:8px; margin-bottom:5px;">설정 저장</button>
-          <button id="adminHallSyncBtn" style="width:100%; padding:5px; font-size:12px; font-weight:700; color:#93c5fd; background:rgba(59,130,246,0.12); border:1px solid #3b82f6; border-radius:8px;">현재 1등을 챔피언으로 동기화</button>
-        </div>
-
-        <!-- 관리자 전용: 랭킹 초기화 (숨김, 타이틀 5회 탭 시 노출) -->
-        <button id="adminResetBtn" style="display:none; margin:6px auto 4px; padding:6px 14px; font-size:13px; font-weight:700; color:#fca5a5; background:rgba(239,68,68,0.12); border:1px solid #ef4444; border-radius:10px;">
-          ⚠️ 랭킹 전체 초기화 (관리자)
-        </button>
-        <button id="adminResetWeekBtn" style="display:none; margin:0 auto 10px; padding:6px 14px; font-size:13px; font-weight:700; color:#fca5a5; background:rgba(239,68,68,0.12); border:1px solid #ef4444; border-radius:10px;">
-          ⚠️ 이번주 랭킹만 초기화 (관리자)
-        </button>
-        <button id="adminResetCrownBtn" style="display:none; margin:0 auto 10px; padding:6px 14px; font-size:13px; font-weight:700; color:#fde68a; background:rgba(251,191,36,0.12); border:1px solid #fbbf24; border-radius:10px;">
-          👑 왕관 기록만 초기화 (관리자)
-        </button>
 
         <!-- 시상대 -->
         <div class="podium-wrap" id="podiumWrap"></div>
@@ -2713,21 +2665,6 @@ body.light #shuffleBtn2 {
   </div>
 </div>
 
-<!-- 밸런스 패치(랭킹 초기화) 안내 팝업 -->
-<div id="patchNoticeOverlay" class="overlay" style="display:none;">
-  <div class="overlay-card" style="max-width:320px; text-align:center;">
-    <div style="font-size:42px; margin-bottom:6px;">🚨</div>
-    <div class="overlay-title" style="font-size:18px;">긴급 업데이트 안내</div>
-    <div style="font-size:14.5px; color:var(--text); margin-top:10px; line-height:1.65; text-align:left;">
-      원래는 매주 월요일 0시에 랭킹이 자동으로 새로 시작되는데, 콤보가 복리처럼 계속 쌓이면서 점수 격차가 너무 크게 벌어지는 걸 확인해서 예정보다 일찍 규칙을 조정하게 됐어요.<br><br>
-      - 콤보 점수 배율에 상한을 둬서, 오래 이어갈수록 점수가 한없이 커지던 구조를 다듬었어요<br>
-      - 그 기준에 맞춰 <b>전체 랭킹 점수를 초기화</b>했어요<br>
-      - 👑 왕관도 매주 한 번, 그 주 마지막 1등에게만 지급되도록 바뀌었고, 기존 왕관 기록도 함께 초기화했어요<br><br>
-      새로운 기준으로 다 같이 다시 도전하라냥~!😸
-    </div>
-    <button id="patchNoticeCloseBtn" class="action-btn" style="width:100%; margin-top:16px;">확인했다냥!</button>
-  </div>
-</div>
 
 
 <!-- 피드백 게시판 오버레이 -->
@@ -7675,42 +7612,7 @@ function switchTab(tab) {
     panel.classList.add('active');
     document.getElementById('tabRank').classList.add('active');
     renderRanking();
-    // 랭킹 초기화 공지 — 기기당 최초 1회만
-    const NOTICE_KEY = 'rankReset_v3';
-    if (!localStorage.getItem(NOTICE_KEY)) {
-      localStorage.setItem(NOTICE_KEY, '1');
-      const notice = document.createElement('div');
-      notice.style.cssText = `
-        position:fixed; top:0; left:50%; transform:translateX(-50%);
-        width:100%; max-width:650px; height:100%;
-        background:rgba(8,17,31,0.88);
-        display:flex; align-items:center; justify-content:center;
-        z-index:500; padding:20px;
-      `;
-      notice.innerHTML = `
-        <div style="
-          background:var(--surface); border:1px solid var(--border2);
-          border-radius:18px; padding:28px 22px; width:100%; max-width:300px;
-          text-align:center;
-        ">
-          <div style="font-size:36px; margin-bottom:12px;">🏆</div>
-          <div style="font-size:17px; font-weight:900; color:var(--blue-bright); line-height:1.5; margin-bottom:8px;">
-            대규모 업데이트로<br>랭킹을 새롭게 시작합니다!
-          </div>
-          <div style="font-size:14px; color:var(--muted); margin-bottom:20px;">
-            다시 1등에 도전해보세요 🔥
-          </div>
-          <button style="
-            display:block; width:100%; padding:13px;
-            border-radius:11px; border:none;
-            background:var(--blue-bright); color:white;
-            font-family:inherit; font-size:15px; font-weight:700;
-            cursor:pointer;
-          " onclick="this.closest('div[style*=fixed]').remove()">확인</button>
-        </div>
-      `;
-      document.body.appendChild(notice);
-    }
+
   }
 }
 // 랭킹/메인으로 나가면 진행 중이던 게임을 '종료'시킴 — 타이머·배경음악 멈춤(뒤에서 계속 흐르지 않게)
@@ -7992,7 +7894,7 @@ document.getElementById('deleteRankConfirmBtn').addEventListener('click', async 
       statusEl.textContent = '핀번호가 일치하지 않아요.';
       return;
     }
-    await deleteOldScore(nick);
+    await deleteOldScore(nick, pin);
     try {
       const weekId = getWeekId();
       await deleteDoc(doc(db, 'weekly_rankings', weekId, 'scores', nick));
@@ -8063,10 +7965,17 @@ document.getElementById('shareResultBtn').addEventListener('click', async () => 
 });
 
 // 닉네임 변경
-async function deleteOldScore(oldNick) {
+async function deleteOldScore(oldNick, pinForDelete) {
   if (!oldNick) return;
-  // Firebase 삭제
+  // Firebase 삭제 — 새 보안규칙: 삭제 전에 본인 핀으로 '삭제 예약(delpin)' 도장을 먼저 찍어야
+  // 서버가 삭제를 허락함 (핀 없는 무차별 삭제 차단)
   try {
+    const pinStamp = pinForDelete || loadMyPin();
+    if (pinStamp) {
+      try {
+        await setDoc(doc(db, 'rankings', oldNick), { delpin: pinStamp }, { merge: true });
+      } catch (e0) { console.warn('삭제 예약(delpin) 실패 — 핀 불일치 가능:', e0); }
+    }
     await deleteDoc(doc(db, 'rankings', oldNick));
   } catch (e) { console.warn('Firebase 삭제 실패:', e); }
   // 로컬 폴백 삭제
@@ -8110,7 +8019,7 @@ document.getElementById('nickChangeBtn').addEventListener('click', async () => {
   const ownership = await checkNicknameOwnership(nick, loadMyPin());
   const isTakeover = ownership.exists; // 기존에 존재하던 닉네임(본인 확인 통과한 것)
   if (oldNick && !isTakeover) {
-    await deleteOldScore(oldNick);
+    await deleteOldScore(oldNick, loadMyPin());
   }
 
   saveNickname(nick);
@@ -9022,16 +8931,6 @@ document.getElementById('myFeedbackReplySendBtn').addEventListener('click', asyn
 // 스킨 지급 알림 — 관리자가 nickname_skins/{닉네임} 문서에 notifyPending:true 를 넣어두면
 // 그 닉네임 주인이 다음에 게임을 열 때 팝업이 한 번 뜨고, 뜬 후엔 자동으로 false로 바뀜
 // 밸런스 패치 안내 팝업 — v3.2 콤보상한/랭킹초기화를 한 번만 확실히 알려줌 (자동으로 안 사라짐)
-function checkPatchNotice() {
-  const KEY = 'seenPatchNotice_v3.2_urgent';
-  if (localStorage.getItem(KEY)) return;
-  const overlay = document.getElementById('patchNoticeOverlay');
-  if (overlay) overlay.style.display = 'flex';
-  localStorage.setItem(KEY, '1');
-}
-document.getElementById('patchNoticeCloseBtn').addEventListener('click', () => {
-  document.getElementById('patchNoticeOverlay').style.display = 'none';
-});
 
 // 시작화면에 작게 "이번주 내 순위" 한 줄 표시 — 랭킹 탭 안 눌러도 진행상황이 계속 눈에 들어오게
 async function renderStartMyRankLine() {
@@ -9128,51 +9027,6 @@ function showReplyNotification(id, data) {
 //  관리자용 — 새 문의 도착 알림 (한 번 관리자 인증한 기기에서는 계속 확인)
 // ══════════════════════════════
 const ADMIN_DEVICE_KEY = 'oeing_admin_device_v1';
-async function checkAdminUnreadInquiries() {
-  let trusted = false;
-  try { trusted = localStorage.getItem(ADMIN_DEVICE_KEY) === '1'; } catch {}
-  if (!trusted) return;
-  try {
-    const q = query(collection(db, 'feedback'), where('adminUnread', '==', true));
-    const snap = await getDocs(q);
-    if (snap.empty) return;
-    // 문서별로 이미 알려준 상태(메시지 개수)면 건너뛰고, 처음 보는 상태인 것만 카운트
-    const freshDocs = [];
-    snap.docs.forEach(d => {
-      const versionKey = `oeing_notified_admin_${d.id}`;
-      const currentVersion = String(getFeedbackMessages(d.data()).length);
-      let lastNotified = null;
-      try { lastNotified = localStorage.getItem(versionKey); } catch {}
-      if (lastNotified !== currentVersion) {
-        freshDocs.push(d.id);
-        try { localStorage.setItem(versionKey, currentVersion); } catch {}
-      }
-    });
-    if (freshDocs.length > 0) {
-      showAdminNotifyBanner(freshDocs.length);
-      const contactBadge = document.getElementById('contactBtnNew');
-      if (contactBadge) contactBadge.style.display = 'inline-block';
-    }
-  } catch (e) { console.warn('관리자 알림 확인 실패:', e); }
-}
-function showAdminNotifyBanner(count) {
-  const banner = document.getElementById('replyNotifyBanner');
-  if (!banner) return;
-  banner.style.background = 'linear-gradient(135deg,#DA9845,#a8722f)';
-  banner.querySelector('span').textContent = '🔔';
-  banner.children[1].textContent = `새 문의/응원 글이 ${count}건 있어요!`;
-  banner.style.transform = 'translate(-50%, 0)';
-  const onOpen = async () => {
-    banner.style.transform = 'translate(-50%, -120%)';
-    banner.removeEventListener('click', onOpen);
-    document.getElementById('tabRank').click();
-    await openAdminPanelDirect();
-    const contactBadge = document.getElementById('contactBtnNew');
-    if (contactBadge) contactBadge.style.display = 'none';
-  };
-  banner.addEventListener('click', onOpen);
-}
-
 async function renderFeedbackBoard() {
   const boardEl = document.getElementById('feedbackBoard');
   if (!boardEl) return;
@@ -9260,65 +9114,6 @@ function formatFullDateTime(ts) {
 }
 
 
-async function renderAdminFeedbackList() {
-  const listEl = document.getElementById('adminFeedbackList');
-  if (!listEl) return;
-  listEl.innerHTML = '<div style="font-size:13px;color:var(--muted);text-align:center;">불러오는 중...</div>';
-  try {
-    const q = query(collection(db, 'feedback'), orderBy('ts', 'desc'), limit(50));
-    const snap = await getDocs(q);
-    if (snap.empty) {
-      listEl.innerHTML = '<div style="font-size:13px;color:var(--muted);text-align:center;">아직 등록된 글이 없어요</div>';
-      return;
-    }
-    listEl.innerHTML = '';
-    snap.docs.forEach(d => {
-      const data = d.data();
-      const messages = getFeedbackMessages(data);
-      const threadHtml = messages.map(m => `
-        <div style="margin-bottom:4px; text-align:${m.from === 'admin' ? 'right' : 'left'};">
-          <span style="display:inline-block; max-width:88%; padding:5px 8px; border-radius:8px; font-size:13px; white-space:pre-wrap; text-align:left; background:${m.from === 'admin' ? 'var(--blue-dim)' : 'var(--surface)'}; color:${m.from === 'admin' ? 'var(--blue-light)' : 'var(--text)'};">${m.text}</span>
-        </div>
-      `).join('');
-      const item = document.createElement('div');
-      item.style.cssText = `padding:8px;border-radius:8px;background:var(--surface2);border:1px solid ${data.adminUnread ? '#DA9845' : 'var(--border)'};`;
-      item.innerHTML = `
-        <div style="font-size:13px;font-weight:700;color:var(--blue-light);margin-bottom:4px;">${data.nickname}${data.adminUnread ? ' 🔔' : ''} <span style="color:var(--muted);font-weight:400;">· ${formatFeedbackDate(data.ts)}</span></div>
-        <div style="margin-bottom:6px;">${threadHtml}</div>
-        <textarea class="adminReplyInput" data-id="${d.id}" placeholder="답글 작성..." rows="2" style="width:100%;box-sizing:border-box;font-size:13px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:inherit;resize:none;"></textarea>
-        <button class="adminReplySaveBtn" data-id="${d.id}" style="width:100%;margin-top:4px;padding:4px;font-size:12px;font-weight:700;color:#93c5fd;background:rgba(59,130,246,0.12);border:1px solid #3b82f6;border-radius:6px;">답글 보내기</button>
-      `;
-      listEl.appendChild(item);
-    });
-    listEl.querySelectorAll('.adminReplySaveBtn').forEach(saveBtn => {
-      saveBtn.addEventListener('click', async () => {
-        const id = saveBtn.getAttribute('data-id');
-        const textarea = listEl.querySelector(`.adminReplyInput[data-id="${id}"]`);
-        const replyText = textarea.value.trim();
-        if (!replyText) { alert('답글 내용을 입력하세요.'); return; }
-        saveBtn.disabled = true;
-        try {
-          const docRef = doc(db, 'feedback', id);
-          const snap2 = await getDoc(docRef);
-          const data2 = snap2.exists() ? snap2.data() : {};
-          const messages = getFeedbackMessages(data2);
-          messages.push({ from: 'admin', text: replyText, ts: Date.now() });
-          await setDoc(docRef, { messages, lastTs: Date.now(), userUnread: true, adminUnread: false }, { merge: true });
-          saveBtn.textContent = '전송됨 ✓';
-          textarea.value = '';
-          setTimeout(() => renderAdminFeedbackList(), 800);
-        } catch (e) {
-          alert('저장 실패: ' + e.message);
-        } finally {
-          saveBtn.disabled = false;
-        }
-      });
-    });
-  } catch (e) {
-    listEl.innerHTML = '<div style="font-size:13px;color:var(--muted);">불러오기 실패</div>';
-  }
-}
-
 // startOverlay 탭바 투명 영역 높이 설정
 function setTabAreaHeight() {
   const tabBar = document.querySelector('.tab-bar');
@@ -9329,19 +9124,11 @@ setTabAreaHeight();
 window.addEventListener('resize', setTabAreaHeight);
 
 // ══════════════════════════════
-//  관리자 전용: 랭킹 전체 초기화
-//  (rankings + user_stats만 삭제, weekly_champs/명예의전당은 유지)
+//  랭킹 화면 버튼들 (새로고침 / 맨아래 이동 / 내 순위 캡처)
+//  ※ 관리자 기능은 전부 별도 관리자 대시보드로 이전됨 (새 보안규칙상 여기선 작동 불가)
 // ══════════════════════════════
-(function setupAdminReset() {
-  const titleEl = document.getElementById('rankTitleTap');
-  const btn = document.getElementById('adminResetBtn');
-  const btnWeek = document.getElementById('adminResetWeekBtn');
-  const btnCrown = document.getElementById('adminResetCrownBtn');
-  const hallPanel = document.getElementById('adminHallPanel');
-  const feedbackPanel = document.getElementById('adminFeedbackPanel');
-  const thanksPanel = document.getElementById('adminThanksPanel');
-  const donateLogPanel = null;
-  const catSkinPanel = document.getElementById('adminCatSkinPanel');
+(function setupRankScreenButtons() {
+  // (관리자 패널 관련 코드는 전부 별도 관리자 대시보드로 이전됨)
   const refreshBtn = document.getElementById('rankRefreshBtn');
   if (refreshBtn) {
     refreshBtn.addEventListener('click', async (e) => {
@@ -9640,288 +9427,6 @@ window.addEventListener('resize', setTabAreaHeight);
     });
   }
 
-  if (!titleEl || !btn) return;
-
-  let tapCount = 0;
-  let tapTimer = null;
-  let adminUnlocked = false;
-  function unlockPanels() {
-    adminUnlocked = true;
-    btn.style.display = 'block';
-    if (btnWeek) btnWeek.style.display = 'block';
-    if (btnCrown) btnCrown.style.display = 'block';
-    if (hallPanel) hallPanel.style.display = 'block';
-    if (feedbackPanel) {
-      feedbackPanel.style.display = 'block';
-      renderAdminFeedbackList();
-    }
-    if (thanksPanel) {
-      thanksPanel.style.display = 'block';
-      getDoc(doc(db, 'meta', 'weeklyThanks')).then(snap => {
-        const ta = document.getElementById('adminThanksText');
-        if (ta && snap.exists()) ta.value = snap.data().text || '';
-      }).catch(() => {});
-    }
-    if (donateLogPanel) donateLogPanel.style.display = 'block';
-    if (catSkinPanel) catSkinPanel.style.display = 'block';
-  }
-  window.openAdminPanelDirect = async function() {
-    let trusted = false;
-    try { trusted = localStorage.getItem(ADMIN_DEVICE_KEY) === '1'; } catch {}
-    if (!trusted) return;
-    unlockPanels();
-  };
-  titleEl.addEventListener('click', async () => {
-    tapCount++;
-    clearTimeout(tapTimer);
-    tapTimer = setTimeout(() => { tapCount = 0; }, 1500);
-    if (tapCount >= 5) {
-      tapCount = 0;
-      if (adminUnlocked) {
-        // 이미 인증된 상태면 그냥 토글
-        const show = btn.style.display === 'none';
-        btn.style.display = show ? 'block' : 'none';
-        if (btnWeek) btnWeek.style.display = show ? 'block' : 'none';
-        if (btnCrown) btnCrown.style.display = show ? 'block' : 'none';
-        if (hallPanel) hallPanel.style.display = show ? 'block' : 'none';
-        if (feedbackPanel) {
-          feedbackPanel.style.display = show ? 'block' : 'none';
-          if (show) renderAdminFeedbackList();
-        }
-        if (thanksPanel) thanksPanel.style.display = show ? 'block' : 'none';
-        if (donateLogPanel) donateLogPanel.style.display = show ? 'block' : 'none';
-        if (catSkinPanel) catSkinPanel.style.display = show ? 'block' : 'none';
-        return;
-      }
-      const code = prompt('🔒 관리자 로그인\n암호를 입력하세요');
-      if (code === null) return; // 취소
-      // 소스코드에는 해시만 저장 — 코드를 읽어도 비밀번호를 알 수 없음
-      const ADMIN_PW_HASH = '465a52b9d22e363d84d6e6cf7c7cb87793160b58fe2dffffce74da2130962ea4';
-      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code));
-      const hash = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-      if (hash !== ADMIN_PW_HASH) { alert('암호가 틀렸습니다.'); return; }
-      try { localStorage.setItem(ADMIN_DEVICE_KEY, '1'); } catch {}
-      unlockPanels();
-    }
-  });
-
-  const thanksSaveBtn = document.getElementById('adminThanksSaveBtn');
-  if (thanksSaveBtn) {
-    thanksSaveBtn.addEventListener('click', async () => {
-      const text = (document.getElementById('adminThanksText').value || '').trim();
-      try {
-        await setDoc(doc(db, 'meta', 'weeklyThanks'), { text, updatedAt: Date.now() });
-        alert(text ? '저장했어요! 랭킹 화면 하단에 표시돼요.' : '비웠어요. 랭킹 화면에서 숨겨져요.');
-        renderRanking();
-      } catch (e) { alert('저장 실패: ' + e.message); }
-    });
-  }
-  const thanksClearBtn = document.getElementById('adminThanksClearBtn');
-  if (thanksClearBtn) {
-    thanksClearBtn.addEventListener('click', async () => {
-      document.getElementById('adminThanksText').value = '';
-      try {
-        await setDoc(doc(db, 'meta', 'weeklyThanks'), { text: '', updatedAt: Date.now() });
-        alert('비웠어요. 랭킹 화면에서 숨겨져요.');
-        renderRanking();
-      } catch (e) { alert('실패: ' + e.message); }
-    });
-  }
-
-  const catSkinGrantBtn = document.getElementById('adminCatSkinGrantBtn');
-  if (catSkinGrantBtn) {
-    catSkinGrantBtn.addEventListener('click', async () => {
-      const nick = document.getElementById('adminCatSkinNick').value.trim();
-      if (!nick) { alert('닉네임을 입력하세요.'); return; }
-      catSkinGrantBtn.disabled = true;
-      try {
-        await setDoc(doc(db, 'nickname_skins', nick), { cat: true, notifyPending: true }, { merge: true });
-        alert(`'${nick}' 님에게 고양이 스킨을 적용했어요.`);
-        document.getElementById('adminCatSkinNick').value = '';
-      } catch (e) {
-        alert('적용 실패: ' + e.message);
-      } finally {
-        catSkinGrantBtn.disabled = false;
-      }
-    });
-  }
-  const catSkinRevokeBtn = document.getElementById('adminCatSkinRevokeBtn');
-  if (catSkinRevokeBtn) {
-    catSkinRevokeBtn.addEventListener('click', async () => {
-      const nick = document.getElementById('adminCatSkinNick').value.trim();
-      if (!nick) { alert('닉네임을 입력하세요.'); return; }
-      catSkinRevokeBtn.disabled = true;
-      try {
-        await setDoc(doc(db, 'nickname_skins', nick), { cat: false }, { merge: true });
-        alert(`'${nick}' 님의 고양이 스킨을 해제했어요.`);
-        document.getElementById('adminCatSkinNick').value = '';
-      } catch (e) {
-        alert('해제 실패: ' + e.message);
-      } finally {
-        catSkinRevokeBtn.disabled = false;
-      }
-    });
-  }
-
-  // 감사 쪽지만 보내기 — 리워드 없이, 다음 접속시 "OO님, 응원해주셔서 감사합니다냥😻" 팝업 1회
-  const thanksNoteBtn = document.getElementById('adminThanksNoteBtn');
-  if (thanksNoteBtn) {
-    thanksNoteBtn.addEventListener('click', async () => {
-      const nick = document.getElementById('adminCatSkinNick').value.trim();
-      if (!nick) { alert('닉네임을 입력하세요.'); return; }
-      thanksNoteBtn.disabled = true;
-      try {
-        await setDoc(doc(db, 'nickname_skins', nick), { thanksPending: true }, { merge: true });
-        alert(`'${nick}' 님에게 감사 쪽지를 보냈어요.\n다음 접속 때 팝업으로 한 번 떠요.`);
-        document.getElementById('adminCatSkinNick').value = '';
-      } catch (e) {
-        alert('전송 실패: ' + e.message);
-      } finally {
-        thanksNoteBtn.disabled = false;
-      }
-    });
-  }
-
-  btn.addEventListener('click', async () => {
-    const ok = confirm('정말 점수 랭킹을 전체 초기화할까요?\n이 작업은 되돌릴 수 없습니다.');
-    if (!ok) return;
-    const wipeCrowns = confirm('👑 왕관(명예의전당) 기록도 같이 초기화할까요?\n"확인" = 왕관까지 완전 초기화\n"취소" = 왕관 기록은 유지');
-    const ok2 = confirm('마지막 확인입니다.\n모든 유저의 점수가 0부터 다시 시작됩니다.' + (wipeCrowns ? '\n👑 왕관 기록도 함께 삭제됩니다.' : '') + '\n진행할까요?');
-    if (!ok2) return;
-
-    btn.disabled = true;
-    btn.textContent = '초기화 중...';
-    try {
-      const rankSnap = await getDocs(collection(db, 'rankings'));
-      for (const d of rankSnap.docs) await deleteDoc(doc(db, 'rankings', d.id));
-
-      const statsSnap = await getDocs(collection(db, 'user_stats'));
-      for (const d of statsSnap.docs) await deleteDoc(doc(db, 'user_stats', d.id));
-
-      // 순위변동 비교용 스냅샷도 같이 지움 — 안 지우면 리셋 후 완전히 달라진 새 순위가
-      // 리셋 전 옛날 스냅샷과 비교돼서 말도 안 되는 변동폭(▲23 등)이 뜨게 됨
-      await deleteDoc(doc(db, 'meta', 'rankSnapshot')).catch(() => {});
-
-      let crownMsg = '(명예의전당/👑 기록은 그대로 유지)';
-      if (wipeCrowns) {
-        const champSnap = await getDocs(collection(db, 'champions'));
-        for (const d of champSnap.docs) await deleteDoc(doc(db, 'champions', d.id));
-        await deleteDoc(doc(db, 'meta', 'currentChampion')).catch(() => {});
-        await deleteDoc(doc(db, 'meta', 'weeklyCrownState')).catch(() => {});
-        crownMsg = `👑 왕관 기록 ${champSnap.size}개도 함께 삭제됨`;
-      }
-
-      try { localStorage.removeItem('oeing_rankings_v1'); } catch {}
-      invalidateRankingsCache();
-
-      alert(`완료! rankings ${rankSnap.size}개, user_stats ${statsSnap.size}개 삭제됨.\n${crownMsg}`);
-      btn.style.display = 'none';
-      renderRanking();
-    } catch (e) {
-      alert('초기화 중 오류 발생: ' + e.message);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = '⚠️ 랭킹 전체 초기화 (관리자)';
-    }
-  });
-
-  if (btnWeek) {
-    btnWeek.addEventListener('click', async () => {
-      const weekId = getWeekId();
-      const ok = confirm(`이번주(${weekId}) 랭킹만 초기화할까요?\n전체 랭킹은 그대로 유지됩니다.\n이 작업은 되돌릴 수 없습니다.`);
-      if (!ok) return;
-      const ok2 = confirm('마지막 확인입니다.\n이번주 랭킹이 전부 삭제되고 0부터 다시 시작됩니다.\n진행할까요?');
-      if (!ok2) return;
-
-      btnWeek.disabled = true;
-      btnWeek.textContent = '초기화 중...';
-      try {
-        const weekSnap = await getDocs(collection(db, 'weekly_rankings', weekId, 'scores'));
-        for (const d of weekSnap.docs) await deleteDoc(doc(db, 'weekly_rankings', weekId, 'scores', d.id));
-        // 주간 순위변동 비교용 스냅샷도 같이 지움 (안 지우면 리셋 후 옛 순위와 비교돼 이상한 변동폭이 뜸)
-        await deleteDoc(doc(db, 'meta', 'weeklyRankSnapshot')).catch(() => {});
-        invalidateWeeklyRankingsCache();
-        alert(`완료! 이번주(${weekId}) 랭킹 ${weekSnap.size}개 삭제됨.`);
-        btnWeek.style.display = 'none';
-        renderRanking();
-      } catch (e) {
-        alert('초기화 중 오류 발생: ' + e.message);
-      } finally {
-        btnWeek.disabled = false;
-        btnWeek.textContent = '⚠️ 이번주 랭킹만 초기화 (관리자)';
-      }
-    });
-  }
-
-  if (btnCrown) {
-    btnCrown.addEventListener('click', async () => {
-      const ok = confirm('👑 왕관(명예의전당) 기록만 초기화할까요?\n점수 랭킹(전체/이번주)은 전혀 안 건드립니다.\n이 작업은 되돌릴 수 없습니다.');
-      if (!ok) return;
-      const ok2 = confirm('마지막 확인입니다.\n모든 왕관 기록이 삭제됩니다.\n진행할까요?');
-      if (!ok2) return;
-
-      btnCrown.disabled = true;
-      btnCrown.textContent = '초기화 중...';
-      try {
-        const champSnap = await getDocs(collection(db, 'champions'));
-        for (const d of champSnap.docs) await deleteDoc(doc(db, 'champions', d.id));
-        await deleteDoc(doc(db, 'meta', 'currentChampion')).catch(() => {});
-        await deleteDoc(doc(db, 'meta', 'weeklyCrownState')).catch(() => {});
-        alert(`완료! 왕관 기록 ${champSnap.size}개 삭제됨.`);
-        btnCrown.style.display = 'none';
-        renderRanking();
-      } catch (e) {
-        alert('초기화 중 오류 발생: ' + e.message);
-      } finally {
-        btnCrown.disabled = false;
-        btnCrown.textContent = '👑 왕관 기록만 초기화 (관리자)';
-      }
-    });
-  }
-
-  // 명전 횟수 수동 설정
-  const setBtn = document.getElementById('adminHallSetBtn');
-  if (setBtn) {
-    setBtn.addEventListener('click', async () => {
-      const nick = document.getElementById('adminHallNick').value.trim();
-      const countVal = document.getElementById('adminHallCount').value.trim();
-      if (!nick) { alert('닉네임을 입력하세요.'); return; }
-      if (countVal === '' || isNaN(Number(countVal)) || Number(countVal) < 0) { alert('올바른 횟수를 입력하세요.'); return; }
-      const count = Math.floor(Number(countVal));
-      setBtn.disabled = true;
-      try {
-        await setDoc(doc(db, 'champions', nick), { count, lastCrownedAt: Date.now() }, { merge: true });
-        alert(`'${nick}' 명전 횟수를 ${count}회로 설정했습니다.`);
-        document.getElementById('adminHallNick').value = '';
-        document.getElementById('adminHallCount').value = '';
-        renderRanking();
-      } catch (e) {
-        alert('저장 실패: ' + e.message);
-      } finally {
-        setBtn.disabled = false;
-      }
-    });
-  }
-
-  // 현재 1등을 챔피언 메타정보로 동기화 (카운트는 건드리지 않고, 다음 자동 등극 판정 기준만 맞춤)
-  const syncBtn = document.getElementById('adminHallSyncBtn');
-  if (syncBtn) {
-    syncBtn.addEventListener('click', async () => {
-      syncBtn.disabled = true;
-      try {
-        const q = query(collection(db, 'rankings'), orderBy('score', 'desc'), limit(1));
-        const snap = await getDocs(q);
-        if (snap.empty) { alert('현재 랭킹에 등록된 사람이 없습니다.'); return; }
-        const topNick = snap.docs[0].id;
-        await setDoc(doc(db, 'meta', 'currentChampion'), { nickname: topNick, ts: Date.now() });
-        alert(`현재 챔피언을 '${topNick}'(으)로 동기화했습니다.\n(명전 횟수는 변경되지 않았습니다)`);
-      } catch (e) {
-        alert('동기화 실패: ' + e.message);
-      } finally {
-        syncBtn.disabled = false;
-      }
-    });
-  }
 })();
 
 // 초기화 — Firebase 준비 후 renderRanking 실행
@@ -9929,8 +9434,6 @@ window.addEventListener('resize', setTabAreaHeight);
 setTimeout(() => renderRanking(), 300);
 setTimeout(() => refreshMyCatSkin(), 600);
 setTimeout(() => checkUnreadReply(), 800);
-setTimeout(() => checkAdminUnreadInquiries(), 1000);
-setTimeout(() => checkPatchNotice(), 400);
 setTimeout(() => renderStartMyRankLine(), 500);
 setTimeout(() => checkSkinNotification(), 1200);
 
