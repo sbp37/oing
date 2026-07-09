@@ -1,24 +1,32 @@
 {
-  "name": "오잉게임 v2",
+  "name": "오잉게임",
   "short_name": "오잉게임",
-  "description": "합이 10이 되면 제거! 숫자 퍼즐 게임",
-  "start_url": ".",
+  "description": "합이 10 되면 제거! 2분 최고점수 도전 퍼즐게임",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#08111f",
   "theme_color": "#08111f",
-  "orientation": "portrait",
+  "lang": "ko",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "icon.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
