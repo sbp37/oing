@@ -52,22 +52,35 @@
   --ivory: #F1EBDA;
 }
 
-/* 라이트 모드 */
+/* 라이트 모드 — 따뜻한 아이보리 낮버전 */
 body.light {
-  --bg: #f0f5ff;
-  --surface: #ffffff;
-  --surface2: #e8f0fe;
-  --border: #c8d9f8;
-  --border2: #a5c0f0;
-  --blue-dim: #ddeaff;
-  --blue-mid: #4a90d9;
-  --blue-bright: #2563a8;
-  --blue-light: #1a4a80;
-  --text: #1a3050;
-  --muted: #7090b8;
-  --cat-bg: #e4eeff;
-  --cat-border: #a5c0f0;
-  --outer-bg: #d8e6f8;
+  --bg: #F6F0E3;
+  --surface: #FFF9ED;
+  --surface2: #F1E6D2;
+  --border: #D8C7A8;
+  --border2: #B9D0E6;
+
+  --blue-dim: #DDECF8;
+  --blue-mid: #6FA8D8;
+  --blue-bright: #2F7EC9;
+  --blue-light: #245C91;
+
+  --text: #24364F;
+  --muted: #718096;
+
+  --cat-bg: #FFF3C9;
+  --cat-border: #E4AA3A;
+  --outer-bg: #E7DCC8;
+
+  --accent-green: #3FA855;
+  --accent-green-dim: #DFF3E5;
+  --accent-green-light: #15803D;
+
+  --accent-orange: #DD6032;
+  --accent-pink: #0EA5E9;
+  --accent-lemon: #DA9845;
+  --accent-lemon-dim: #B8752E;
+  --ivory: #FFF9ED;
 }
 
 html, body {
@@ -484,14 +497,34 @@ html, body {
     margin-top: 8px;
   }
 }
-/* 라이트 셀 - 흰배경 진한글씨 */
-body.light .cell {
-  background: #ffffff;
-  border-color: #b8cce8;
-  color: #1a3060;
+/* 라이트 셀 - 크림 배경 진한 네이비 글씨 */
+body.light .grid {
+  background-color: #AFC9DF;
+  box-shadow: inset 0 0 0 1px rgba(36, 92, 145, 0.18);
 }
-body.light .grid { background-color: #9ab8d8; }
-body.light .cell.cat { background: #fffbeb; border-color: #f59e0b; }
+body.light .cell {
+  background: #FFFDF7;
+  border-color: #C8D7E8;
+  color: #24364F;
+  box-shadow: inset 0 -1px 0 rgba(36, 92, 145, 0.08);
+}
+body.light .cell.cat { background: #FFF3C9; border-color: #E4AA3A; }
+body.light .cell.sel {
+  background: #2F7EC9;
+  border-color: #245C91;
+  color: #FFFFFF !important;
+  box-shadow: 0 0 0 2px rgba(47,126,201,0.28);
+}
+body.light .cell.in-range {
+  background: #DCEEFF;
+  border-color: #6FA8D8;
+  box-shadow: inset 0 0 0 2px rgba(47,126,201,0.25);
+}
+body.light .cell.cat.sel,
+body.light .cell.cat.in-range {
+  background: #F8D86C;
+  border-color: #DA9845;
+}
 
 /* 라이트모드 시상대 닉네임 가시성 */
 body.light .podium-nick { color: #1a3050; }
@@ -1903,10 +1936,10 @@ body.light .hint-btn.pregame { background: #f5f5f5; border-color: #d0d0d0; color
   animation: answerBlinkPulse 0.8s ease-in-out infinite;
 }
 body.light .cell.answer-blink {
-  background: #ffffff !important;
-  border-color: #16a34a !important;
-  color: #1a3060 !important;
-  box-shadow: 0 0 0 2px #16a34a !important;
+  background: #F0FFF4 !important;
+  border-color: #16A34A !important;
+  color: #163B27 !important;
+  box-shadow: 0 0 0 2px rgba(22,163,74,0.28) !important;
 }
 /* 🍀 클로버 전용 힌트 표시 — 뉴비 자동힌트(answer-blink)와 별개 클래스로 분리 */
 .cell.clover-blink {
@@ -1917,21 +1950,57 @@ body.light .cell.answer-blink {
   animation: answerBlinkPulse 0.8s ease-in-out infinite;
 }
 body.light .cell.clover-blink {
-  background: #ffffff !important;
-  border-color: #16a34a !important;
-  color: #1a3060 !important;
-  box-shadow: 0 0 0 2px #16a34a !important;
+  background: #F0FFF4 !important;
+  border-color: #16A34A !important;
+  color: #163B27 !important;
+  box-shadow: 0 0 0 2px rgba(22,163,74,0.28) !important;
 }
 body.light .cell.answer {
-  background: #ffffff !important;
-  border-color: #16a34a !important;
-  color: #1a3060 !important;
-  box-shadow: 0 0 0 2px #16a34a !important;
+  background: #F0FFF4 !important;
+  border-color: #16A34A !important;
+  color: #163B27 !important;
+  box-shadow: 0 0 0 2px rgba(22,163,74,0.28) !important;
 }
 body.light .cell.cat.answer {
-  background: #fffbeb !important;
-  border-color: #16a34a !important;
-  box-shadow: 0 0 0 2px #16a34a !important;
+  background: #FBF3D0 !important;
+  border-color: #16A34A !important;
+  box-shadow: 0 0 0 2px rgba(22,163,74,0.28) !important;
+}
+
+/* ── 라이트모드(낮버전) 추가 보정 ── */
+/* 시작화면: 너무 검지 않게 아이보리로 */
+body.light #startOverlay { background: #E7DCC8; }
+body.light .start-overlay-panel { background: rgba(255,249,237,0.94) !important; }
+
+/* 랭킹 화면 가시성 */
+body.light .rank-row {
+  background: rgba(255, 249, 237, 0.88);
+  border-color: rgba(111, 168, 216, 0.45);
+  box-shadow: 0 2px 8px rgba(36, 54, 79, 0.08);
+}
+body.light .rank-row.me {
+  background: linear-gradient(180deg, #E7F3FF, #FFF9ED);
+  border-color: #2F7EC9;
+  box-shadow: 0 0 0 1px rgba(47,126,201,0.25), 0 3px 10px rgba(36,54,79,0.08);
+}
+body.light .rank-num { color: #5F7897; }
+body.light .rank-nick { color: #24364F; }
+body.light .rank-pts { color: #245C91; }
+body.light .rank-change.same { color: #8A97A8; }
+body.light .rank-bubble-tag {
+  background: rgba(47,126,201,0.08);
+  border-color: rgba(47,126,201,0.2);
+  color: #24364F;
+}
+body.light .my-rank-info,
+body.light .rank-empty { color: #718096; }
+body.light .my-rank-info strong { color: #245C91; }
+
+/* 셔플 버튼(다크용 밝은 글씨) 라이트모드 보정 */
+body.light #shuffleBtn,
+body.light #shuffleBtn2 {
+  color: #245C91 !important;
+  border-color: #6FA8D8 !important;
 }
 
 
@@ -2238,11 +2307,11 @@ body.light .cell.cat.answer {
           <!-- 탭바 높이만큼 투명 클릭 통과 영역 -->
           <div id="startOverlayTabArea" style="flex-shrink:0; pointer-events:none;"></div>
           <!-- 실제 콘텐츠 영역 (클릭 차단) -->
-          <div style="flex:1; pointer-events:auto; background:rgba(8,17,31,0.94);
+          <div class="start-overlay-panel" style="flex:1; pointer-events:auto; background:rgba(8,17,31,0.94);
                       display:flex; align-items:flex-start; justify-content:center;
                       padding:100px 20px 16px; overflow-y:auto;">
             <div class="overlay-card" style="position:relative;">
-              <button class="theme-btn" id="themeBtn" style="display:none; position:absolute; top:10px; right:10px; width:30px; height:30px; padding:0; border-radius:50%; align-items:center; justify-content:center; font-size:14px;">☀️</button>
+              <button class="theme-btn" id="themeBtn" style="display:flex; position:absolute; top:10px; right:10px; width:30px; height:30px; padding:0; border-radius:50%; align-items:center; justify-content:center; font-size:14px;">☀️</button>
               <div class="overlay-title" style="font-family:'Jua','Malgun Gothic',sans-serif; font-weight:700; font-size:34px;">오잉게임 <span style="font-size:15px; font-weight:900; color:#fff; background:linear-gradient(135deg,var(--blue-mid),var(--blue-bright)); padding:2px 8px; border-radius:8px; vertical-align:middle; letter-spacing:0.5px;">V3</span></div>
               <div class="overlay-sub">합이 10이 되면 제거! · ⏱ 2분 최고점수 도전!</div>
 
@@ -5852,11 +5921,8 @@ function hasValidMove() {
         if (sum > 10) break;
       }
     if (hasNum && sum === 10) return true;
-    // 고양이 칸만으로 이뤄진 2칸 이상 조합은 매치 가능한 유효한 수 — 숫자 조합만 검사하면
-    // 고양이만 남은 판을 "더 이상 할 수 있는 게 없다"고 잘못 판단해 판을 조기 리셋시켜버림
-    // 단, 1칸짜리(r1===r2 && c1===c2)는 탭으로 선택을 완성할 방법이 없어서 실제로는 유효한 수가 아님 —
-    // 이걸 유효로 치면 외딴 고양이 1칸 때문에 판이 영영 안 넘어가는 버그가 생김
-    if (catCount > 0 && catCount === nonEmptyCount && nonEmptyCount >= 2) return true;
+    // 고양이 칸만으로 이뤄진 조합은 "유효한 수"로 치지 않는다 — 숫자 합=10 조합만 유효.
+    // (숫자 조합이 없고 고양이만 남으면 여기서 아무것도 못 찾고 false를 반환 → 판이 새 판으로 넘어감)
   }
   return false;
 }
@@ -6608,14 +6674,15 @@ function findAllAnswers() {
       }
     const sum = nums.reduce((a,b)=>a+b,0);
     const isNumMatch = nums.length > 0 && sum === 10;
-    const isCatOnly = catCount > 0 && catCount === nonEmptyCount && nonEmptyCount >= 2; // 고양이만 있는 2칸 이상 조합만 유효한 정답
-    if (isNumMatch || isCatOnly) {
+    // 고양이만 있는 조합은 유효한 정답으로 치지 않음 — 숫자 합=10 조합만 정답으로 인정.
+    // (고양이만 남은 판에서 힌트가 고양이를 가리키거나, 판이 안 넘어가던 문제 방지)
+    if (isNumMatch) {
       const coords = [];
       for (let r = r1; r <= r2; r++)
         for (let c = c1; c <= c2; c++)
           if (!board[r][c].empty) coords.push({r, c});
       found.push({ r1, r2, c1, c2, coords, size: (r2-r1+1)*(c2-c1+1),
-                   numCount: nums.length, catOnly: isCatOnly });
+                   numCount: nums.length, catOnly: false });
     }
   }
   return found;
