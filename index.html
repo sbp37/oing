@@ -444,7 +444,7 @@ html, body {
   align-items: center;
   justify-content: center;
   border-radius: 5px;
-  font-size: clamp(12.5px, 3.8vw, 20.5px);
+  font-size: clamp(14px, 4vw, 22px);
   font-weight: 800;
   cursor: pointer;
   background: var(--surface2);
@@ -539,7 +539,7 @@ body.light #panelGame .cell.cat.in-range {
 
 /* PC에서 셀 크기 제한 */
 @media (min-width: 500px) {
-  .cell { font-size: clamp(14.5px, 2.5vw, 22.5px); }
+  .cell { font-size: clamp(16px, 2.7vw, 24px); }
   .cell.cat { font-size: clamp(16px, 3vw, 24px); }
 }
 
@@ -557,7 +557,7 @@ body.light #panelGame .cell.cat.in-range {
     max-height: calc(100vh - 220px);
     aspect-ratio: 9 / var(--grid-rows, 13);
   }
-  .cell { font-size: clamp(13.5px, 2.2vw, 22.5px); }
+  .cell { font-size: clamp(15px, 2.4vw, 24px); }
   .cell.cat { font-size: clamp(14px, 2.4vw, 24px); }
   .bottom-bar {
     max-width: 100%;
@@ -571,7 +571,7 @@ body.light #panelGame .cell.cat.in-range {
   }
 }
 @media (min-width: 650px) and (max-width: 1100px) {
-  .cell { font-size: clamp(18.5px, 3.2vw, 30.5px); }
+  .cell { font-size: clamp(20px, 3.4vw, 32px); }
   .cell.cat { font-size: clamp(20px, 3.5vw, 32px); }
 }
 
@@ -1860,13 +1860,13 @@ body.light #panelGame .hint-btn.pregame { background: #f5f5f5; border-color: #d0
   100% { opacity:0; transform: scale(1.1); }
 }
 @media (max-width: 500px) {
-  .cell { font-size: clamp(14px, 4vw, 19px); }
+  .cell { font-size: clamp(15.5px, 4.2vw, 21px); }
   .cell.cat { font-size: clamp(15px, 4.5vw, 20px); }
 }
 
 /* PC에서 셀 크기 제한 */
 @media (min-width: 500px) {
-  .cell { font-size: clamp(14.5px, 2.5vw, 22.5px); }
+  .cell { font-size: clamp(16px, 2.7vw, 24px); }
   .cell.cat { font-size: clamp(16px, 3vw, 24px); }
 }
 
@@ -1994,7 +1994,7 @@ body.light #shuffleBtn2 {
             background-size: calc((100% - 6px) / 9) calc((100% - 6px) / 13);
             background-position: 3px 3px;
         }
-        .cell { font-size: clamp(16.5px, 2.2vw, 30.5px); }
+        .cell { font-size: clamp(18px, 2.4vw, 32px); }
         .cell.cat { font-size: clamp(18px, 2.4vw, 32px); }
 
         /* 모바일 전용 요소 숨기기 */
@@ -2874,8 +2874,9 @@ body.light #shuffleBtn2 {
       </div>
       <div style="font-size:13px;font-weight:700;color:#DA9845;margin-bottom:5px;">🎉 새 기능 · 개선</div>
       <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
-        <li>▫️ 🎵 배경음악이 돌아왔어요! 상단 🎵 버튼을 누르면 <b>배경음악·효과음을 따로 켜고 끌 수</b> 있어요 (음악 없이 효과음만도 OK)</li>
+        <li>▫️ 🎵 상단 🎵 버튼을 누르면 <b>배경음악·효과음을 따로 켜고 끌 수</b> 있어요 (음악 없이 효과음만도 OK)</li>
         <li>▫️ 선택한 사운드 설정은 저장돼서 다음에 켜도 그대로 유지돼요</li>
+        <li>▫️ ☀️ 라이트모드(낮 화면)가 부활했어요! <b>메인 화면에서 ☀️ 해 아이콘</b>을 누르면 켜고 끌 수 있어요</li>
       </ul>
       <div style="font-size:13px;font-weight:700;color:#f87171;margin-bottom:5px;">🐛 버그 수정</div>
       <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
@@ -4354,6 +4355,7 @@ const _sfxStored = localStorage.getItem(SFX_KEY);
 let sfxOn = (_sfxStored !== null) ? (_sfxStored !== '0') : (localStorage.getItem('oeing_bgm_off_v1') !== '1');
 function resumeAC() {
   try {
+    if (document.hidden) return; // 다른 앱/백그라운드 상태에선 효과음 재개 금지 (뒤에서 소리 안 나게)
     if (!sfxOn) return; // 🔇 효과음 off 상태에선 오디오 컨텍스트 재개하지 않음
     if (AC.state === 'suspended') {
       AC.resume().catch(() => {});
@@ -4422,20 +4424,54 @@ function vibrateFeedback(pattern) {
 //  기본값: 음악 OFF(효과음만) / 음악은 카운트다운 GO! 때 재생, 종료 시 정지, 루프
 // ══════════════════════════════
 const ENABLE_BGM = true;
+const BGM_VOLUME = 0.16;
 const bgmAudioEl = document.getElementById('bgmAudio');
-if (bgmAudioEl) bgmAudioEl.volume = 0.16; // 효과음보다 확실히 작게
+if (bgmAudioEl) bgmAudioEl.volume = BGM_VOLUME; // 효과음보다 확실히 작게
+let bgmFadeTimer = null;
 
 function playBgm() {
   if (!ENABLE_BGM || !musicOn || !bgmAudioEl) return;
+  if (bgmFadeTimer) { clearInterval(bgmFadeTimer); bgmFadeTimer = null; }
   try {
+    bgmAudioEl.volume = BGM_VOLUME;
     bgmAudioEl.currentTime = 0;
     bgmAudioEl.play().catch(() => {});
   } catch {}
 }
 function stopBgm() {
   if (!bgmAudioEl) return;
-  try { bgmAudioEl.pause(); } catch {}
+  if (bgmFadeTimer) { clearInterval(bgmFadeTimer); bgmFadeTimer = null; }
+  try { bgmAudioEl.pause(); bgmAudioEl.volume = BGM_VOLUME; } catch {}
 }
+// 게임이 끝날 때 뚝 끊지 않고 부드럽게 페이드아웃
+function fadeOutBgm(dur = 1100) {
+  if (!bgmAudioEl) return;
+  if (bgmFadeTimer) { clearInterval(bgmFadeTimer); bgmFadeTimer = null; }
+  if (bgmAudioEl.paused) { try { bgmAudioEl.volume = BGM_VOLUME; } catch {} return; }
+  const startVol = bgmAudioEl.volume || BGM_VOLUME;
+  const steps = 22; let i = 0;
+  bgmFadeTimer = setInterval(() => {
+    i++;
+    try { bgmAudioEl.volume = Math.max(0, startVol * (1 - i / steps)); } catch {}
+    if (i >= steps) {
+      clearInterval(bgmFadeTimer); bgmFadeTimer = null;
+      try { bgmAudioEl.pause(); bgmAudioEl.volume = BGM_VOLUME; } catch {}
+    }
+  }, dur / steps);
+}
+// 앱/화면을 벗어나면(백그라운드) 배경음악 + 효과음 모두 즉시 멈춤. 돌아왔을 때 게임 중이면 음악은 이어서 재생
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    // 효과음(WebAudio) 즉시 정지 — 10초 경고음 등이 뒤에서 계속 나던 문제 방지
+    try { if (AC && AC.state === 'running') AC.suspend().catch(() => {}); } catch {}
+    if (bgmAudioEl) { try { bgmAudioEl.pause(); } catch {} }
+  } else if (document.visibilityState === 'visible') {
+    if (bgmAudioEl && gameRunning && musicOn && !gameEnding) {
+      try { bgmAudioEl.volume = BGM_VOLUME; bgmAudioEl.play().catch(() => {}); } catch {}
+    }
+  }
+});
+
 // 효과음 on/off 즉시 적용 (WebAudio 재개/정지)
 function applySfxState() {
   if (sfxOn) { resumeAC(); }
@@ -4694,7 +4730,7 @@ function playGameOver() {
       const osc = AC.createOscillator(); const gain = AC.createGain();
       osc.connect(gain); gain.connect(AC.destination);
       osc.type = type; osc.frequency.value = freq;
-      const vol = type === 'sawtooth' ? 0.035 : 0.055;
+      const vol = type === 'sawtooth' ? 0.02 : 0.032;
       gain.gain.setValueAtTime(0, now+t);
       gain.gain.linearRampToValueAtTime(vol, now+t+0.02);
       gain.gain.exponentialRampToValueAtTime(0.001, now+t+dur);
@@ -4706,7 +4742,7 @@ function playGameOver() {
   sp.type = 'triangle';
   sp.frequency.setValueAtTime(1200, now+0.6);
   sp.frequency.exponentialRampToValueAtTime(2800, now+1.1);
-  sg.gain.setValueAtTime(0.035, now+0.6); sg.gain.exponentialRampToValueAtTime(0.001, now+1.2);
+  sg.gain.setValueAtTime(0.02, now+0.6); sg.gain.exponentialRampToValueAtTime(0.001, now+1.2);
   sp.start(now+0.6); sp.stop(now+1.25);
 }
 
@@ -6196,6 +6232,7 @@ function startGame() {
   if (!visitPlayStarted) { visitPlayStarted = true; writeVisitSession('game_start'); }
   try { hideNewVersionBanner(); } catch {}
   boardResetting = false;
+  stopBgm(); // 다시하기 등으로 새로 시작하면 이전 음악을 확실히 끊고, GO! 뒤에 새로 재생
   document.body.classList.add('game-active');
   const gridWrap = document.querySelector('.grid-wrap');
   if (gridWrap) {
@@ -6295,7 +6332,8 @@ function startGame() {
         goEl.textContent = 'GO!';
         overlay.appendChild(goEl);
         playGo();
-        playBgm(); // 🎵 GO! 와 함께 배경음악 시작 (음악 on일 때만)
+        // 🎵 GO! 하고 살짝 뒤에 배경음악 시작 (게임 시작 후 자연스럽게)
+        setTimeout(() => { if (myId === countdownId) playBgm(); }, 700);
         setTimeout(() => {
           if (myId !== countdownId) return;
           overlay.style.display = 'none';
@@ -6415,7 +6453,7 @@ async function endGame() {
   timerInterval = null;
   stopComboDecay();
   gameRunning = false; sel1 = null;
-  stopBgm();
+  fadeOutBgm(); // 뚝 끊지 않고 부드럽게 페이드아웃
   const _dfxEnd = document.getElementById('timeDangerFx');
   if (_dfxEnd) _dfxEnd.classList.remove('on');
   document.body.classList.remove('game-active');
@@ -7670,38 +7708,59 @@ function switchTab(tab) {
     }
   }
 }
+// 랭킹/메인으로 나가면 진행 중이던 게임을 '종료'시킴 — 타이머·배경음악 멈춤(뒤에서 계속 흐르지 않게)
+function stopRunningGame() {
+  countdownId++; // 진행 중인 카운트다운도 취소
+  const cd = document.getElementById('countdownOverlay');
+  if (cd) cd.style.display = 'none';
+  if (!gameRunning) { fadeOutBgm(); return; }
+  gameRunning = false;
+  gameEnding = false;
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  try { stopComboDecay(); } catch {}
+  fadeOutBgm();
+  document.body.classList.remove('game-active');
+  const bb = document.getElementById('bottomBar');
+  if (bb) bb.style.display = 'none';
+}
+
 document.getElementById('tabGame').addEventListener('click', () => {
   switchTab('game');
   clearAnswerHighlights();
   if (gameRunning) {
-    // 게임 진행 중이면 홈 오버레이를 닫고 진행 중인 게임으로 복귀
+    // (거의 없음) 진행 중이면 홈 오버레이만 닫고 게임으로 복귀
     document.getElementById('startOverlay').style.display = 'none';
+    return;
+  }
+  const rp = document.getElementById('resultPanel');
+  if (rp && rp.style.display !== 'none') {
+    // 결과 패널 열려있으면 닫고 새 게임 시작
+    rp.style.display = 'none';
+    gameEnding = false;
+    startGame();
   } else {
-    // 결과 패널 열려있으면 닫고 시작
-    const rp = document.getElementById('resultPanel');
-    if (rp && rp.style.display !== 'none') {
-      rp.style.display = 'none';
-      gameEnding = false;
-      startGame();
-    } else if (gameEnding) {
-      // gameEnding stuck 상태 — 강제 초기화 후 startOverlay 표시
-      gameEnding = false;
-      document.getElementById('startOverlay').style.display = 'flex';
-    }
+    // 그 외(중단 후 복귀 포함) — 홈(시작) 화면 표시
+    gameEnding = false;
+    document.getElementById('startOverlay').style.display = 'flex';
   }
 });
-// 🪧 메인 탭 — 홈(타이틀+시작버튼) 화면으로 이동. 게임 중에도 열 수 있고(랭킹처럼),
-//   게임은 뒤에서 계속 진행됨. 다시 '게임' 탭을 누르면 진행 중인 게임으로 돌아감.
+// 🪧 메인 탭 — 진행 중이던 게임은 종료하고 홈(타이틀+시작버튼)으로
 document.getElementById('tabMain').addEventListener('click', () => {
+  stopRunningGame();
   switchTab('game');
   clearAnswerHighlights();
   const rp = document.getElementById('resultPanel');
   if (rp) rp.style.display = 'none';
-  if (!gameRunning) gameEnding = false;
+  gameEnding = false;
   document.getElementById('startOverlay').style.display = 'flex';
   checkForNewVersion();
 });
-document.getElementById('tabRank').addEventListener('click', () => { switchTab('rank'); checkForNewVersion(); });
+// 🏆 랭킹 탭 — 진행 중이던 게임은 종료하고 랭킹으로
+document.getElementById('tabRank').addEventListener('click', () => {
+  stopRunningGame();
+  switchTab('rank');
+  checkForNewVersion();
+});
 
 // 전체 / 이번주 / 친구 랭킹 토글
 function setActiveRankModeBtn(id) {
@@ -9424,11 +9483,32 @@ window.addEventListener('resize', setTabAreaHeight);
         };
       };
       const meIdx = rows.findIndex(r => r.classList.contains('me'));
-      let start = 0;
       if (meIdx !== -1) {
-        start = Math.max(0, Math.min(meIdx - 2, rows.length - 5));
+        const start = Math.max(0, Math.min(meIdx - 2, rows.length - 5));
+        return rows.slice(start, start + 5).map(parse);
       }
-      return rows.slice(start, start + 5).map(parse);
+      // 내가 4등 밖(=시상대 top3)이면 #rankList엔 'me' 행이 없음 →
+      // 시상대에서 내 순위를 찾아 캡처 맨 위에 넣어준다 (안 그러면 캡처에 내가 안 나옴)
+      const myNick = loadNickname();
+      let mePodium = null;
+      if (myNick) {
+        const items = Array.from(document.querySelectorAll('#podiumWrap .podium-item'));
+        const meItem = items.find(it => it.dataset && it.dataset.nick === myNick);
+        if (meItem) {
+          const numEl = meItem.querySelector('.podium-base');
+          const nickEl = meItem.querySelector('.podium-nick-text');
+          const scoreEl = meItem.querySelector('.podium-score');
+          mePodium = {
+            num: numEl ? numEl.textContent.trim() : '',
+            change: '', changeUp: false, changeDown: false,
+            nick: nickEl ? nickEl.textContent.trim() : myNick,
+            pts: scoreEl ? scoreEl.textContent.trim() : '',
+            isMe: true,
+          };
+        }
+      }
+      if (mePodium) return [mePodium, ...rows.slice(0, 4).map(parse)];
+      return rows.slice(0, 5).map(parse);
     }
     async function buildRankCard() {
       const W = 640, H = 760;
@@ -9523,7 +9603,7 @@ window.addEventListener('resize', setTabAreaHeight);
         const dh = 120;
         const dw = dh * (doodle.width / doodle.height);
         const dx = rowX + 245;
-        const dy = myRowTop - 80;
+        const dy = Math.max(myRowTop - 80, 76); // 1~3등(내 행이 맨 위)일 때 제목과 안 겹치게 아래로 고정
         ctx.drawImage(doodle, dx, dy, dw, dh);
       }
       // 멘트 (주아체)
