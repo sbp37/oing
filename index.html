@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="오잉게임">
 <meta name="theme-color" content="#08111f">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>오잉게임 v3</title>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -479,11 +479,16 @@ html, body {
   .grid-wrap {
     padding: 4px 10px 0;
   }
-  /* 게임 실행 중일 때만 aspect-ratio 적용 */
+  /* 게임 실행 중일 때만 aspect-ratio 적용 —
+     단, 세로 공간이 부족한 기기에서는 넘치지 않도록 auto+max로 축소 허용 */
   body.game-active .grid {
     flex: none;
+    align-self: center;
     min-height: unset;
-    width: 100%;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
     aspect-ratio: 9 / var(--grid-rows, 13);
     grid-template-rows: unset;
   }
