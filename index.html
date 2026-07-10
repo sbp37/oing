@@ -2155,6 +2155,12 @@ body.light #shuffleBtn2 {
   animation: slideUp 0.4s ease;
   white-space: nowrap;
 }
+
+/* 게임 진행 중에는 설치 유도 UI를 무조건 가림 (JS 상태와 무관하게 CSS로 강제) */
+body.game-active #androidInstallBtn,
+body.game-active #kakaoInstallHint {
+  display: none !important;
+}
 </style>
 <script>
 // PWA 설치 가능하게 하는 최소한의 서비스워커 등록 (게임 로직에는 영향 없음)
@@ -7003,6 +7009,7 @@ async function endGame() {
   const _dfxEnd = document.getElementById('timeDangerFx');
   if (_dfxEnd) _dfxEnd.classList.remove('on');
   document.body.classList.remove('game-active');
+  try { showAndroidInstallBtn(); } catch {} // 홈으로 복귀 — 조건 맞으면 설치 버튼 재노출
   document.getElementById('bottomBar').style.display = 'none';
   playGameOver();
 
@@ -8291,6 +8298,7 @@ function stopRunningGame() {
   try { stopComboDecay(); } catch {}
   fadeOutBgm();
   document.body.classList.remove('game-active');
+  try { showAndroidInstallBtn(); } catch {} // 홈으로 복귀 — 조건 맞으면 설치 버튼 재노출
   const bb = document.getElementById('bottomBar');
   if (bb) bb.style.display = 'none';
 }
@@ -10238,6 +10246,7 @@ let deferredPrompt = null;
 
 function showAndroidInstallBtn() {
   if (isStandaloneDisplay() || isKakaoInApp()) return; // 이미 설치됐거나 인앱 브라우저면 노출 안 함
+  if (document.body.classList.contains('game-active')) return; // 게임 중에는 절대 노출 금지
   if (isDismissedWithinDays(ANDROID_INSTALL_DISMISS_KEY, ANDROID_INSTALL_DISMISS_DAYS)) return;
   const btn = document.getElementById('androidInstallBtn');
   if (btn) btn.style.display = 'flex';
@@ -10246,17 +10255,19 @@ function hideAndroidInstallBtn() {
   const btn = document.getElementById('androidInstallBtn');
   if (btn) btn.style.display = 'none';
 }
-function onAndroidInstallClick(e) {
-  if (e) e.stopPropagation();
-  if (!deferredPrompt) return;
-  hideAndroidInstallBtn();
+async function onAndroidInstallClick(e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  if (!deferredPrompt) return; // 아직 설치 가능 상태가 아니면 아무 것도 하지 않음(버튼도 숨기지 않음)
   const dp = deferredPrompt;
   deferredPrompt = null;
-  dp.prompt();
-  dp.userChoice.catch(() => {});
+  hideAndroidInstallBtn(); // 실제로 prompt를 호출하게 된 경우에만 버튼을 숨김
+  try {
+    dp.prompt();
+    await dp.userChoice; // 사용자가 설치/취소 어느 쪽을 선택해도 여기서 조용히 끝남
+  } catch {} // 사용자가 취소했거나 재호출 등으로 실패해도 게임 코드에 영향 없게 함
 }
 function dismissAndroidInstallBtn(e) {
-  if (e) e.stopPropagation();
+  if (e) { e.preventDefault(); e.stopPropagation(); }
   hideAndroidInstallBtn();
   try { localStorage.setItem(ANDROID_INSTALL_DISMISS_KEY, String(Date.now())); } catch {}
 }
@@ -10280,15 +10291,48 @@ const KAKAO_HINT_DISMISS_DAYS = 14;
   if (!isKakaoInApp() || isStandaloneDisplay()) return;
   if (isDismissedWithinDays(KAKAO_HINT_DISMISS_KEY, KAKAO_HINT_DISMISS_DAYS)) return;
   setTimeout(() => {
+    if (document.body.classList.contains('game-active')) return; // 게임 중에는 절대 노출 금지
     const el = document.getElementById('kakaoInstallHint');
     if (el) el.style.display = 'flex';
   }, 1500);
 })();
 function dismissKakaoHint(e) {
-  if (e) e.stopPropagation();
+  if (e) { e.preventDefault(); e.stopPropagation(); }
   const el = document.getElementById('kakaoInstallHint');
   if (el) el.style.display = 'none';
   try { localStorage.setItem(KAKAO_HINT_DISMISS_KEY, String(Date.now())); } catch {}
+}
+
+// ── 위 install-UI 버튼들은 실제 클릭 이벤트를 addEventListener로 직접 연결한다.
+//    (인라인 onclick="" 속성은 이 파일의 스크립트가 <script type="module">이라
+//     전역 스코프에서 함수를 찾지 못해 항상 "not defined"로 실패했던 것이 X버튼/설치버튼
+//     먹통의 실제 원인이었음 — module 스코프 함수를 직접 참조하는 addEventListener로 대체) ──
+function wireInstallUiHandlers() {
+  const androidBtn = document.getElementById('androidInstallBtn');
+  if (androidBtn) androidBtn.addEventListener('click', onAndroidInstallClick);
+  const androidClose = document.getElementById('androidInstallCloseBtn');
+  if (androidClose) androidClose.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dismissAndroidInstallBtn(e);
+  });
+  const kakaoClose = document.getElementById('kakaoHintCloseBtn');
+  if (kakaoClose) kakaoClose.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dismissKakaoHint(e);
+  });
+  const iosClose = document.getElementById('iosInstallCloseBtn');
+  if (iosClose) iosClose.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dismissIOSPopup();
+  });
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', wireInstallUiHandlers);
+} else {
+  wireInstallUiHandlers(); // module 스크립트는 파싱 완료 후 실행되므로 이 시점엔 이미 DOM이 준비돼 있음
 }
 
 // ══════════════════════════════
@@ -10914,7 +10958,7 @@ function dismissKakaoHint(e) {
 
 <!-- iOS 홈화면 추가 안내 팝업 -->
 <div class="ios-install-popup" id="iosInstallPopup" style="display:none">
-  <button class="ios-install-close" onclick="dismissIOSPopup()">✕</button>
+  <button type="button" class="ios-install-close" id="iosInstallCloseBtn">✕</button>
   <div class="ios-install-title">📱 홈 화면에 추가하기</div>
   <div class="ios-install-desc">
     아래 <strong style="color:#fff">공유 버튼(</strong>⬆️<strong style="color:#fff">)</strong>을 탭한 후<br>
@@ -10923,17 +10967,17 @@ function dismissKakaoHint(e) {
   <div class="ios-arrow"></div>
 </div>
 
-<!-- 안드로이드 등 설치 가능 브라우저 — 작은 설치 버튼 -->
-<div class="android-install-btn" id="androidInstallBtn" style="display:none" onclick="onAndroidInstallClick(event)">
+<!-- 안드로이드 등 설치 가능 브라우저 — 작은 설치 버튼 (클릭 이벤트는 wireInstallUiHandlers()가 addEventListener로 연결) -->
+<div class="android-install-btn" id="androidInstallBtn" style="display:none">
   <span class="ai-icon">📲</span>
   <span>앱처럼 설치하기</span>
-  <button class="ai-close" onclick="dismissAndroidInstallBtn(event)">✕</button>
+  <button type="button" class="ai-close" id="androidInstallCloseBtn">✕</button>
 </div>
 
 <!-- 카카오톡 등 인앱 브라우저 안내 -->
 <div class="kakao-install-hint" id="kakaoInstallHint" style="display:none">
   <span>🐾 앱 설치는 Chrome에서 열어주세요</span>
-  <button class="ai-close" onclick="dismissKakaoHint(event)">✕</button>
+  <button type="button" class="ai-close" id="kakaoHintCloseBtn">✕</button>
 </div>
 
 </body>
