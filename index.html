@@ -10220,13 +10220,25 @@ function isKakaoInApp() {
   return /kakaotalk/i.test(navigator.userAgent || '');
 }
 
+// ── 닫기 타임스탬프 기반 재노출 판정 — 'permanent'면 영구, 숫자면 그 시각으로부터 days일간만 숨김 ──
+function isDismissedWithinDays(key, days) {
+  let v;
+  try { v = localStorage.getItem(key); } catch { return false; }
+  if (!v) return false;
+  if (v === 'permanent') return true;
+  const ts = Number(v);
+  if (!Number.isFinite(ts)) return false;
+  return (Date.now() - ts) < days * 24 * 60 * 60 * 1000;
+}
+
 // ── 안드로이드 등 설치 가능 브라우저 — 작은 "앱처럼 설치하기" 버튼 ──
 const ANDROID_INSTALL_DISMISS_KEY = 'oeing_android_install_dismissed_v1';
+const ANDROID_INSTALL_DISMISS_DAYS = 7; // X로 닫으면 7일간만 숨김 (설치 완료 시엔 영구 숨김)
 let deferredPrompt = null;
 
 function showAndroidInstallBtn() {
   if (isStandaloneDisplay() || isKakaoInApp()) return; // 이미 설치됐거나 인앱 브라우저면 노출 안 함
-  if (localStorage.getItem(ANDROID_INSTALL_DISMISS_KEY)) return;
+  if (isDismissedWithinDays(ANDROID_INSTALL_DISMISS_KEY, ANDROID_INSTALL_DISMISS_DAYS)) return;
   const btn = document.getElementById('androidInstallBtn');
   if (btn) btn.style.display = 'flex';
 }
@@ -10246,7 +10258,7 @@ function onAndroidInstallClick(e) {
 function dismissAndroidInstallBtn(e) {
   if (e) e.stopPropagation();
   hideAndroidInstallBtn();
-  try { localStorage.setItem(ANDROID_INSTALL_DISMISS_KEY, '1'); } catch {}
+  try { localStorage.setItem(ANDROID_INSTALL_DISMISS_KEY, String(Date.now())); } catch {}
 }
 
 // 기본 설치 배너 대신 위 작은 버튼으로 유도 (deferredPrompt를 보관해뒀다가 버튼 클릭 시 사용)
@@ -10258,14 +10270,15 @@ window.addEventListener('beforeinstallprompt', (e) => {
 window.addEventListener('appinstalled', () => {
   deferredPrompt = null;
   hideAndroidInstallBtn();
-  try { localStorage.setItem(ANDROID_INSTALL_DISMISS_KEY, '1'); } catch {}
+  try { localStorage.setItem(ANDROID_INSTALL_DISMISS_KEY, 'permanent'); } catch {} // 실제 설치 완료는 영구 숨김
 });
 
-// ── 카카오톡 인앱 브라우저 — 설치 버튼 대신 짧은 안내만 (과도한 팝업 금지, 1회만 노출) ──
+// ── 카카오톡 인앱 브라우저 — 설치 버튼 대신 짧은 안내만 (과도한 팝업 금지, 닫으면 14일간만 숨김) ──
 const KAKAO_HINT_DISMISS_KEY = 'oeing_kakao_hint_dismissed_v1';
+const KAKAO_HINT_DISMISS_DAYS = 14;
 (function() {
   if (!isKakaoInApp() || isStandaloneDisplay()) return;
-  if (localStorage.getItem(KAKAO_HINT_DISMISS_KEY)) return;
+  if (isDismissedWithinDays(KAKAO_HINT_DISMISS_KEY, KAKAO_HINT_DISMISS_DAYS)) return;
   setTimeout(() => {
     const el = document.getElementById('kakaoInstallHint');
     if (el) el.style.display = 'flex';
@@ -10275,7 +10288,7 @@ function dismissKakaoHint(e) {
   if (e) e.stopPropagation();
   const el = document.getElementById('kakaoInstallHint');
   if (el) el.style.display = 'none';
-  try { localStorage.setItem(KAKAO_HINT_DISMISS_KEY, '1'); } catch {}
+  try { localStorage.setItem(KAKAO_HINT_DISMISS_KEY, String(Date.now())); } catch {}
 }
 
 // ══════════════════════════════
