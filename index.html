@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="오잉게임">
 <meta name="theme-color" content="#08111f">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>오잉게임 v3</title>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -479,11 +479,16 @@ html, body {
   .grid-wrap {
     padding: 4px 10px 0;
   }
-  /* 게임 실행 중일 때만 aspect-ratio 적용 */
+  /* 게임 실행 중일 때만 aspect-ratio 적용 —
+     단, 세로 공간이 부족한 기기에서는 넘치지 않도록 auto+max로 축소 허용 */
   body.game-active .grid {
     flex: none;
+    align-self: center;
     min-height: unset;
-    width: 100%;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
     aspect-ratio: 9 / var(--grid-rows, 13);
     grid-template-rows: unset;
   }
@@ -2096,6 +2101,59 @@ body.light #shuffleBtn2 {
   position: absolute; top: 10px; right: 12px;
   background: none; border: none; color: #5a80b0;
   font-size: 18px; cursor: pointer; padding: 0;
+}
+
+/* 안드로이드 등 설치 가능 브라우저 — 작은 "앱처럼 설치하기" 버튼 */
+.android-install-btn {
+  position: fixed;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 40px);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 999px;
+  padding: 8px 8px 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  cursor: pointer;
+  animation: slideUp 0.4s ease;
+  white-space: nowrap;
+}
+.android-install-btn .ai-icon { font-size: 15px; }
+.android-install-btn .ai-close,
+.kakao-install-hint .ai-close {
+  background: none; border: none; color: var(--muted);
+  font-size: 15px; cursor: pointer; padding: 2px 4px; margin-left: 2px; flex-shrink: 0;
+}
+
+/* 카카오톡 등 인앱 브라우저 — 설치 버튼 대신 짧은 안내만 */
+.kakao-install-hint {
+  position: fixed;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 40px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 8px 8px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  animation: slideUp 0.4s ease;
+  white-space: nowrap;
 }
 </style>
 <script>
@@ -5457,7 +5515,7 @@ function triggerCaughtItem(bd, rr, cc, chainDepth) {
 }
 
 function playLucky() {
-  playSfx('clover', 0.35); // 🍀 반짝아르페지오 — 다른 효과음 대비 체감 음량이 커서 재생 볼륨만 낮춤(파일은 그대로)
+  playSfx('clover', 0.15); // 🍀 반짝아르페지오 — 다른 효과음(합성음, 피크게인 ~0.1-0.15) 대비 원본 mp3 자체 음압이 높아 0.35로는 부족, 추가로 낮춤(파일은 그대로)
 }
 
 function playHint() {
@@ -10154,10 +10212,84 @@ function dismissIOSPopup() {
   }
 })();
 
-// 안드로이드 PWA 자동 설치 배너 비활성화
+// ── 설치 가능 여부 공통 판별 ──
+function isStandaloneDisplay() {
+  return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+}
+function isKakaoInApp() {
+  return /kakaotalk/i.test(navigator.userAgent || '');
+}
+
+// ── 닫기 타임스탬프 기반 재노출 판정 — 'permanent'면 영구, 숫자면 그 시각으로부터 days일간만 숨김 ──
+function isDismissedWithinDays(key, days) {
+  let v;
+  try { v = localStorage.getItem(key); } catch { return false; }
+  if (!v) return false;
+  if (v === 'permanent') return true;
+  const ts = Number(v);
+  if (!Number.isFinite(ts)) return false;
+  return (Date.now() - ts) < days * 24 * 60 * 60 * 1000;
+}
+
+// ── 안드로이드 등 설치 가능 브라우저 — 작은 "앱처럼 설치하기" 버튼 ──
+const ANDROID_INSTALL_DISMISS_KEY = 'oeing_android_install_dismissed_v1';
+const ANDROID_INSTALL_DISMISS_DAYS = 7; // X로 닫으면 7일간만 숨김 (설치 완료 시엔 영구 숨김)
+let deferredPrompt = null;
+
+function showAndroidInstallBtn() {
+  if (isStandaloneDisplay() || isKakaoInApp()) return; // 이미 설치됐거나 인앱 브라우저면 노출 안 함
+  if (isDismissedWithinDays(ANDROID_INSTALL_DISMISS_KEY, ANDROID_INSTALL_DISMISS_DAYS)) return;
+  const btn = document.getElementById('androidInstallBtn');
+  if (btn) btn.style.display = 'flex';
+}
+function hideAndroidInstallBtn() {
+  const btn = document.getElementById('androidInstallBtn');
+  if (btn) btn.style.display = 'none';
+}
+function onAndroidInstallClick(e) {
+  if (e) e.stopPropagation();
+  if (!deferredPrompt) return;
+  hideAndroidInstallBtn();
+  const dp = deferredPrompt;
+  deferredPrompt = null;
+  dp.prompt();
+  dp.userChoice.catch(() => {});
+}
+function dismissAndroidInstallBtn(e) {
+  if (e) e.stopPropagation();
+  hideAndroidInstallBtn();
+  try { localStorage.setItem(ANDROID_INSTALL_DISMISS_KEY, String(Date.now())); } catch {}
+}
+
+// 기본 설치 배너 대신 위 작은 버튼으로 유도 (deferredPrompt를 보관해뒀다가 버튼 클릭 시 사용)
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
+  deferredPrompt = e;
+  showAndroidInstallBtn();
 });
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  hideAndroidInstallBtn();
+  try { localStorage.setItem(ANDROID_INSTALL_DISMISS_KEY, 'permanent'); } catch {} // 실제 설치 완료는 영구 숨김
+});
+
+// ── 카카오톡 인앱 브라우저 — 설치 버튼 대신 짧은 안내만 (과도한 팝업 금지, 닫으면 14일간만 숨김) ──
+const KAKAO_HINT_DISMISS_KEY = 'oeing_kakao_hint_dismissed_v1';
+const KAKAO_HINT_DISMISS_DAYS = 14;
+(function() {
+  if (!isKakaoInApp() || isStandaloneDisplay()) return;
+  if (isDismissedWithinDays(KAKAO_HINT_DISMISS_KEY, KAKAO_HINT_DISMISS_DAYS)) return;
+  setTimeout(() => {
+    const el = document.getElementById('kakaoInstallHint');
+    if (el) el.style.display = 'flex';
+  }, 1500);
+})();
+function dismissKakaoHint(e) {
+  if (e) e.stopPropagation();
+  const el = document.getElementById('kakaoInstallHint');
+  if (el) el.style.display = 'none';
+  try { localStorage.setItem(KAKAO_HINT_DISMISS_KEY, String(Date.now())); } catch {}
+}
 
 // ══════════════════════════════
 //  튜토리얼 모드 — 실제 게임과 완전히 분리된 작은 연습판
@@ -10791,6 +10923,18 @@ window.addEventListener('beforeinstallprompt', (e) => {
   <div class="ios-arrow"></div>
 </div>
 
+<!-- 안드로이드 등 설치 가능 브라우저 — 작은 설치 버튼 -->
+<div class="android-install-btn" id="androidInstallBtn" style="display:none" onclick="onAndroidInstallClick(event)">
+  <span class="ai-icon">📲</span>
+  <span>앱처럼 설치하기</span>
+  <button class="ai-close" onclick="dismissAndroidInstallBtn(event)">✕</button>
+</div>
+
+<!-- 카카오톡 등 인앱 브라우저 안내 -->
+<div class="kakao-install-hint" id="kakaoInstallHint" style="display:none">
+  <span>🐾 앱 설치는 Chrome에서 열어주세요</span>
+  <button class="ai-close" onclick="dismissKakaoHint(event)">✕</button>
+</div>
 
 </body>
 </html>
