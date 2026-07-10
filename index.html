@@ -10322,6 +10322,12 @@ function wireInstallUiHandlers() {
     e.stopPropagation();
     dismissKakaoHint(e);
   });
+  const iosClose = document.getElementById('iosInstallCloseBtn');
+  if (iosClose) iosClose.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dismissIOSPopup();
+  });
 }
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', wireInstallUiHandlers);
@@ -10952,7 +10958,7 @@ if (document.readyState === 'loading') {
 
 <!-- iOS 홈화면 추가 안내 팝업 -->
 <div class="ios-install-popup" id="iosInstallPopup" style="display:none">
-  <button class="ios-install-close" onclick="dismissIOSPopup()">✕</button>
+  <button type="button" class="ios-install-close" id="iosInstallCloseBtn">✕</button>
   <div class="ios-install-title">📱 홈 화면에 추가하기</div>
   <div class="ios-install-desc">
     아래 <strong style="color:#fff">공유 버튼(</strong>⬆️<strong style="color:#fff">)</strong>을 탭한 후<br>
