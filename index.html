@@ -480,20 +480,29 @@ html, body {
     padding: 4px 10px 0;
   }
   /* 게임 실행 중일 때만 aspect-ratio 적용 —
-     단, 세로 공간이 부족한 기기에서는 넘치지 않도록 auto+max로 축소 허용 */
+     단, 세로 공간이 부족한 기기에서는 넘치지 않도록 height만 max로 축소 허용.
+     width는 100%(확정값)로 유지해야 grid-template-columns의 1fr 트랙이
+     제대로 계산됨 — width까지 auto로 두면 셀의 aspect-ratio와 순환 참조가
+     생겨 보드가 콘텐츠 최소 크기로 수렴, 실제 셀이 채워진 뒤 갑자기
+     작아지는 버그가 있었음(게임판 축소 버그의 원인).
+     grid-template-rows도 unset(콘텐츠 기반 auto) 대신 1fr 유지 —
+     안 그러면 정사각형 셀 13행 분량이 max-height로 눌린 grid 박스보다
+     커져서 마지막 줄이 다시 잘리는 문제가 세로가 아주 좁은 기기에서 발생함.
+     1fr이면 실제로 배정된 높이를 13행이 항상 정확히 나눠 갖기 때문에
+     넘칠 수 없음 — 다만 그 경우 셀이 정사각형보다 약간 납작해질 수 있음
+     (하단 잘림 방지가 정사각형 유지보다 우선). */
   body.game-active .grid {
     flex: none;
     align-self: center;
     min-height: unset;
-    width: auto;
+    width: 100%;
     height: auto;
     max-width: 100%;
     max-height: 100%;
     aspect-ratio: 9 / var(--grid-rows, 13);
-    grid-template-rows: unset;
+    grid-template-rows: repeat(var(--grid-rows, 13), 1fr);
   }
   body.game-active .cell {
-    height: unset;
     aspect-ratio: 1;
   }
   /* bottomBar: 홈바 여백 확보 */
