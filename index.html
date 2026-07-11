@@ -133,6 +133,10 @@ html, body {
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  /* 아이폰 노치/다이나믹 아일랜드에 상단 탭이 가려지지 않도록 안전영역만큼 아래로 내림.
+     .app 높이(100dvh)는 건드리지 않으므로 게임판 하단 잘림/축소 수정과 무관.
+     노치 없는 기기·안드로이드는 env()가 0이라 기존 레이아웃 그대로 유지. */
+  padding-top: env(safe-area-inset-top, 0px);
 }
 .tab-btn {
   flex: 1;
@@ -7833,6 +7837,60 @@ function renderMyRankSummary(list, myIdx, prevRank, periodLabel) {
   }
 }
 
+// 상위 목록(최대 150명)에 안 들어간 등록 사용자도 상단 '내 순위' 카드가 뜨게 함.
+// (신규 가입자가 점수 등록 직후, 컷 밖이라 목록에 없어서 카드가 안 보이던 문제)
+// ★ 소유권 안전장치: 이 카드가 '내 계정(MY_UID)'의 것임이 확인될 때만 표시한다.
+//   오래된/잘못된 localStorage 표시 닉네임(예: 세션 UID는 A인데 저장 닉은 B) 때문에
+//   남의 점수를 '내 정보'로 표시하는 것을 막는다.
+//   - rankings 문서에 uid가 있으면 uid === MY_UID 여야 함.
+//   - uid가 없는 레거시 문서 / 주간 문서(uid 없음)는 권위 있는 계정 닉네임
+//     (users/{MY_UID}.nicknameNormalized)과 일치할 때만 인정.
+//   - MY_UID가 없으면(인증 미완료) 소유권 확인이 불가능하므로 카드 표시 안 함(안전 우선).
+async function showMyRankCardIfBelowCut(myNick, isWeek) {
+  const box = document.getElementById('myRankSummary');
+  if (!box || !myNick) return false;
+  if (!MY_UID) return false; // 소유권 확인 불가 → 표시 안 함
+  try {
+    const normMy = normalizeNickname(myNick);
+    let accNorm = null; // users/{MY_UID}.nicknameNormalized (필요 시에만 읽음)
+    const accNickMatches = async () => {
+      if (accNorm === null) {
+        try { const me = await getDoc(doc(db, 'users', MY_UID)); accNorm = me.exists() ? (me.data().nicknameNormalized || '') : ''; }
+        catch { accNorm = ''; }
+      }
+      return !!accNorm && accNorm === normMy;
+    };
+
+    let score = null;
+    if (isWeek) {
+      // 주간 문서엔 uid가 없음 → 권위 있는 계정 닉네임과 일치해야만 내 것으로 인정
+      if (!(await accNickMatches())) return false;
+      const s = await getDoc(doc(db, 'weekly_rankings', getWeekId(), 'scores', myNick));
+      if (s.exists() && typeof s.data().score === 'number') score = s.data().score;
+    } else {
+      const s = await getDoc(doc(db, 'rankings', myNick));
+      if (!s.exists()) return false;
+      const d = s.data();
+      if (d.uid) {
+        if (d.uid !== MY_UID) return false;          // 남의 계정 문서 → 표시 금지
+      } else {
+        if (!(await accNickMatches())) return false; // 레거시(uid 없음) → 계정 닉 일치 필요
+      }
+      if (typeof d.score === 'number') score = d.score;
+    }
+    if (score == null) return false;
+    box.style.display = 'flex';
+    const tagEl = document.getElementById('mrsTag');
+    if (tagEl) tagEl.textContent = isWeek ? '이번 주 내 순위' : '전체 내 순위';
+    const rankEl = document.getElementById('mrsRank'); if (rankEl) rankEl.textContent = '집계 밖';
+    const scoreEl = document.getElementById('mrsScore'); if (scoreEl) scoreEl.textContent = `${score}pt`;
+    const nextLabelEl = document.getElementById('mrsNextLabel'); if (nextLabelEl) nextLabelEl.textContent = '현재';
+    const nextBigEl = document.getElementById('mrsNextBig'); if (nextBigEl) nextBigEl.innerHTML = '랭킹 등록 완료 🐾';
+    const changeEl = document.getElementById('mrsChange'); if (changeEl) { changeEl.className = 'mrs-change crown'; changeEl.textContent = '🆕 신규 등록'; }
+    return true;
+  } catch { return false; }
+}
+
 // prevRank: 어제(또는 마지막 스냅샷) 순위, currentRank: 지금 순위
 function rankChangeHtml(prevRank, currentRank, podium) {
   const cls = podium ? 'podium-rank-change' : 'rank-change';
@@ -7935,6 +7993,23 @@ async function renderRankingInner() {
   }
   if (currentRankMode === 'friends') {
     const friends = loadFriends();
+    // 친구 0명 → 전체 랭킹을 친구 탭에 그대로 보여주는 fallback 절대 금지.
+    // 빈 상태 UI만 보여주고 즉시 종료 (시상대/목록/내순위 요약바 모두 비움).
+    if (!Array.isArray(friends) || friends.length === 0) {
+      try { document.getElementById('podiumWrap').innerHTML = ''; } catch {}
+      try { document.getElementById('podiumFloor').innerHTML = ''; } catch {}
+      try { document.getElementById('rankList').innerHTML = ''; } catch {}
+      const rankEmptyEl = document.getElementById('rankEmpty');
+      if (rankEmptyEl) {
+        rankEmptyEl.style.display = 'block';
+        rankEmptyEl.innerHTML = '아직 추가한 친구가 없다냥 🐾<br><span style="font-size:12.5px; color:var(--muted);">랭킹 행을 꾹 눌러서 친구를 추가해보세요!</span>';
+      }
+      const mrsBox = document.getElementById('myRankSummary');
+      if (mrsBox) mrsBox.style.display = 'none';
+      const myRankInfoEl = document.getElementById('myRankInfo');
+      if (myRankInfoEl) myRankInfoEl.innerHTML = '';
+      return;
+    }
     const wanted = new Set(friends);
     if (myNick) wanted.add(myNick);
     // 전체 상위 150명 목록에 없는 친구(점수가 낮아 컷 밖인 경우)는 개별로 직접 조회해서 보완
@@ -8135,8 +8210,14 @@ async function renderRankingInner() {
       myRankInfo.innerHTML = '';
       renderMyRankSummary(list, myIdx, prevRanks[myNick], '어제 대비');
     } else {
-      myRankInfo.innerHTML = `닉네임: <strong>${myNick}</strong> · 아직 등록된 점수 없음`;
-      renderMyRankSummary(list, -1);
+      // 상위 150명 밖이라도 등록된 점수가 있으면 카드를 숨기지 않고 실제 점수로 표시
+      const shown = await showMyRankCardIfBelowCut(myNick, false);
+      if (shown) {
+        myRankInfo.innerHTML = `닉네임: <strong>${myNick}</strong>`;
+      } else {
+        myRankInfo.innerHTML = `닉네임: <strong>${myNick}</strong> · 아직 등록된 점수 없음`;
+        renderMyRankSummary(list, -1);
+      }
     }
   } else {
     myRankInfo.innerHTML = '게임 후 닉네임을 등록하면 순위에 표시돼요';
@@ -8279,8 +8360,14 @@ async function renderWeeklyRankingInner() {
       myRankInfo.innerHTML = `<span style="font-size:13px; color:var(--muted);">🗓️ ${resetLabel} (매주 월요일)</span>`;
       renderMyRankSummary(list, myIdx, prevWeekRanks[myNick], '최근 대비');
     } else {
-      myRankInfo.innerHTML = `닉네임: <strong>${myNick}</strong> · 이번 주 기록 없음<br><span style="font-size:13px; color:var(--muted);">🗓️ ${resetLabel} (매주 월요일)</span>`;
-      renderMyRankSummary(list, -1);
+      // 이번 주 상위 150명 밖이라도 이번 주 기록이 있으면 카드를 실제 점수로 표시
+      const shown = await showMyRankCardIfBelowCut(myNick, true);
+      if (shown) {
+        myRankInfo.innerHTML = `<span style="font-size:13px; color:var(--muted);">🗓️ ${resetLabel} (매주 월요일)</span>`;
+      } else {
+        myRankInfo.innerHTML = `닉네임: <strong>${myNick}</strong> · 이번 주 기록 없음<br><span style="font-size:13px; color:var(--muted);">🗓️ ${resetLabel} (매주 월요일)</span>`;
+        renderMyRankSummary(list, -1);
+      }
     }
   } else {
     myRankInfo.innerHTML = `게임 후 닉네임을 등록하면 순위에 표시돼요<br><span style="font-size:13px; color:var(--muted);">🗓️ ${resetLabel} (매주 월요일)</span>`;
@@ -8441,6 +8528,11 @@ document.getElementById('rankModeFriends').addEventListener('click', () => {
   document.getElementById('panelRank').classList.remove('week-mode', 'all-mode');
   document.getElementById('panelRank').classList.add('friends-mode');
   applyRankModeChrome('friends');
+  // 비동기 renderRanking이 끝나기 전까지 이전 탭(전체/이번주)의 목록이 잠깐 남아
+  // "친구 탭에 전체가 뜬 것처럼" 보이는 것을 막기 위해 전환 즉시 목록을 비운다.
+  try { document.getElementById('podiumWrap').innerHTML = ''; } catch {}
+  try { document.getElementById('podiumFloor').innerHTML = ''; } catch {}
+  try { document.getElementById('rankList').innerHTML = ''; } catch {}
   renderRanking();
 });
 document.getElementById('themeBtn').addEventListener('click', toggleTheme);
@@ -10239,7 +10331,9 @@ function dismissIOSPopup() {
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const isInStandalone = window.navigator.standalone === true;
   const dismissed = localStorage.getItem('iosPopupDismissed');
-  if (isIOS && !isInStandalone && !dismissed) {
+  // 카카오톡 인앱 브라우저에서는 iOS 홈화면 추가 팝업을 띄우지 않는다.
+  // (인앱에서는 별도 '외부 브라우저로 열기' 안내만 표시 → 두 안내가 겹치는 문제 방지)
+  if (isIOS && !isInStandalone && !dismissed && !isKakaoInApp()) {
     setTimeout(() => {
       document.getElementById('iosInstallPopup').style.display = 'block';
       // 5초 후 자동 닫힘
