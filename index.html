@@ -3822,9 +3822,10 @@ async function initAccountSystem() {
       } catch (e) { console.warn('닉네임 정합성 확인 실패(기존 상태 유지):', e); }
       // 닉변 후 uid 소유 문서의 nickname 라벨/로컬 표시 키가 옛 닉으로 남았으면 1회 교정.
       try { await selfHealRenameLabels(); } catch {}
-      // ★ 인증/연결이 확정된 이 시점에서 고양이 스킨·목표 표시를 "무조건" 다시 반영한다.
-      //   (600ms 고정 타이머가 인증 준비 전에 돌아 스킨/스트릭이 로드마다 들쭉날쭉하던 문제 방지)
-      try { refreshMyCatSkin(); } catch {}
+      // ★ 인증/연결이 확정된 이 시점(MY_UID 설정·self-heal 완료)에서 고양이 스킨·목표 표시를
+      //   "무조건" 최종 반영한다. self-heal이 실제 수정을 했든 no-op이든 항상 실행되며,
+      //   await로 순서를 보장해 600ms 타이머의 이른 결과가 최종 UI를 덮어쓰지 못한다.
+      try { await refreshMyCatSkin(); } catch {}
       try { renderStartScreenGoal(); } catch {}
       return;
     }
@@ -4885,8 +4886,11 @@ async function refreshMyCatSkin() {
         }
       } catch {}
     }
-    myCatSkinEnabled = enabled;
-  } catch { myCatSkinEnabled = false; }
+    // 인증/UID 준비 전(MY_UID 미설정)에 나온 false는 "최종값"이 아니다(uid 문서 대신 빈 닉네임
+    // 키를 읽었을 수 있음). 그 경우 기존 상태를 유지해 섣부른 다운그레이드를 막는다 — 최종값은
+    // 인증 확정 후 account-ready refresh가 확정한다. true는 항상 반영(스킨을 늦게라도 켬).
+    if (enabled || MY_UID) myCatSkinEnabled = enabled;
+  } catch { if (MY_UID) myCatSkinEnabled = false; /* 인증 전 에러는 기존 상태 유지 */ }
 }
 function renderCatCell(el) {
   el.className = 'cell cat';
@@ -10625,6 +10629,9 @@ window.addEventListener('resize', setTabAreaHeight);
 // 초기화 — Firebase 준비 후 renderRanking 실행
 // 웹앱(standalone) 첫 로드시 Firebase SDK 로드 타이밍 보장
 setTimeout(() => renderRanking(), 300);
+// 레거시(비연결) 사용자용 초기 고양이 반영. UID 사용자는 initAccountSystem의 account-ready에서
+// 최종 확정되며, refreshMyCatSkin 가드가 인증 전 이른 false를 무시하므로 이 타이머가 최종값을
+// 덮어쓰지 못한다(경합 무해).
 setTimeout(() => refreshMyCatSkin(), 600);
 setTimeout(() => checkUnreadReply(), 800);
 setTimeout(() => renderStartMyRankLine(), 500);
