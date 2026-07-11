@@ -3820,6 +3820,8 @@ async function initAccountSystem() {
           try { refreshMyCatSkin(); } catch {}
         }
       } catch (e) { console.warn('닉네임 정합성 확인 실패(기존 상태 유지):', e); }
+      // 닉변 후 uid 소유 문서의 nickname 라벨/로컬 표시 키가 옛 닉으로 남았으면 1회 교정.
+      try { await selfHealRenameLabels(); } catch {}
       return;
     }
     const wasLinked = isUidLinked();
@@ -4999,6 +5001,53 @@ async function selfHealRenameIfPending() {
     if (d.status === 'completed' && d.to === p.to) { saveNickname(p.to); try { refreshMyCatSkin(); } catch {} }
     clearPendingRename();                        // 완료/미완료 모두 플래그 정리(응답을 받은 이상)
   } catch { /* 네트워크 실패 → 플래그 유지, 다음 기회에 재시도 */ }
+}
+
+// ── 닉변 후 표시 상태 마이그레이션 ──
+// 닉네임을 키로 쓰는 "이 기기 표시용" 로컬 데이터를 옛 닉 → 새 닉으로 이관한다.
+// 새 키가 비어 있을 때만 복사하고(기존 값 손실 방지), old 키는 안전을 위해 남겨둔다.
+// 친구목록(oeing_friends_v1) 등 무관 키는 절대 건드리지 않는다.
+function migrateLocalKeysForRename(oldNick, newNick) {
+  if (!oldNick || !newNick || oldNick === newNick) return;
+  for (const pre of ['oeing_local_stats_', 'oeing_refcode_']) {
+    try {
+      const oldKey = pre + oldNick, newKey = pre + newNick;
+      const oldVal = localStorage.getItem(oldKey);
+      const newVal = localStorage.getItem(newKey);
+      if (oldVal != null && (newVal == null || newVal === '')) localStorage.setItem(newKey, oldVal);
+    } catch {}
+  }
+}
+
+// 닉변 후 라벨 self-heal(1회성): 내 uid 소유 문서의 nickname 라벨이 현재 표시 닉과 다르면
+// (= 닉변은 됐는데 라벨/로컬 표시 키가 옛 닉으로 남은 상태) 안전하게 교정한다.
+//  - 서버: 내 uid 소유 문서의 nickname 필드만 merge로 새 닉으로 바꾼다. cat·jelly·ownedSkins·
+//    frame·bubblePurchased·streak·bestScore 등은 merge라 그대로 보존(Rules의 guarded 필드 불변 통과).
+//  - 로컬: 옛 라벨 닉 → 현재 닉으로 표시 키 이관 + 스킨 캐시/고양이 재반영.
+//  - 라벨이 이미 일치하면 아무 동작도 안 함(정상 계정 무영향). 타 유저 문서는 절대 안 건드림.
+async function selfHealRenameLabels() {
+  if (!isUidLinked() || !MY_UID) return;
+  const myNick = loadNickname();
+  if (!myNick) return;
+  let fixedAny = false;
+  for (const col of ['user_stats', 'nickname_skins']) {
+    try {
+      const ref = doc(db, col, MY_UID);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) continue;
+      const label = snap.data().nickname;
+      if (typeof label === 'string' && label && label !== myNick) {
+        migrateLocalKeysForRename(label, myNick);
+        try { await setDoc(ref, { nickname: myNick }, { merge: true }); fixedAny = true; }
+        catch (e) { console.warn('닉 라벨 self-heal 보류(' + col + '):', e); }
+      }
+    } catch (e) { console.warn('닉 라벨 self-heal 실패(' + col + ', 무해):', e); }
+  }
+  if (fixedAny) {
+    try { _skinsCacheTs = 0; } catch {}
+    try { refreshMyCatSkin(); } catch {}
+    try { invalidateRankingsCache(); } catch {}
+  }
 }
 
 // PIN 조회 전용 — 공개 rankings 문서에 PIN을 새로 만들거나 쓰는 일은 절대 없음.
@@ -9025,7 +9074,9 @@ document.getElementById('nickChangeBtn').addEventListener('click', async () => {
       const res = await callRenameNickname(oldNick, nick, '', requestId); // UID 경로 — PIN 불요
       if (res && res.ok) {
         saveNickname(nick);
+        migrateLocalKeysForRename(oldNick, nick);   // 목표 스트릭 등 닉네임 키 로컬 표시 데이터 이관
         clearPendingRename();
+        try { _skinsCacheTs = 0; } catch {}          // 스킨 캐시 강제 재로딩(새 닉 라벨 반영)
         try { refreshMyCatSkin(); } catch {}
         try { invalidateRankingsCache(); } catch {}
         try { invalidateWeeklyRankingsCache(); } catch {}
