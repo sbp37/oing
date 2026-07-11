@@ -3822,6 +3822,10 @@ async function initAccountSystem() {
       } catch (e) { console.warn('닉네임 정합성 확인 실패(기존 상태 유지):', e); }
       // 닉변 후 uid 소유 문서의 nickname 라벨/로컬 표시 키가 옛 닉으로 남았으면 1회 교정.
       try { await selfHealRenameLabels(); } catch {}
+      // ★ 인증/연결이 확정된 이 시점에서 고양이 스킨·목표 표시를 "무조건" 다시 반영한다.
+      //   (600ms 고정 타이머가 인증 준비 전에 돌아 스킨/스트릭이 로드마다 들쭉날쭉하던 문제 방지)
+      try { refreshMyCatSkin(); } catch {}
+      try { renderStartScreenGoal(); } catch {}
       return;
     }
     const wasLinked = isUidLinked();
