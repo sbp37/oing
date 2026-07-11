@@ -2498,6 +2498,7 @@ if ('serviceWorker' in navigator) {
         <div class="nick-change-wrap" style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
           <button class="nick-change-btn" id="nickChangeWrapBtn">닉네임 변경</button>
           <button class="nick-change-btn" id="pinCheckBtn">🔑 내 핀번호</button>
+          <button class="nick-change-btn" id="accountLinkBtn" style="display:none; border-color:#3b82f655; color:#60a5fa;">🔗 계정 연결</button>
           <button class="nick-change-btn" id="deleteMyRankBtn" style="border-color:#DD603255; color:#DD6032;">🗑️ 내 기록 삭제</button>
           <button class="nick-change-btn" id="skinOpenBtn" style="display:none; border-color:#fbbf2455; color:#fbbf24;">🎨 닉네임 꾸미기</button>
         </div>
@@ -3820,6 +3821,8 @@ async function initAccountSystem() {
 setTimeout(() => { initAccountSystem(); }, 0);
 // [휴면] 닉변 v2 자가복구 — RENAME_V2_ENABLED=false라 즉시 반환(현재 아무 동작 없음)
 setTimeout(() => { try { selfHealRenameIfPending(); } catch {} }, 0);
+// 계정 연결 버튼 초기 표시 상태(닉네임 있고 미연결일 때만) — 인증 초기화 후 반영
+setTimeout(() => { try { updateAccountLinkBtn(); } catch {} }, 1200);
 
 
 // ══════════════════════════════
@@ -8113,6 +8116,7 @@ async function renderRanking() {
 }
 
 async function renderRankingInner() {
+  try { updateAccountLinkBtn(); } catch {}
   await loadSkinsCache();
   if (currentRankMode === 'week') { await renderWeeklyRanking(); return; }
   renderWeeklyThanks();
@@ -8795,6 +8799,55 @@ document.getElementById('pinCheckBtn').addEventListener('click', async () => {
     display.textContent = '오류';
   }
 });
+
+// ── [UID 승격] 계정 연결 ──
+// 로컬 닉네임은 있는데 아직 이 기기가 UID 미연결일 때만 노출. PIN을 사용자가 직접 입력하면
+// 기존 restoreAccount(action:'restore') callable로 현재 익명 UID에 안전하게 claim/승격한다.
+// 새 무인증 endpoint를 만들지 않고, PIN 원문은 저장·로그하지 않는다(입력값은 즉시 폐기).
+function updateAccountLinkBtn() {
+  try {
+    const btn = document.getElementById('accountLinkBtn');
+    if (!btn) return;
+    btn.style.display = (!!loadNickname() && !isUidLinked()) ? '' : 'none';
+  } catch {}
+}
+
+// 승격 후 서버 상태 읽기 전용 검증 — 값만 읽어 요약 반환(어떤 쓰기도 하지 않음).
+async function verifyPromotion() {
+  const nick = loadNickname();
+  const norm = normalizeNickname(nick || '');
+  const out = { nick, uid: MY_UID, linked: isUidLinked() };
+  try { const r = await getDoc(doc(db, 'rankings', nick)); out.rankScore = r.exists() ? (r.data().score ?? null) : null; out.rankUid = r.exists() ? (r.data().uid || null) : null; } catch (e) { out.rankErr = String(e && e.message || e); }
+  try { const l = await getDoc(doc(db, 'nickname_lookup', norm)); out.lookupUid = l.exists() ? (l.data().uid || null) : null; } catch (e) { out.lookupErr = String(e && e.message || e); }
+  try { const u = await getDoc(doc(db, 'users', MY_UID)); out.usersExists = u.exists(); out.usersNorm = u.exists() ? (u.data().nicknameNormalized || null) : null; } catch (e) { out.usersErr = String(e && e.message || e); }
+  try { out.pinReady = await checkMyPinSecretReady(); } catch (e) { out.pinErr = String(e && e.message || e); }
+  try { const { data } = await getMyDoc('user_stats'); out.jelly = data ? (data.jelly ?? null) : null; } catch (e) { out.statsErr = String(e && e.message || e); }
+  try { const { data } = await getMyDoc('nickname_skins'); out.cat = data ? !!data.cat : null; out.ownedSkins = data ? (data.ownedSkins || []) : null; } catch (e) { out.skinErr = String(e && e.message || e); }
+  console.log('[verifyPromotion]', out);
+  return out;
+}
+
+async function linkAccountWithPin() {
+  const myNick = loadNickname();
+  if (!myNick) { alert('먼저 닉네임이 필요해요.'); return; }
+  if (isUidLinked()) { alert('이미 이 기기에 계정이 연결돼 있어요.'); updateAccountLinkBtn(); return; }
+  // 기존 PIN 팝업 재사용 — 성공 시 restoreAccountOnNewDevice가 markUidLinked·saveNickname·saveMyPin까지 수행.
+  let pin = await askPinVerification(myNick); // 사용자가 v3 화면에서 직접 입력
+  if (!pin) return;                            // 취소/실패 — 데이터 변경 없음
+  pin = null;                                  // 입력값 즉시 폐기(메모리에서 제거)
+  try { saveNickname(myNick); } catch {}
+  try { refreshMyCatSkin(); } catch {}
+  try { loadJellyBalance(); } catch {}
+  updateAccountLinkBtn();
+  // 읽기 전용 검증 요약 표시
+  try {
+    const v = await verifyPromotion();
+    alert('계정 연결 완료! 🐾 기존 기록이 유지됩니다.\n'
+      + `점수 ${v.rankScore ?? '?'} · 젤리 ${v.jelly ?? '?'} · 고양이 ${v.cat ? 'O' : '-'}\n`
+      + `UID연결 ${v.linked ? 'O' : 'X'} · PIN준비 ${v.pinReady ? 'O' : 'X'}`);
+  } catch { alert('계정 연결 완료! 🐾 기존 기록이 유지됩니다.'); }
+}
+document.getElementById('accountLinkBtn').addEventListener('click', linkAccountWithPin);
 document.getElementById('resultRestartBtn').addEventListener('click', () => {
   switchTab('game');
   startGame();
