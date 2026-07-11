@@ -3552,6 +3552,10 @@ async function restoreAccountOnNewDevice(nickname, pin) {
       MY_UID = auth.currentUser ? auth.currentUser.uid : MY_UID;
       markUidLinked(MY_UID);
       saveMyPin(pin);
+      // 연결 표시 직후(다음 await 이전) 표시 닉네임도 즉시 저장 — 이후 어느 await 지점에서
+      // 앱이 종료돼도 Auth UID·uid_linked·표시 닉네임이 항상 함께 일치한다.
+      // nickname은 서버가 PIN 검증 후 이 계정의 복구 대상으로 확정한 값이다(임의 추론 아님).
+      saveNickname(nickname);
       try { await setDoc(doc(db, 'users', MY_UID), { lastSeenAt: Date.now() }, { merge: true }); } catch {}
       try { await ensureUidDocsReady(MY_UID, nickname); } catch (e) { console.warn('UID 문서 확인 실패(표시는 정상, 다음 접속 때 재확인):', e); }
       return { ok: true, mode: 'token' };
@@ -3561,6 +3565,7 @@ async function restoreAccountOnNewDevice(nickname, pin) {
       try {
         await ensureUidDocsReady(uid, nickname); // 서버 트랜잭션이 복사까지 마쳤는지 확인 후에만 완료 표시
         markUidLinked(uid);
+        saveNickname(nickname); // 연결 표시와 동시에 표시 닉네임 일치 확립 (서버가 확정한 값)
       } catch (e) { console.warn('서버 복사 확인 실패 — 원본 유지, 다음 접속 때 재시도:', e); }
       return { ok: true, mode: 'claimed' };
     }
@@ -3775,6 +3780,32 @@ async function initAccountSystem() {
     if (!nick) return; // 신규 방문자 — 닉네임 등록할 때 UID에 연결
     if (isUidLinked()) {
       try { await setDoc(doc(db, 'users', MY_UID), { lastSeenAt: Date.now() }, { merge: true }); } catch {}
+      // 과거 계정 복구 도중 종료로 "연결된 UID ≠ 표시 닉네임"이 남은 기기 self-heal.
+      // 권위 출처 1순위: users/{현재 UID}.nickname — 연결·닉변 때마다 기록 후 재읽기 검증까지
+      // 하는 UID 키 기반 매핑. 다만 token 복구로만 연결된 레거시 계정은 이 문서가 없거나
+      // nickname 필드가 없을 수 있어(운영 콘솔에서 확인), 그 경우에만 2순위로
+      // rankings에서 uid == 내 UID인 문서를 조회한다(문서 ID = 닉네임).
+      // 2순위는 정확히 1건일 때만 신뢰 — users 문서 없는 계정은 닉변 절차(users 기록·검증 필수)를
+      // 통과한 적이 없어 닉네임이 바뀐 적도 없고, 옛 닉네임 잔재 문서가 구조적으로 생기지 않는다.
+      // 0건·2건 이상(모호)·조회 실패·오프라인은 전부 no-op — 잘못 덮어쓰느니 안 고치는 게 낫다.
+      // 로컬 표시 닉네임만 고치며 서버 데이터(랭킹·통계·lookup·PIN·UID)는 일절 쓰지 않는다.
+      try {
+        let serverNick = null;
+        const meSnap = await getDoc(doc(db, 'users', MY_UID));
+        const userNick = meSnap.exists() ? meSnap.data().nickname : null;
+        if (typeof userNick === 'string' && userNick.trim()) {
+          serverNick = userNick; // 1순위 확보 — 2순위는 조회하지 않음
+        } else {
+          const rq = await getDocs(query(collection(db, 'rankings'), where('uid', '==', MY_UID), limit(2)));
+          if (rq.docs.length === 1) serverNick = rq.docs[0].id;
+        }
+        if (typeof serverNick === 'string' && serverNick.trim()
+            && normalizeNickname(serverNick) !== normalizeNickname(nick)) {
+          console.warn('계정-닉네임 불일치 감지 — 서버 기준으로 표시 닉네임 복구:', nick, '→', serverNick);
+          saveNickname(serverNick);
+          try { refreshMyCatSkin(); } catch {}
+        }
+      } catch (e) { console.warn('닉네임 정합성 확인 실패(기존 상태 유지):', e); }
       return;
     }
     const wasLinked = isUidLinked();
