@@ -8836,6 +8836,38 @@ document.getElementById('nickChangeBtn').addEventListener('click', async () => {
       return;
     }
 
+    // ④-c 왕관(챔피언 칭호) 승계 — 닉네임 확정(⑤)과 7일 제한 기록 "전"에 저장·검증까지 끝냄.
+    //     여기서 실패하면 변경 전체를 중단하고 새 문서를 롤백 — 왕관 보유 유저가
+    //     "새 닉네임인데 왕관은 없고 7일 잠금까지 걸린" 고립 상태가 생기지 않게 함.
+    //     옛 왕관 문서는 이 단계에서 절대 삭제하지 않음 (삭제는 전부 성공한 뒤 ⑥에서만).
+    let champCarried = false, champWroteNew = false, champCount = 0;
+    try {
+      const ocs = await getDoc(doc(db, 'champions', oldNick));
+      if (ocs.exists()) {
+        const od = ocs.data();
+        champCount = od.count || 0;
+        await setDoc(doc(db, 'champions', nick), { ...od }); // count·lastCrownedAt 등 필드 전부 그대로 승계
+        champWroteNew = true;
+        const cvs = await getDoc(doc(db, 'champions', nick));
+        if (!(cvs.exists() && (cvs.data().count || 0) >= champCount)) throw new Error('왕관 저장 검증 실패');
+        champCarried = true;
+      } else {
+        // 승계할 왕관이 없으면, 새 닉네임 자리의 유령 왕관 문서만 정리 (남의 옛 왕관을 물려받지 않게, 실패 무시)
+        try {
+          const ghostC = await getDoc(doc(db, 'champions', nick));
+          if (ghostC.exists()) await deleteDoc(doc(db, 'champions', nick));
+        } catch (eg) {}
+      }
+    } catch (e) {
+      // 롤백: 방금 만든 새 문서들만 되돌림 — 옛 닉네임·왕관·주간·랭킹은 전부 그대로
+      if (champWroteNew) { try { await deleteDoc(doc(db, 'champions', nick)); } catch (e2) {} }
+      if (weeklyWroteNew) { try { await deleteDoc(doc(db, 'weekly_rankings', weekIdNow, 'scores', nick)); } catch (e2) {} }
+      try { await deleteDoc(doc(db, 'rankings', nick)); } catch (e2) {}
+      if (!takenByMe) await releaseLookup(nick);
+      failChange('왕관 기록 이전에 실패했어요. 기존 닉네임과 기록은 그대로 유지됩니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
     // ⑤ users 프로필 갱신 + 검증
     //    lastNicknameChangedAt(서버 시각)은 7일 변경 제한의 기준 — 기기 시계를 조작해도 저장 시각은 서버 기준.
     //    nicknameChangedAt(숫자)은 기존 필드라 형식 유지를 위해 함께 기록.
@@ -8849,6 +8881,7 @@ document.getElementById('nickChangeBtn').addEventListener('click', async () => {
       // 롤백: 방금 만든 새 문서만 제거 — 기존 닉네임·데이터는 아직 아무것도 안 건드렸음
       try { await deleteDoc(doc(db, 'rankings', nick)); } catch (e) {}
       if (weeklyWroteNew) { try { await deleteDoc(doc(db, 'weekly_rankings', weekIdNow, 'scores', nick)); } catch (e) {} }
+      if (champWroteNew) { try { await deleteDoc(doc(db, 'champions', nick)); } catch (e) {} }
       if (!takenByMe) await releaseLookup(nick);
       failChange('프로필 갱신에 실패했어요. 기존 닉네임은 그대로 유지됩니다. 잠시 후 다시 시도해주세요.');
       return;
@@ -8860,26 +8893,7 @@ document.getElementById('nickChangeBtn').addEventListener('click', async () => {
       try { await setDoc(doc(db, colName, MY_UID), { nickname: nick }, { merge: true }); } catch (e) {}
     }
 
-    // ⑥-b 왕관(챔피언 칭호) 승계 — 새 문서 저장·검증 성공 후에만 옛 문서를 지울 수 있게 표시.
-    //     승계가 실패해도 닉네임 변경 자체는 유지 (왕관은 옛 문서에 그대로 남아 유실되지 않음, 다음 변경 때 재시도 여지)
-    let champCarried = false, champCount = 0;
-    try {
-      const ocs = await getDoc(doc(db, 'champions', oldNick));
-      if (ocs.exists()) {
-        const od = ocs.data();
-        champCount = od.count || 0;
-        await setDoc(doc(db, 'champions', nick), { ...od }); // count·lastCrownedAt 등 필드 전부 그대로 승계
-        const cvs = await getDoc(doc(db, 'champions', nick));
-        if (cvs.exists() && (cvs.data().count || 0) >= champCount) champCarried = true;
-      } else {
-        // 승계할 왕관이 없으면, 새 닉네임 자리의 유령 왕관 문서만 정리 (남의 옛 왕관을 물려받지 않게, 실패 무시)
-        try {
-          const ghostC = await getDoc(doc(db, 'champions', nick));
-          if (ghostC.exists()) await deleteDoc(doc(db, 'champions', nick));
-        } catch (eg) {}
-      }
-    } catch (e) { console.warn('왕관 승계 보류(옛 닉네임 문서에 그대로 남아 유실 없음):', e); }
-
+    // (왕관 승계는 ④-c에서 닉네임 확정 전에 저장·검증 완료 — 여기서는 옛 문서 정리만)
     if (oldNick && normalizeNickname(oldNick) !== normalizeNickname(nick)) {
       await releaseLookup(oldNick);               // 옛 닉네임 반납
       await deleteOldScore(oldNick, loadMyPin()); // 랭킹 목록의 옛 항목 정리 (소유 데이터는 UID 문서라 무관)
