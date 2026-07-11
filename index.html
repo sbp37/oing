@@ -3781,12 +3781,24 @@ async function initAccountSystem() {
     if (isUidLinked()) {
       try { await setDoc(doc(db, 'users', MY_UID), { lastSeenAt: Date.now() }, { merge: true }); } catch {}
       // 과거 계정 복구 도중 종료로 "연결된 UID ≠ 표시 닉네임"이 남은 기기 self-heal.
-      // 권위 출처는 users/{현재 UID}.nickname — 연결·닉변 때마다 기록 후 재읽기 검증까지 하는
-      // 유일한 UID 키 기반 매핑 문서다. 읽기 실패·필드 없음이면 아무것도 바꾸지 않는다(fail-safe).
-      // 로컬 표시 닉네임만 고치며 서버 데이터(랭킹·통계·lookup·PIN)는 일절 쓰지 않는다.
+      // 권위 출처 1순위: users/{현재 UID}.nickname — 연결·닉변 때마다 기록 후 재읽기 검증까지
+      // 하는 UID 키 기반 매핑. 다만 token 복구로만 연결된 레거시 계정은 이 문서가 없거나
+      // nickname 필드가 없을 수 있어(운영 콘솔에서 확인), 그 경우에만 2순위로
+      // rankings에서 uid == 내 UID인 문서를 조회한다(문서 ID = 닉네임).
+      // 2순위는 정확히 1건일 때만 신뢰 — users 문서 없는 계정은 닉변 절차(users 기록·검증 필수)를
+      // 통과한 적이 없어 닉네임이 바뀐 적도 없고, 옛 닉네임 잔재 문서가 구조적으로 생기지 않는다.
+      // 0건·2건 이상(모호)·조회 실패·오프라인은 전부 no-op — 잘못 덮어쓰느니 안 고치는 게 낫다.
+      // 로컬 표시 닉네임만 고치며 서버 데이터(랭킹·통계·lookup·PIN·UID)는 일절 쓰지 않는다.
       try {
+        let serverNick = null;
         const meSnap = await getDoc(doc(db, 'users', MY_UID));
-        const serverNick = meSnap.exists() ? meSnap.data().nickname : null;
+        const userNick = meSnap.exists() ? meSnap.data().nickname : null;
+        if (typeof userNick === 'string' && userNick.trim()) {
+          serverNick = userNick; // 1순위 확보 — 2순위는 조회하지 않음
+        } else {
+          const rq = await getDocs(query(collection(db, 'rankings'), where('uid', '==', MY_UID), limit(2)));
+          if (rq.docs.length === 1) serverNick = rq.docs[0].id;
+        }
         if (typeof serverNick === 'string' && serverNick.trim()
             && normalizeNickname(serverNick) !== normalizeNickname(nick)) {
           console.warn('계정-닉네임 불일치 감지 — 서버 기준으로 표시 닉네임 복구:', nick, '→', serverNick);
