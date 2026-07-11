@@ -2907,6 +2907,18 @@ if ('serviceWorker' in navigator) {
     </div>
     <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
 
+      <!-- v4.0 -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v4.0</div>
+        <span id="newBadge40" style="display:none;background:#DD6032;color:white;font-size:11px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:#DA9845;margin-bottom:5px;">🎉 새 기능 · 개선</div>
+      <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
+        <li>▫️ ✏️ 이제 닉네임을 바꿀 수 있다냥! 기존 점수와 기록은 그대로 유지되고, 닉네임만 새롭게 변경할 수 있어요 🐾</li>
+        <li>▫️ 닉네임 변경은 7일에 한 번 가능하다냥!</li>
+      </ul>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
+
       <!-- v3.9 -->
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
         <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v3.9</div>
@@ -3224,8 +3236,9 @@ if ('serviceWorker' in navigator) {
 <div class="overlay" id="nickOverlay" style="display:none">
   <div class="overlay-card">
     <div class="overlay-title">닉네임 변경</div>
-    <div style="font-size:13px;color:#f87171;margin-bottom:10px;line-height:1.6;">
-      ⚠️ 변경 시 기존 랭킹 점수가 삭제됩니다
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.6;">
+      닉네임만 변경되며 기존 기록은 유지됩니다 🐾<br>
+      <span style="font-size:12px;">닉네임은 7일에 한 번 변경할 수 있어요.</span>
     </div>
     <input class="nick-input" id="nickChangeInput" type="text" maxlength="6" placeholder="새 닉네임 입력">
     <button class="action-btn" id="nickChangeBtn">변경하기</button>
@@ -4955,7 +4968,7 @@ function saveMyPin(pin) {
 //  실제 활성화(익명 인증 + App Check + 함수 배포)가 끝난 뒤에만 이 플래그를 켜고
 //  닉변 버튼을 이 흐름으로 연결한다. 지금은 정의만 있고 어떤 서버 호출도 하지 않는다.
 // ══════════════════════════════
-const RENAME_V2_ENABLED = false;
+const RENAME_V2_ENABLED = true;
 const PENDING_RENAME_KEY = 'oeing_pending_rename_v1';
 
 function newRenameRequestId() {
@@ -8996,6 +9009,52 @@ document.getElementById('nickChangeBtn').addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = '확인 중...';
 
+  // ═══ 닉네임 변경 v2 (서버 renameNickname) — 활성화 시 이 경로만 사용 ═══
+  // Firestore Rules가 클라이언트 직접 이동을 막으므로, 실제 이동은 Admin SDK 서버 함수가
+  // 단일 트랜잭션으로 처리한다(점수·주간·젤리·스킨·왕관·secret 보존, 옛 닉 tombstone).
+  // 소유권은 서버가 auth.uid로 판정 — 미연결(레거시) 사용자는 먼저 '계정 연결'로 승격해야 한다.
+  if (RENAME_V2_ENABLED) {
+    if (!isUidLinked()) {
+      alert("먼저 '계정 연결'로 로그인한 뒤 닉네임을 바꿀 수 있어요 🐾");
+      btn.disabled = false; btn.textContent = '변경하기';
+      return;
+    }
+    const requestId = newRenameRequestId();
+    savePendingRename(oldNick, nick, requestId);
+    try {
+      const res = await callRenameNickname(oldNick, nick, '', requestId); // UID 경로 — PIN 불요
+      if (res && res.ok) {
+        saveNickname(nick);
+        clearPendingRename();
+        try { refreshMyCatSkin(); } catch {}
+        try { invalidateRankingsCache(); } catch {}
+        try { invalidateWeeklyRankingsCache(); } catch {}
+        document.getElementById('nickOverlay').style.display = 'none';
+        alert('닉네임이 "' + nick + '"(으)로 바뀌었어요! 🐾 기존 기록은 그대로예요.');
+      } else {
+        alert('닉네임 변경에 실패했어요. 잠시 후 다시 시도해주세요.');
+        clearPendingRename();
+      }
+    } catch (e) {
+      const reason = e && e.details && e.details.reason;
+      const code = e && e.code;
+      let msg = '닉네임 변경에 실패했어요. 잠시 후 다시 시도해주세요.';
+      if (reason === 'name-taken') msg = '이미 사용 중이거나 기록이 남아 있는 닉네임이에요.';
+      else if (reason === 'cooldown') msg = '닉네임은 7일에 한 번 바꿀 수 있어요.' + (e.details && e.details.daysLeft ? ' ' + e.details.daysLeft + '일 뒤에 가능해요.' : '');
+      else if (reason === 'rename-disabled') msg = '지금은 닉네임 변경을 할 수 없어요. 잠시 후 다시 시도해주세요.';
+      else if (code === 'functions/permission-denied' || code === 'permission-denied') msg = '본인 계정만 변경할 수 있어요.';
+      else if (code === 'functions/invalid-argument' || code === 'invalid-argument') msg = '닉네임이 올바르지 않아요.';
+      alert(msg);
+      // 서버가 명확히 거부(코드 있음)했으면 커밋 없음 → pending 정리.
+      // 코드 없는 네트워크 오류(응답 유실 가능)면 pending 유지 → 다음 시작 시 자가복구.
+      const ambiguous = !code || /internal|unavailable|deadline/.test(String(code));
+      if (!ambiguous) clearPendingRename();
+    } finally {
+      btn.disabled = false; btn.textContent = '변경하기';
+    }
+    return;
+  }
+
   // ═══ 닉네임 변경 전용 흐름 ═══
   // 신규 등록 함수(registerNicknameWithPinCheck)를 재사용하지 않는다.
   // (재사용하면 방금 자신이 만든 lookup/rankings를 "기존 닉네임"으로 오인해
@@ -9203,19 +9262,19 @@ document.addEventListener('mouseup', () => {
 });
 
 // 업데이트 내역 팝업
-const UPDATE_VERSION = 'v3.9';
+const UPDATE_VERSION = 'v4.0';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
 const BUILD = 1783665356;
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
-const SEEN_KEY = 'seenUpdate_v3.9';
+const SEEN_KEY = 'seenUpdate_v4.0';
 
 function openUpdateLog() {
   document.getElementById('updateLog').style.display = 'flex';
   // NEW 뱃지 숨기기 + 본 것으로 저장
   localStorage.setItem(SEEN_KEY, '1');
-  const badge = document.getElementById('newBadge39');
+  const badge = document.getElementById('newBadge40');
   if (badge) badge.style.display = 'none';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'none';
@@ -9228,7 +9287,7 @@ document.getElementById('updateLogBtn').addEventListener('click', openUpdateLog)
 
 // 최초 방문 시 NEW 뱃지 표시
 if (!localStorage.getItem(SEEN_KEY)) {
-  const badge = document.getElementById('newBadge39');
+  const badge = document.getElementById('newBadge40');
   if (badge) badge.style.display = 'inline';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'inline';
