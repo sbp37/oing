@@ -7839,18 +7839,44 @@ function renderMyRankSummary(list, myIdx, prevRank, periodLabel) {
 
 // 상위 목록(최대 150명)에 안 들어간 등록 사용자도 상단 '내 순위' 카드가 뜨게 함.
 // (신규 가입자가 점수 등록 직후, 컷 밖이라 목록에 없어서 카드가 안 보이던 문제)
-// 본인 문서를 직접 읽어 실제 점수가 있으면 카드를 표시한다. 읽기 실패/점수 없음이면 false.
+// ★ 소유권 안전장치: 이 카드가 '내 계정(MY_UID)'의 것임이 확인될 때만 표시한다.
+//   오래된/잘못된 localStorage 표시 닉네임(예: 세션 UID는 A인데 저장 닉은 B) 때문에
+//   남의 점수를 '내 정보'로 표시하는 것을 막는다.
+//   - rankings 문서에 uid가 있으면 uid === MY_UID 여야 함.
+//   - uid가 없는 레거시 문서 / 주간 문서(uid 없음)는 권위 있는 계정 닉네임
+//     (users/{MY_UID}.nicknameNormalized)과 일치할 때만 인정.
+//   - MY_UID가 없으면(인증 미완료) 소유권 확인이 불가능하므로 카드 표시 안 함(안전 우선).
 async function showMyRankCardIfBelowCut(myNick, isWeek) {
   const box = document.getElementById('myRankSummary');
   if (!box || !myNick) return false;
+  if (!MY_UID) return false; // 소유권 확인 불가 → 표시 안 함
   try {
+    const normMy = normalizeNickname(myNick);
+    let accNorm = null; // users/{MY_UID}.nicknameNormalized (필요 시에만 읽음)
+    const accNickMatches = async () => {
+      if (accNorm === null) {
+        try { const me = await getDoc(doc(db, 'users', MY_UID)); accNorm = me.exists() ? (me.data().nicknameNormalized || '') : ''; }
+        catch { accNorm = ''; }
+      }
+      return !!accNorm && accNorm === normMy;
+    };
+
     let score = null;
     if (isWeek) {
+      // 주간 문서엔 uid가 없음 → 권위 있는 계정 닉네임과 일치해야만 내 것으로 인정
+      if (!(await accNickMatches())) return false;
       const s = await getDoc(doc(db, 'weekly_rankings', getWeekId(), 'scores', myNick));
       if (s.exists() && typeof s.data().score === 'number') score = s.data().score;
     } else {
       const s = await getDoc(doc(db, 'rankings', myNick));
-      if (s.exists() && typeof s.data().score === 'number') score = s.data().score;
+      if (!s.exists()) return false;
+      const d = s.data();
+      if (d.uid) {
+        if (d.uid !== MY_UID) return false;          // 남의 계정 문서 → 표시 금지
+      } else {
+        if (!(await accNickMatches())) return false; // 레거시(uid 없음) → 계정 닉 일치 필요
+      }
+      if (typeof d.score === 'number') score = d.score;
     }
     if (score == null) return false;
     box.style.display = 'flex';
