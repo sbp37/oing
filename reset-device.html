@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오잉게임 · 이 기기 계정 연결 초기화</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0b0e17; color:#e8edf5;
+    font-family:'Pretendard','Noto Sans KR','Malgun Gothic',sans-serif;
+    line-height:1.7; padding:24px 16px 60px; max-width:560px; margin:0 auto;
+    font-size:15px; -webkit-text-size-adjust:100%;
+  }
+  h1 { font-size:20px; color:#7ec2f0; margin-bottom:4px; }
+  .sub { font-size:12.5px; color:#7a8ba3; margin-bottom:18px; }
+  .card {
+    background:#141a28; border:1px solid #223049; border-radius:12px;
+    padding:14px 16px; margin-bottom:12px;
+  }
+  .label { font-size:12.5px; color:#8aa0bd; margin-bottom:3px; }
+  .value { font-size:19px; font-weight:800; word-break:break-all; }
+  .value.ok { color:#5fd38a; }
+  .value.warn { color:#f2b45a; }
+  .value.bad { color:#ff7a7a; }
+  .value.muted { color:#7a8ba3; font-weight:600; font-size:16px; }
+  .warnbox {
+    background:rgba(242,180,90,0.10); border:1px solid rgba(242,180,90,0.4);
+    border-radius:12px; padding:14px 16px; margin:18px 0 8px;
+    font-size:15px; font-weight:700; color:#f7d9a6; line-height:1.65;
+  }
+  .keys {
+    font-size:12.5px; color:#8aa0bd; margin:6px 0 18px; line-height:1.7;
+  }
+  .keys code { color:#9ecbff; background:#0e1524; padding:1px 6px; border-radius:5px; }
+  button.act {
+    width:100%; padding:15px; border:0; border-radius:12px;
+    background:#DD6032; color:#fff; font-size:16px; font-weight:800;
+    font-family:inherit; cursor:pointer;
+  }
+  button.act:disabled { opacity:0.5; }
+  .result {
+    margin-top:16px; padding:14px 16px; border-radius:12px; display:none;
+    font-size:15px; line-height:1.7; border:1px solid;
+  }
+  .result.good { background:rgba(95,211,138,0.09); border-color:rgba(95,211,138,0.4); color:#c9f4d8; }
+  .result b { color:#fff; }
+  .note { font-size:12px; color:#6b7c96; margin-top:18px; line-height:1.6; }
+  .ro-badge {
+    display:inline-block; font-size:11px; font-weight:800; color:#0b0e17;
+    background:#f2b45a; border-radius:6px; padding:1px 8px; margin-left:6px; vertical-align:middle;
+  }
+  a.gohome { color:#7ec2f0; font-weight:700; }
+</style>
+</head>
+<body>
+  <h1>🔧 이 기기 계정 연결 초기화 <span class="ro-badge">이 기기만</span></h1>
+  <div class="sub">이 폰 브라우저에 저장된 계정 연결 정보 3개만 지웁니다. 서버 기록은 건드리지 않습니다.</div>
+
+  <div class="card">
+    <div class="label">현재 이 기기가 기억하는 닉네임</div>
+    <div class="value" id="vNick">—</div>
+  </div>
+  <div class="card">
+    <div class="label">연결된 UID (앞 6 · 뒤 4만 표시)</div>
+    <div class="value muted" id="vUid">—</div>
+  </div>
+  <div class="card">
+    <div class="label">PIN 저장 여부 (값은 표시하지 않음)</div>
+    <div class="value" id="vPin">—</div>
+  </div>
+
+  <div class="warnbox">
+    서버 기록은 삭제되지 않고, 이 기기의 계정 연결 정보 3개만 초기화합니다.
+  </div>
+  <div class="keys">
+    삭제 대상 (정확히 이 3개만):<br>
+    <code>oeing_nickname_v1</code> · <code>oeing_uid_linked_v1</code> · <code>oeing_pin_v1</code>
+  </div>
+
+  <button class="act" id="resetBtn">이 기기 계정 연결 초기화</button>
+
+  <div class="result" id="result"></div>
+
+  <div class="note">
+    ※ 초기화 후 게임에서 닉네임 <b>"오잉"</b>으로 점수를 등록하면 <b>PIN 입력 팝업</b>이 뜨고,
+    오잉의 4자리 PIN을 넣으면 서버가 본인 확인 후 오잉 계정(점수·젤리·스킨·왕관)으로 다시 연결됩니다.<br>
+    이 도구는 Firebase 로그인 세션·Firestore·다른 localStorage 키를 전혀 건드리지 않습니다.
+  </div>
+
+<script>
+(function () {
+  // 삭제할 키는 정확히 이 3개로 고정 (다른 키 절대 안 건드림)
+  var TARGET_KEYS = ['oeing_nickname_v1', 'oeing_uid_linked_v1', 'oeing_pin_v1'];
+
+  var get = function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } };
+
+  // ── 현재 값 표시 (읽기) ──
+  function render() {
+    var nick = get('oeing_nickname_v1');
+    var uid  = get('oeing_uid_linked_v1');
+    var pin  = get('oeing_pin_v1');
+
+    var nickEl = document.getElementById('vNick');
+    if (nick) { nickEl.textContent = nick; nickEl.className = 'value ' + (nick === '오잉' ? 'ok' : 'bad'); }
+    else { nickEl.textContent = '(저장된 닉네임 없음)'; nickEl.className = 'value muted'; }
+
+    var uidEl = document.getElementById('vUid');
+    if (uid) {
+      uidEl.textContent = uid.length > 12 ? (uid.slice(0, 6) + '••••••' + uid.slice(-4)) : uid;
+    } else { uidEl.textContent = '(UID 연결 기록 없음)'; }
+
+    var pinEl = document.getElementById('vPin');
+    if (pin) { pinEl.textContent = 'PIN 저장됨 ✅'; pinEl.className = 'value ok'; }
+    else { pinEl.textContent = 'PIN 없음'; pinEl.className = 'value warn'; }
+  }
+  render();
+
+  // ── 초기화 버튼 ──
+  document.getElementById('resetBtn').addEventListener('click', function () {
+    if (!confirm('정말 이 기기의 로컬 계정 연결만 초기화할까요?')) return;
+
+    // 삭제 전 스냅샷 (검증용)
+    var before = TARGET_KEYS.map(function (k) { return { key: k, existed: get(k) !== null }; });
+
+    // ★ 정확히 이 3개 키만 removeItem — 반복문이 TARGET_KEYS만 돌므로 다른 키는 손대지 않음
+    var removed = [];
+    TARGET_KEYS.forEach(function (k) {
+      try {
+        if (localStorage.getItem(k) !== null) { localStorage.removeItem(k); removed.push(k); }
+      } catch (e) {}
+    });
+
+    // 삭제 후 검증 — 3개는 사라졌고, 나머지 oeing_ 키는 그대로인지 확인
+    var stillThere = TARGET_KEYS.filter(function (k) { return get(k) !== null; });
+    var otherOeingKeys = [];
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var key = localStorage.key(i);
+        if (key && key.indexOf('oeing') === 0 && TARGET_KEYS.indexOf(key) === -1) otherOeingKeys.push(key);
+      }
+    } catch (e) {}
+
+    var res = document.getElementById('result');
+    res.style.display = 'block';
+    res.className = 'result good';
+    res.innerHTML =
+      '<b>완료!</b> 이 기기의 계정 연결 3개를 초기화했어요.<br><br>'
+      + '지운 키: <b>' + (removed.length ? removed.join(', ') : '(이미 없던 상태)') + '</b><br>'
+      + '남아있는 다른 오잉 키: <b>' + (otherOeingKeys.length ? otherOeingKeys.length + '개 그대로 유지' : '해당 없음') + '</b><br><br>'
+      + '이제 게임에서 닉네임 <b>"오잉"</b> + PIN으로 다시 연결하세요.<br><br>'
+      + '<a class="gohome" href="index.html">→ 게임으로 이동</a>';
+
+    render();
+    document.getElementById('resetBtn').disabled = true;
+
+    // 3초 뒤 게임 메인으로 자동 이동
+    setTimeout(function () { window.location.href = 'index.html'; }, 3000);
+  });
+})();
+</script>
+</body>
+</html>
