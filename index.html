@@ -2907,6 +2907,18 @@ if ('serviceWorker' in navigator) {
     </div>
     <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
 
+      <!-- v4.0 -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v4.0</div>
+        <span id="newBadge40" style="display:none;background:#DD6032;color:white;font-size:11px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:#DA9845;margin-bottom:5px;">🎉 새 기능 · 개선</div>
+      <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
+        <li>▫️ ✏️ 이제 닉네임을 바꿀 수 있다냥! 기존 점수와 기록은 그대로 유지되고, 닉네임만 새롭게 변경할 수 있어요 🐾</li>
+        <li>▫️ 닉네임 변경은 7일에 한 번 가능하다냥!</li>
+      </ul>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
+
       <!-- v3.9 -->
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
         <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v3.9</div>
@@ -9250,19 +9262,19 @@ document.addEventListener('mouseup', () => {
 });
 
 // 업데이트 내역 팝업
-const UPDATE_VERSION = 'v3.9';
+const UPDATE_VERSION = 'v4.0';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
 const BUILD = 1783665356;
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
-const SEEN_KEY = 'seenUpdate_v3.9';
+const SEEN_KEY = 'seenUpdate_v4.0';
 
 function openUpdateLog() {
   document.getElementById('updateLog').style.display = 'flex';
   // NEW 뱃지 숨기기 + 본 것으로 저장
   localStorage.setItem(SEEN_KEY, '1');
-  const badge = document.getElementById('newBadge39');
+  const badge = document.getElementById('newBadge40');
   if (badge) badge.style.display = 'none';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'none';
@@ -9275,7 +9287,7 @@ document.getElementById('updateLogBtn').addEventListener('click', openUpdateLog)
 
 // 최초 방문 시 NEW 뱃지 표시
 if (!localStorage.getItem(SEEN_KEY)) {
-  const badge = document.getElementById('newBadge39');
+  const badge = document.getElementById('newBadge40');
   if (badge) badge.style.display = 'inline';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'inline';
