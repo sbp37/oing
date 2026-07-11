@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>기기 닉네임 복구 (1회용)</title>
+<style>
+  body { margin:0; padding:24px 16px; background:#08111f; color:#e7edf7;
+         font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+  .card { max-width:420px; margin:0 auto; background:#0e1a30; border:1px solid #1e2f4d;
+          border-radius:14px; padding:20px; }
+  h1 { font-size:17px; margin:0 0 6px; }
+  .sub { font-size:12.5px; color:#7a8ba3; line-height:1.6; margin-bottom:14px; }
+  .row { display:flex; justify-content:space-between; gap:10px; font-size:13px;
+         padding:7px 0; border-bottom:1px dashed #1e2f4d; }
+  .k { color:#7a8ba3; } .v { font-weight:700; word-break:break-all; text-align:right; }
+  .ok { color:#34d399; } .warn { color:#fbbf24; }
+  input { width:100%; box-sizing:border-box; margin-top:14px; padding:10px;
+          border-radius:8px; border:1px solid #1e2f4d; background:#08111f; color:#e7edf7;
+          font-size:15px; text-align:center; }
+  button { width:100%; margin-top:10px; padding:12px; border:none; border-radius:10px;
+           font-size:15px; font-weight:800; cursor:pointer; }
+  #runBtn { background:#2563eb; color:#fff; } #runBtn:disabled { background:#1e2f4d; color:#51617c; }
+  .back { display:block; text-align:center; margin-top:14px; color:#7a8ba3; font-size:13px; }
+  #result { margin-top:14px; font-size:13px; line-height:1.8; display:none;
+            background:#0a1526; border-radius:10px; padding:12px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🐱 기기 닉네임 복구 (1회용 도구)</h1>
+  <div class="sub">
+    이 페이지는 <b>이 기기의 표시 닉네임만</b> 기존 기록이 있는 "오잉"으로 되돌립니다.<br>
+    서버(랭킹 5002점·통계·스킨·왕관)에는 <b>아무것도 쓰지 않으며</b>,
+    친구목록·젤리·설정 등 다른 로컬 데이터도 건드리지 않습니다.<br>
+    사용 후 이 페이지는 즉시 삭제됩니다.
+  </div>
+
+  <div class="row"><span class="k">현재 닉네임 (oeing_nickname_v1)</span><span class="v" id="curNick"></span></div>
+  <div class="row"><span class="k">계정 연결 표시 (oeing_uid_linked_v1)</span><span class="v" id="curLink"></span></div>
+  <div class="row"><span class="k">저장된 PIN (oeing_pin_v1)</span><span class="v" id="curPin"></span></div>
+  <div class="row"><span class="k">친구목록 (oeing_friends_v1)</span><span class="v" id="curFriends"></span></div>
+
+  <input id="gate" placeholder='실수 방지: 여기에 "복구" 라고 입력' autocomplete="off">
+  <button id="runBtn" disabled>이 기기 닉네임을 "오잉"으로 복구</button>
+
+  <div id="result"></div>
+  <a class="back" href="./index.html">← 게임으로 돌아가기</a>
+</div>
+
+<script>
+// 1회용 로컬 복구 도구 — 이 페이지에는 Firebase SDK·네트워크 요청이 일절 없다.
+// localStorage에서 딱 3개 키만 다룬다: 닉네임 설정 1건 + 연결표시/PIN 제거 2건.
+// clear() 사용 금지, 다른 키는 읽기(표시)만 한다.
+(function () {
+  var NICK = 'oeing_nickname_v1', LINK = 'oeing_uid_linked_v1', PIN = 'oeing_pin_v1', FRIENDS = 'oeing_friends_v1';
+  function g(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function friendsCount() {
+    try { var a = JSON.parse(g(FRIENDS) || '[]'); return Array.isArray(a) ? a.length : 0; } catch (e) { return 0; }
+  }
+  function render() {
+    document.getElementById('curNick').textContent = g(NICK) || '(없음)';
+    document.getElementById('curLink').textContent = g(LINK) ? '있음 (제거 예정)' : '없음';
+    document.getElementById('curPin').textContent = g(PIN) ? '있음 (제거 예정, 값 표시 안 함)' : '없음';
+    document.getElementById('curFriends').textContent = friendsCount() + '명 (변경 안 함)';
+  }
+  render();
+
+  var gate = document.getElementById('gate'), btn = document.getElementById('runBtn');
+  gate.addEventListener('input', function () { btn.disabled = gate.value.trim() !== '복구'; });
+
+  btn.addEventListener('click', function () {
+    var okConfirm = confirm('이 기기의 닉네임을 기존 기록이 있는 "오잉"으로 복구합니다. 친구목록과 서버 기록은 삭제되지 않습니다.');
+    if (!okConfirm) return;
+
+    var beforeFriends = g(FRIENDS);           // 보존 검증용 스냅샷 (수정 아님)
+    var beforeCount = localStorage.length;
+    var hadLink = !!g(LINK), hadPin = !!g(PIN);
+
+    try {
+      localStorage.setItem(NICK, '오잉');     // ① 닉네임만 복구
+      localStorage.removeItem(LINK);          // ② 연결 표시 없음 유지
+      localStorage.removeItem(PIN);           // ③ PIN 없음 유지 (가짜 서버 PIN 흉내 금지)
+    } catch (e) {
+      alert('저장 실패: ' + e); return;
+    }
+
+    var okNick = g(NICK) === '오잉';
+    var okLink = g(LINK) === null, okPin = g(PIN) === null;
+    var okFriends = g(FRIENDS) === beforeFriends;
+    var expectedDelta = (hadLink ? 1 : 0) + (hadPin ? 1 : 0); // 제거된 키 수만큼만 감소 허용
+    var okCount = (beforeCount - localStorage.length) <= expectedDelta;
+
+    var r = document.getElementById('result');
+    r.style.display = 'block';
+    r.innerHTML =
+      (okNick ? '<span class="ok">✓ 닉네임 = 오잉</span>' : '<span class="warn">✗ 닉네임 설정 실패</span>') + '<br>' +
+      (okLink ? '<span class="ok">✓ 계정 연결 표시 없음</span>' : '<span class="warn">✗ uid_linked 잔존</span>') + '<br>' +
+      (okPin ? '<span class="ok">✓ 저장된 PIN 없음</span>' : '<span class="warn">✗ PIN 잔존</span>') + '<br>' +
+      (okFriends ? '<span class="ok">✓ 친구목록 그대로 (' + friendsCount() + '명)</span>' : '<span class="warn">✗ 친구목록 변형!</span>') + '<br>' +
+      (okCount ? '<span class="ok">✓ 다른 키 손실 없음</span>' : '<span class="warn">✗ 키 개수 이상</span>') + '<br><br>' +
+      '완료! "게임으로 돌아가기"를 눌러 확인하세요.<br>확인이 끝나면 운영자에게 알려 이 페이지를 삭제하세요.';
+    render();
+  });
+})();
+</script>
+</body>
+</html>
