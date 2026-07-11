@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오잉게임 · PIN 해시 생성기 (로컬 전용)</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0b0e17; color:#e8edf5;
+    font-family:'Pretendard','Noto Sans KR','Malgun Gothic',sans-serif;
+    line-height:1.7; padding:24px 16px 60px; max-width:560px; margin:0 auto;
+    font-size:15px; -webkit-text-size-adjust:100%;
+  }
+  h1 { font-size:20px; color:#7ec2f0; margin-bottom:4px; }
+  .sub { font-size:12.5px; color:#7a8ba3; margin-bottom:18px; }
+  .warnbox {
+    background:rgba(95,211,138,0.09); border:1px solid rgba(95,211,138,0.4);
+    border-radius:12px; padding:13px 15px; margin-bottom:16px;
+    font-size:13.5px; color:#c9f4d8; line-height:1.65;
+  }
+  label { display:block; font-size:13px; color:#8aa0bd; margin-bottom:6px; }
+  input {
+    width:100%; padding:14px; border-radius:12px; border:1px solid #223049;
+    background:#0e1524; color:#e8edf5; font-size:22px; font-weight:800;
+    text-align:center; letter-spacing:10px; font-family:inherit;
+  }
+  button.act {
+    width:100%; margin-top:14px; padding:15px; border:0; border-radius:12px;
+    background:#2f7ec9; color:#fff; font-size:16px; font-weight:800;
+    font-family:inherit; cursor:pointer;
+  }
+  .out {
+    margin-top:18px; padding:14px 16px; border-radius:12px; display:none;
+    background:#141a28; border:1px solid #223049; font-size:13.5px; line-height:1.9;
+  }
+  .out .row { word-break:break-all; margin-bottom:10px; }
+  .out .k { color:#8aa0bd; font-size:12px; display:block; margin-bottom:2px; }
+  .out .v { color:#9ecbff; font-weight:800; font-family:ui-monospace,Menlo,Consolas,monospace; }
+  .out .v.hash { color:#f0d8a8; }
+  .err { color:#ff9a9a; font-weight:700; }
+  .note { font-size:12px; color:#6b7c96; margin-top:18px; line-height:1.7; }
+</style>
+</head>
+<body>
+  <h1>🔐 PIN 해시 생성기 <span style="font-size:11px;font-weight:800;color:#0b0e17;background:#5fd38a;border-radius:6px;padding:1px 8px;vertical-align:middle;">로컬 전용</span></h1>
+  <div class="sub">새 4자리 PIN을 넣으면 콘솔에 붙여넣을 pinSalt / pinHash / pinSetAt만 만들어줍니다.</div>
+
+  <div class="warnbox">
+    ✅ 이 페이지는 <b>인터넷으로 아무것도 보내지 않습니다.</b> 입력한 PIN은 이 화면 안에서만 계산에 쓰이고,
+    저장하거나 전송하지 않아요. (Firebase 호출·네트워크 요청·localStorage 저장 전혀 없음)
+  </div>
+
+  <label for="pin">새 4자리 PIN</label>
+  <input id="pin" type="tel" inputmode="numeric" maxlength="4" placeholder="____">
+  <button class="act" id="genBtn">해시 생성</button>
+
+  <div class="out" id="out">
+    <div class="row"><span class="k">pinSalt</span><span class="v" id="oSalt"></span></div>
+    <div class="row"><span class="k">pinHash</span><span class="v hash" id="oHash"></span></div>
+    <div class="row"><span class="k">pinSetAt (밀리초)</span><span class="v" id="oTs"></span></div>
+    <div style="font-size:12px;color:#7a8ba3;margin-top:4px;">이 세 값을 Firebase 콘솔의 <b>users_private/{오잉UID}</b> 문서에 넣으세요.</div>
+  </div>
+  <div class="err" id="err" style="margin-top:12px;"></div>
+
+  <div class="note">
+    ※ 해시 방식은 게임 코드와 동일합니다: <code>SHA-256(pinSalt + ":" + PIN + ":oeing-pin-v1")</code><br>
+    ※ 원문 PIN은 결과에 포함되지 않습니다. 사용 후 이 탭을 닫으면 입력값도 사라집니다.<br>
+    ※ 이 파일은 진단용이며, 작업이 끝나면 삭제합니다.
+  </div>
+
+<script>
+// ── 완전 로컬 계산 — fetch/Firebase/localStorage/네트워크 전혀 없음. crypto.subtle은 브라우저 내장(오프라인 동작). ──
+function toHex(bytes) {
+  return Array.from(bytes).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+}
+// 게임의 randomSaltHex()와 동일: 16바이트 랜덤 → hex
+function randomSaltHex() {
+  var a = new Uint8Array(16);
+  crypto.getRandomValues(a);
+  return toHex(a);
+}
+// 게임의 computePinHash()와 동일: SHA-256(`${salt}:${pin}:oeing-pin-v1`) → hex
+async function computePinHash(salt, pin) {
+  var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':' + pin + ':oeing-pin-v1'));
+  return toHex(new Uint8Array(buf));
+}
+
+document.getElementById('genBtn').addEventListener('click', async function () {
+  var err = document.getElementById('err');
+  var out = document.getElementById('out');
+  err.textContent = '';
+  var pin = document.getElementById('pin').value.trim();
+  if (!/^\d{4}$/.test(pin)) { out.style.display = 'none'; err.textContent = '4자리 숫자 PIN을 입력하세요.'; return; }
+
+  var salt = randomSaltHex();
+  var hash = await computePinHash(salt, pin);
+  var ts = Date.now();
+
+  document.getElementById('oSalt').textContent = salt;
+  document.getElementById('oHash').textContent = hash;
+  document.getElementById('oTs').textContent = String(ts);
+  out.style.display = 'block';
+  // 원문 PIN은 출력·저장하지 않음. 입력칸도 즉시 비움.
+  document.getElementById('pin').value = '';
+});
+</script>
+</body>
+</html>
