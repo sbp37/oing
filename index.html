@@ -3385,6 +3385,15 @@ function isUidLinked() {
 }
 function markUidLinked(uid) { try { localStorage.setItem(UID_LINKED_KEY, uid); } catch {} }
 
+// ── HTML 이스케이프 공용 헬퍼 ──
+// 사용자 입력(닉네임·말풍선·피드백 본문 등)을 innerHTML에 넣기 전에 반드시 통과시켜
+// 저장형 XSS를 차단한다. 값의 의미(한글/영어/이모지)는 그대로 보이고, HTML 특수문자만 무해화.
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
 // 닉네임 정규화 — 대소문자/앞뒤공백/유니코드(NFC)로 같은 닉네임 우회 방지 (서버와 동일 규칙)
 function normalizeNickname(nick) {
   try { return String(nick || '').normalize('NFC').trim().toLowerCase(); }
@@ -7606,7 +7615,7 @@ function askPinVerification(nickname) {
     const cancelBtn = document.getElementById('pinVerifyCancelBtn');
     const descEl = document.getElementById('pinVerifyDesc');
 
-    descEl.innerHTML = `'<b style="color:var(--blue-light)">${nickname}</b>'은 이미 사용 중인 닉네임이에요.<br>본인이라면 다른 기기에서 확인한<br>핀번호 4자리를 입력해주세요.`;
+    descEl.innerHTML = `'<b style="color:var(--blue-light)">${escapeHtml(nickname)}</b>'은 이미 사용 중인 닉네임이에요.<br>본인이라면 다른 기기에서 확인한<br>핀번호 4자리를 입력해주세요.`;
     input.value = '';
     errorEl.style.display = 'none';
     overlay.style.display = 'flex';
@@ -7697,7 +7706,7 @@ document.getElementById('submitScore').addEventListener('click', async () => {
   btn.disabled = false;
   btn.textContent = '🏆 점수 등록하기';
   if (firstGoalMsg) {
-    nickDone.innerHTML = `🎉 ${nick} 등록 완료!${statsMsg}<br><span style="font-size:12.5px; color:var(--muted);">다음 판부터 오늘의 목표가 보인다냥</span>`;
+    nickDone.innerHTML = `🎉 ${escapeHtml(nick)} 등록 완료!${statsMsg}<br><span style="font-size:12.5px; color:var(--muted);">다음 판부터 오늘의 목표가 보인다냥</span>`;
   } else {
     nickDone.textContent = `🎉 ${nick} 등록 완료!${statsMsg}`;
   }
@@ -7924,8 +7933,9 @@ async function loadSkinsCache() {
 }
 function skinnedNickHtml(nickname, plainText) {
   const info = skinsCache[nickname];
-  if (!info || !info.skin) return plainText;
-  return `<span class="${skinClassFor(info.skin)}">${plainText}</span>`;
+  // plainText는 사용자 닉네임(표시값) → 반드시 이스케이프. class는 하드코딩 카탈로그(skinClassFor)라 안전.
+  if (!info || !info.skin) return escapeHtml(plainText);
+  return `<span class="${skinClassFor(info.skin)}">${escapeHtml(plainText)}</span>`;
 }
 function frameClassForNick(nickname) {
   const info = skinsCache[nickname];
@@ -7936,8 +7946,8 @@ function bubbleTagHtml(nickname, isMe) {
   const info = skinsCache[nickname];
   const text = info && info.bubble ? info.bubble : '';
   if (!text && !isMe) return '';
-  if (!text) return `<span class="rank-bubble-tag rank-bubble-empty" data-nick="${nickname}">+ 말풍선</span>`;
-  return `<span class="rank-bubble-tag${isMe ? ' rank-bubble-mine' : ''}" data-nick="${nickname}">${text}</span>`;
+  if (!text) return `<span class="rank-bubble-tag rank-bubble-empty" data-nick="${escapeHtml(nickname)}">+ 말풍선</span>`;
+  return `<span class="rank-bubble-tag${isMe ? ' rank-bubble-mine' : ''}" data-nick="${escapeHtml(nickname)}">${escapeHtml(text)}</span>`;
 }
 document.addEventListener('click', async (e) => {
   const tag = e.target.closest('.rank-bubble-mine, .rank-bubble-empty');
@@ -8213,9 +8223,9 @@ async function renderRankingInner() {
       // 상위 150명 밖이라도 등록된 점수가 있으면 카드를 숨기지 않고 실제 점수로 표시
       const shown = await showMyRankCardIfBelowCut(myNick, false);
       if (shown) {
-        myRankInfo.innerHTML = `닉네임: <strong>${myNick}</strong>`;
+        myRankInfo.innerHTML = `닉네임: <strong>${escapeHtml(myNick)}</strong>`;
       } else {
-        myRankInfo.innerHTML = `닉네임: <strong>${myNick}</strong> · 아직 등록된 점수 없음`;
+        myRankInfo.innerHTML = `닉네임: <strong>${escapeHtml(myNick)}</strong> · 아직 등록된 점수 없음`;
         renderMyRankSummary(list, -1);
       }
     }
@@ -8365,7 +8375,7 @@ async function renderWeeklyRankingInner() {
       if (shown) {
         myRankInfo.innerHTML = `<span style="font-size:13px; color:var(--muted);">🗓️ ${resetLabel} (매주 월요일)</span>`;
       } else {
-        myRankInfo.innerHTML = `닉네임: <strong>${myNick}</strong> · 이번 주 기록 없음<br><span style="font-size:13px; color:var(--muted);">🗓️ ${resetLabel} (매주 월요일)</span>`;
+        myRankInfo.innerHTML = `닉네임: <strong>${escapeHtml(myNick)}</strong> · 이번 주 기록 없음<br><span style="font-size:13px; color:var(--muted);">🗓️ ${resetLabel} (매주 월요일)</span>`;
         renderMyRankSummary(list, -1);
       }
     }
@@ -9766,7 +9776,7 @@ function openMyFeedbackDetail(id, data, readOnly) {
   threadEl.innerHTML = messages.map(m => `
     <div style="margin-bottom:8px; text-align:${m.from === 'admin' ? 'left' : 'right'};">
       ${m.from === 'admin' ? '<div style="font-size:12px; color:#DA9845; font-weight:700; margin-bottom:2px;">🐱 개발자</div>' : ''}
-      <span style="display:inline-block; max-width:85%; padding:8px 10px; border-radius:10px; font-size:14px; line-height:1.5; white-space:pre-wrap; text-align:left; background:${m.from === 'admin' ? 'var(--surface2)' : 'var(--blue-dim)'}; color:var(--text); border:1px solid ${m.from === 'admin' ? 'var(--border)' : 'var(--blue-bright)'};">${m.text}</span>
+      <span style="display:inline-block; max-width:85%; padding:8px 10px; border-radius:10px; font-size:14px; line-height:1.5; white-space:pre-wrap; text-align:left; background:${m.from === 'admin' ? 'var(--surface2)' : 'var(--blue-dim)'}; color:var(--text); border:1px solid ${m.from === 'admin' ? 'var(--border)' : 'var(--blue-bright)'};">${escapeHtml(m.text)}</span>
     </div>
   `).join('');
   document.getElementById('myFeedbackReplyInput').value = '';
