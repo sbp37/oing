@@ -46,7 +46,22 @@ export const FEATURES = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
-export const fns = getFunctions(app, 'asia-northeast3'); // 서울 리전 — functions 배포 리전과 일치해야 함
+export const fns = getFunctions(app, 'asia-northeast3'); // 서울 리전 — 게임 함수들과 동일
+const fnsUsCentral = getFunctions(app, 'us-central1');    // v1 기본 리전 폴백용
+
+// 콜러블 함수 호출 — 서울(asia-northeast3) 먼저, not-found면 us-central1도 시도.
+// (함수가 리전 설정 없이 배포돼 us-central1로 들어간 경우에도 관리자가 무조건 연결되게)
+export async function callFn(name, payload) {
+  try {
+    return await httpsCallable(fns, name)(payload);
+  } catch (e) {
+    const code = String((e && (e.code || e.message)) || '');
+    if (/not-found/i.test(code)) {
+      return await httpsCallable(fnsUsCentral, name)(payload); // 폴백
+    }
+    throw e;
+  }
+}
 
 // Firestore 프리미티브 재-export (모든 모듈이 이 파일만 import 하도록)
 export {

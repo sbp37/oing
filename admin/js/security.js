@@ -9,7 +9,7 @@ import {
   db, collection, doc, query, where, orderBy, limit,
   fetchDocs, fetchDoc, deleteDoc, getUserDocByNick,
   getWeekId, fmtNum, fmtDateTime, fmtAgo, escapeHtml, downloadJSON, humanError,
-  getTodayDateStr, cache, fns, httpsCallable, normalizeNickname,
+  getTodayDateStr, cache, fns, httpsCallable, callFn, normalizeNickname,
 } from './firebase.js';
 import { setLoading, setError, setEmpty, guardBtn, resultMsg } from './admin.js';
 import { deleteRankingRecord } from './users.js';
@@ -193,10 +193,10 @@ async function pinResetApply(uid, nick, isUid) {
   if (!confirm(`'${nick}' 님의 PIN을 [ ${pin} ] (으)로 재설정할까요?\n${kindMsg}`)) return;
   out.className = 'result-msg'; out.textContent = '서버에 재설정 요청 중...';
   try {
-    const fn = httpsCallable(fns, 'adminResetPin');
     // 레거시는 uid 없이 nickname만 보냄 (서버가 legacy_account_secrets로 처리)
     const payload = isUid ? { uid, nickname: nick, newPin: pin } : { nickname: nick, newPin: pin };
-    const res = await fn(payload);
+    // callFn: asia-northeast3 우선 호출 → not-found면 us-central1로 폴백 (리전 어긋남 방지)
+    const res = await callFn('adminResetPin', payload);
     const d = (res && res.data) || {};
     if (d.ok) {
       out.className = 'result-msg ok';
