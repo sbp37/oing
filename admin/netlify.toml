@@ -1,0 +1,11 @@
+# 이 배포의 루트를 그대로 게시 루트로 강제 — 사이트에 남아있을 수 있는
+# 예전 "publish directory"(예: admin) 설정 때문에 루트에서 404 나는 것을 방지.
+[build]
+  publish = "."
+
+# 실제 파일(js/·css·png)은 그대로 서빙되고, 그 외 매칭 안 되는 경로만
+# index.html로 폴백 — 새로고침·직접진입에서도 404가 안 나게.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
