@@ -46,7 +46,7 @@ export const FEATURES = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
-export const fns = getFunctions(app);
+export const fns = getFunctions(app, 'asia-northeast3'); // 서울 리전 — functions 배포 리전과 일치해야 함
 
 // Firestore 프리미티브 재-export (모든 모듈이 이 파일만 import 하도록)
 export {
