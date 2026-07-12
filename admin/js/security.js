@@ -97,11 +97,19 @@ async function loadVerdicts({ force = false } = {}) {
     if (!rows.length) { setEmpty(el, '✅ 보류/거부된 의심 세션이 없어요'); return; }
     el.innerHTML = rows.map(verdictRowHtml).join('');
   } catch (e) {
-    const msg = humanError(e);
-    // 인덱스 미생성 시 Firestore가 주는 콘솔 에러 안내
-    const extra = /index/i.test(String(e && (e.code || e.message)))
-      ? '<br><span style="color:var(--muted);font-size:11.5px;">※ 처음 실행이면 브라우저 콘솔(F12)에 뜬 "인덱스 생성" 링크를 한 번 클릭해 인덱스를 만들어주세요.</span>' : '';
-    setError(el, msg + extra);
+    const raw = String((e && e.message) || '');
+    const isIndex = /failed-precondition/i.test(String(e && (e.code || e.message))) || /requires an index/i.test(raw);
+    // Firestore가 에러 메시지 안에 넣어주는 "인덱스 생성" 콘솔 링크를 추출해 바로 탭 가능하게
+    const linkMatch = raw.match(/https:\/\/console\.firebase\.google\.com\/\S+/);
+    if (isIndex) {
+      const link = linkMatch
+        ? `<br><a href="${linkMatch[0]}" target="_blank" rel="noopener" style="color:var(--accent-blue-light);text-decoration:underline;font-size:13px;">👉 여기를 눌러 인덱스 자동 생성</a>`
+        : '<br><span style="color:var(--muted);font-size:11.5px;">※ game_sessions에 복합 인덱스 필요 — official.decision(오름차순) + official.decidedAt(내림차순)</span>';
+      setError(el, '인덱스 필요 — 딱 한 번만 만들면 그 뒤론 자동으로 떠요.' + link
+        + '<br><span style="color:var(--muted);font-size:11.5px;">생성 후 2~5분 뒤 "새로고침"을 눌러주세요.</span>');
+      return;
+    }
+    setError(el, humanError(e));
   }
 }
 
