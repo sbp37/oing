@@ -60,6 +60,9 @@
         <button class="btn btn-ghost btn-sm refresh-btn" data-refresh="home">↻ 홈 새로고침</button>
       </div>
 
+      <!-- 현재 접속 중 — 오늘 세션 데이터 재사용 (추가 조회 없음), 최상단 표시 -->
+      <div class="card online-card" id="homeOnlineCard"></div>
+
       <!-- A. 핵심 4개 — 크게 강조 (모바일 2×2) -->
       <div id="homeCoreGrid" class="stat-grid core"></div>
 
@@ -106,7 +109,7 @@
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>🌱 오늘 들어온 유저</h3></div>
+        <div class="card-head"><h3>🌱 오늘 들어온 유저</h3><span class="card-note">오늘 접속한 유저 · 최근 접속순</span></div>
         <div id="usersTodayList" class="list"></div>
       </div>
 
@@ -133,7 +136,7 @@
       </div>
       <div id="analyticsNotice" class="card-note" style="margin-bottom:10px;"></div>
       <div class="card">
-        <div class="card-head"><h3>📅 최근 14일 방문자</h3><span class="card-note">dailyStats 집계 — 지난 날짜는 캐시 재사용</span></div>
+        <div class="card-head"><h3>📅 최근 14일 방문자</h3><span class="card-note">지난 날짜는 집계 캐시 재사용</span></div>
         <div id="chartVisitors" class="chart"></div>
       </div>
       <div class="card">
@@ -233,12 +236,12 @@
           <input id="rwJellyAmount" type="number" min="1" placeholder="젤리 개수">
           <button id="rwJellyBtn" class="btn btn-warm">🍬 젤리 지급</button>
         </div>
-        <div class="card-note">스킨/쪽지는 기존과 동일하게 nickname_skins 문서의 notifyPending / thanksPending 플래그를 사용합니다. 다음 접속 때 유저에게 팝업이 1회 표시됩니다.</div>
+        <div class="card-note">지급/해제/쪽지는 유저가 다음에 게임을 열 때 알림 팝업으로 한 번 전달돼요.</div>
         <div id="rwResult"></div>
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>💌 후원 확인 쪽지함 (feedback_donate)</h3></div>
+        <div class="card-head"><h3>💌 후원 확인 쪽지함</h3></div>
         <div id="donateFeedbackList" class="list"></div>
         <button id="donateFeedbackMoreBtn" class="btn btn-ghost btn-block">이전 기록 더 보기</button>
       </div>
@@ -272,7 +275,7 @@
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>💬 피드백 관리 (feedback)</h3></div>
+        <div class="card-head"><h3>💬 피드백 관리</h3></div>
         <div id="feedbackList" class="list"></div>
         <button id="feedbackMoreBtn" class="btn btn-ghost btn-block">이전 문의 더 보기</button>
       </div>
@@ -300,7 +303,7 @@
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>ℹ️ 앱 버전 (meta/appVersion)</h3></div>
+        <div class="card-head"><h3>ℹ️ 앱 버전</h3></div>
         <div id="opVersionInfo" class="card-note">-</div>
       </div>
     </section>

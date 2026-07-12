@@ -12,20 +12,31 @@ import {
   db, collection, query, orderBy, limit,
   fetchDocs, fmtNum, fmtDuration, escapeHtml, cache, humanError,
 } from './firebase.js';
-import { getDailyStatsRange, computeWeeklyMetrics, dailyStatsWriteState, SESSION_FETCH_CAP } from './stats.js';
+import {
+  getDailyStatsRange, computeWeeklyMetrics, dailyStatsWriteState,
+  countTodayCached, todayNewUsersCount, SESSION_FETCH_CAP,
+} from './stats.js';
 import { setLoading, setError, guardBtn } from './admin.js';
 
 const DAYS = 14;
 const REFERRER_FETCH_CAP = 500;
 
+// 14일 막대 — 데이터 14개는 그대로, 모바일 가독성을 위해
+// 날짜 라벨은 오늘 기준 3일 간격만 표시하고, 모바일에서는 값 숫자를
+// "최고값·오늘"만 남긴다 (나머지는 터치/hover 툴팁으로 확인 — CSS 처리)
 function barChart(el, data, { valueKey, todayIdx = data.length - 1, unit = '' }) {
-  const max = Math.max(1, ...data.map(d => d[valueKey] ?? 0));
+  const vals = data.map(d => d[valueKey] ?? 0);
+  const max = Math.max(1, ...vals);
+  const peakIdx = vals.indexOf(Math.max(...vals));
+  el.classList.add('day');
   el.innerHTML = data.map((d, i) => {
-    const v = d[valueKey] ?? 0;
+    const v = vals[i];
     const h = Math.round(v / max * 100);
-    const label = (d.date || '').slice(5).replace('-', '/');
+    const showLabel = (data.length - 1 - i) % 3 === 0; // 오늘부터 3일 간격
+    const label = showLabel ? (d.date || '').slice(5).replace('-', '/') : '';
+    const cls = `bar-wrap${i === todayIdx ? ' is-today' : ''}${i === peakIdx ? ' is-peak' : ''}`;
     return `
-      <div class="bar-wrap" title="${d.date}: ${fmtNum(v)}${unit}">
+      <div class="${cls}" title="${d.date}: ${fmtNum(v)}${unit}">
         <div class="bar-val">${v > 0 ? fmtNum(v) : ''}</div>
         <div class="bar ${i === todayIdx ? 'today' : ''}" style="height:${h}%"></div>
         <div class="bar-label">${label}</div>
@@ -33,14 +44,20 @@ function barChart(el, data, { valueKey, todayIdx = data.length - 1, unit = '' })
   }).join('');
 }
 
+// 시간대별 — 막대 위 숫자를 표시하지 않음(24개가 전부 겹치므로), 값은 툴팁 +
+// 아래 캡션에 "가장 활발한 시간대"만 요약
 function hourChart(el, hours) {
   const max = Math.max(1, ...hours);
+  const peak = hours.indexOf(Math.max(...hours));
   el.innerHTML = hours.map((v, h) => `
     <div class="bar-wrap" title="${h}시: ${fmtNum(v)}회">
-      <div class="bar-val">${v > 0 ? v : ''}</div>
-      <div class="bar" style="height:${Math.round(v / max * 100)}%"></div>
+      <div class="bar ${h === peak ? 'today' : ''}" style="height:${Math.round(v / max * 100)}%"></div>
       <div class="bar-label">${h % 3 === 0 ? h + '시' : ''}</div>
     </div>`).join('');
+  const prevNote = el.parentElement && el.parentElement.querySelector('.hour-note');
+  if (prevNote) prevNote.remove(); // 새로고침 시 캡션 중복 방지
+  el.insertAdjacentHTML('afterend',
+    `<div class="chart-note hour-note">가장 활발한 시간대: <b>${peak}시</b> (${fmtNum(hours[peak])}회) · 막대를 누르면 값이 표시돼요</div>`);
 }
 
 export async function loadAnalytics({ force = false } = {}) {
@@ -53,6 +70,19 @@ export async function loadAnalytics({ force = false } = {}) {
   try {
     if (force) cache.bust('shared:dailyStats'); // 강제 새로고침이어도 확정(final) 날짜는 로컬/서버 캐시로 재구성됨
     const daily = await getDailyStatsRange(DAYS, { force });
+
+    // 오늘 항목에 신규 유저/클릭 수 주입 — 홈 타일과 "완전히 같은" 캐시된 count 값을 사용.
+    // (오늘 세션 집계에는 이 필드들이 없어서, 주입하지 않으면 그래프 오늘 막대와
+    //  주간 합계가 0으로 어긋난다 — 홈 11명 vs 그래프 0명 불일치의 원인이었음)
+    const todayEntry = daily[daily.length - 1];
+    const [tNew, tDonate, tShare] = await Promise.all([
+      todayNewUsersCount().catch(() => null),
+      countTodayCached('donate_clicks').catch(() => null),
+      countTodayCached('share_clicks').catch(() => null),
+    ]);
+    todayEntry.newUsers = tNew;
+    todayEntry.donateClicks = tDonate;
+    todayEntry.shareClicks = tShare;
 
     barChart(chartEls[0], daily, { valueKey: 'uniqueVisitors', unit: '명' });
     barChart(chartEls[1], daily, { valueKey: 'newUsers', unit: '명' });
@@ -75,8 +105,8 @@ export async function loadAnalytics({ force = false } = {}) {
       ['주간 플레이 (전주 대비)', `${fmtNum(sum(last7, 'gamePlays'))} (${growth(sum(last7, 'gamePlays'), sum(prev7, 'gamePlays'))})`],
       ['주간 신규 유저', `${fmtNum(sum(last7, 'newUsers'))}명`],
       ['주간 평균 체류', fmtDuration(Math.round(sum(last7, 'avgDurationSec') / Math.max(1, last7.length)))],
-      ['주간 990원 클릭', `${fmtNum(sum(last7.slice(0, -1), 'donateClicks'))}회+오늘`],
-      ['주간 공유 클릭', `${fmtNum(sum(last7.slice(0, -1), 'shareClicks'))}회+오늘`],
+      ['주간 990원 클릭', `${fmtNum(sum(last7, 'donateClicks'))}회`],
+      ['주간 공유 클릭', `${fmtNum(sum(last7, 'shareClicks'))}회`],
     ];
     weeklyEl.innerHTML = tiles.map(([label, val]) => `
       <div class="stat-tile">

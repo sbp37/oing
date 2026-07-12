@@ -9,11 +9,12 @@
 //  · 닉네임 검색은 nickname_lookup 문서 1개 → 관련 문서 직접 조회 (풀스캔 없음)
 // ══════════════════════════════════════════════════════════════
 import {
-  db, collection, doc, query, where, orderBy, limit,
-  fetchDocs, fetchDoc, deleteDoc, makePager, getUserDocByNick, resolveUserDocId,
-  getWeekId, getTodayDateStr, todayStartTs, fmtAgo, fmtDateTime, fmtDuration, fmtNum, escapeHtml,
-  cache, humanError, normalizeNickname,
+  db, collection, doc, orderBy,
+  fetchDoc, deleteDoc, makePager, getUserDocByNick, resolveUserDocId,
+  getWeekId, getTodayDateStr, fmtAgo, fmtDateTime, fmtDuration, fmtNum, escapeHtml,
+  humanError, normalizeNickname,
 } from './firebase.js';
+import { getTodaySessions } from './stats.js';
 import { setLoading, setError, setEmpty, guardBtn, resultMsg } from './admin.js';
 
 const PAGE_SIZE = 30;
@@ -34,10 +35,10 @@ function displayName(row) { return row.nickname || row.id; }
 function userRowHtml(row, sortKey) {
   const s = SORT_FIELDS[sortKey];
   const val = row[s.field];
+  // 계정 미연동(구형 닉네임 문서) 여부는 내부 구분이라 목록에는 표시하지 않는다 — 상세 모달에서만 확인
   return `
     <div class="list-row clickable user-row" data-nick="${escapeHtml(displayName(row))}">
-      <span class="main"><span class="nick">${escapeHtml(displayName(row))}</span>
-        ${row.uid ? '' : '<span class="badge">레거시</span>'}</span>
+      <span class="main"><span class="nick">${escapeHtml(displayName(row))}</span></span>
       <span class="sub">${s.name} ${val != null ? s.label(val) : '-'} · 최고 ${fmtNum(row.bestScore || 0)}pt · ${fmtNum(row.playCount || 0)}판</span>
     </div>`;
 }
@@ -74,25 +75,38 @@ async function loadPage(sortKey, { reset = false } = {}) {
   }
 }
 
-// ── 오늘 들어온 유저 (users.createdAt 기준, 최대 50명) ──
+// ── 오늘 들어온 유저 = "오늘 접속한 유저" (신규 가입과 별개 개념) ──
+// 홈이 이미 받아온 오늘 visit_sessions 캐시를 그대로 재사용 — 추가 Firestore 조회 0.
+// ⚠️ 이전 구현은 users.createdAt(=계정 연결 시각)을 "가입"으로 표시해서 기존 유저에게
+//    오늘 날짜가 가입일처럼 보였음 — 접속 기록엔 "접속 시각"만 표시한다.
 async function loadTodayUsers({ force = false } = {}) {
   const el = document.getElementById('usersTodayList');
   setLoading(el);
   try {
-    if (force) cache.bust('users:today');
-    const rows = await cache.get('users:today', () =>
-      fetchDocs(query(
-        collection(db, 'users'),
-        where('createdAt', '>=', todayStartTs()),
-        orderBy('createdAt', 'desc'),
-        limit(50),
-      )));
-    if (!rows.length) { setEmpty(el, '오늘 새로 들어온 유저가 없어요'); return; }
-    el.innerHTML = rows.map(u => `
-      <div class="list-row clickable user-row" data-nick="${escapeHtml(u.nickname || '')}">
-        <span class="main"><span class="nick">${escapeHtml(u.nickname || u.id)}</span></span>
-        <span class="sub">가입 ${fmtDateTime(u.createdAt)}</span>
-      </div>`).join('');
+    const sessions = await getTodaySessions({ force });
+    // 방문자 단위로 합산 (같은 유저의 여러 세션 → 1행)
+    const byVisitor = new Map();
+    for (const s of sessions) {
+      const key = s.visitorKey || s.sessionId || s.id;
+      const prev = byVisitor.get(key) || { nickname: '', lastSeenTs: 0, plays: 0 };
+      if (s.nickname) prev.nickname = s.nickname;
+      prev.plays += (s.playCount || 0);
+      if ((s.lastSeenTs || 0) > prev.lastSeenTs) prev.lastSeenTs = s.lastSeenTs || 0;
+      byVisitor.set(key, prev);
+    }
+    const rows = [...byVisitor.entries()]
+      .sort((a, b) => b[1].lastSeenTs - a[1].lastSeenTs)
+      .slice(0, 50);
+    if (!rows.length) { setEmpty(el, '오늘 접속한 유저가 없어요'); return; }
+    el.innerHTML = rows.map(([key, v]) => {
+      const isAnon = !v.nickname;
+      const name = v.nickname || key; // 익명 방문자는 기기 키로 표시
+      return `
+      <div class="list-row ${isAnon ? '' : 'clickable user-row'}" ${isAnon ? '' : `data-nick="${escapeHtml(name)}"`}>
+        <span class="main"><span class="nick">${escapeHtml(name)}</span>${isAnon ? ' <span class="badge">익명 방문</span>' : ''}</span>
+        <span class="sub">접속 ${fmtDateTime(v.lastSeenTs)} · ${v.plays}판</span>
+      </div>`;
+    }).join('') + (byVisitor.size > 50 ? `<div class="card-note">외 ${byVisitor.size - 50}명 (최근 접속순 50명까지 표시)</div>` : '');
   } catch (e) {
     setError(el, humanError(e));
   }
@@ -114,7 +128,7 @@ async function searchUser(nick) {
     el.innerHTML = `
       <div class="list-row clickable user-row" data-nick="${escapeHtml(nick)}">
         <span class="main"><span class="nick">${escapeHtml(nick)}</span>
-          ${uid ? '<span class="badge green">계정 연결됨</span>' : '<span class="badge">레거시</span>'}</span>
+          ${uid ? '<span class="badge green">계정 연동</span>' : '<span class="badge">계정 미연동</span>'}</span>
         <span class="sub">전체 ${fmtNum(rank?.score ?? '-')}pt · ${fmtNum(stats?.playCount || 0)}판 · 상세 보기 →</span>
       </div>`;
   } catch (e) {
@@ -141,8 +155,9 @@ async function openUserDetail(nick) {
     ]);
     const kv = (k, v) => `<div class="kv"><span class="k">${k}</span><span class="v">${v ?? '-'}</span></div>`;
     body.innerHTML = `
-      ${kv('계정(UID)', uid ? uid.slice(0, 12) + '…' : '미연결 (레거시)')}
-      ${kv('가입일', userDoc?.createdAt ? fmtDateTime(userDoc.createdAt) : '-')}
+      ${kv('계정 연동', uid ? `연동됨 (${uid.slice(0, 8)}…)` : '미연동 (이전 방식 데이터)')}
+      ${kv('첫 플레이 (가입)', stats?.firstPlayed ? fmtDateTime(stats.firstPlayed) : '가입일 미상')}
+      ${kv('계정 연결일', userDoc?.createdAt ? fmtDateTime(userDoc.createdAt) : '-')}
       ${kv('마지막 접속', userDoc?.lastSeenAt ? fmtAgo(userDoc.lastSeenAt) : (stats?.lastPlayed ? fmtAgo(stats.lastPlayed) : '-'))}
       ${kv('전체 랭킹 점수', rank ? fmtNum(rank.score) + 'pt' : '없음')}
       ${kv(`이번주(${weekId}) 점수`, weekScore ? fmtNum(weekScore.score) + 'pt' : '없음')}

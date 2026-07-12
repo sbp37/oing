@@ -237,6 +237,19 @@ textarea { width: 100%; resize: vertical; }
 .badge.gold { background: rgba(251,191,36,0.12); color: #fde68a; border-color: var(--gold); }
 .badge.green { background: rgba(63,168,85,0.15); color: var(--accent-green-light); border-color: var(--accent-green); }
 
+/* ── 현재 접속 중 카드 ── */
+.online-card { padding: 12px 14px; border-color: rgba(63, 168, 85, 0.5); }
+.online-head { font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.online-head b { color: var(--accent-green-light); }
+.online-head.off { color: var(--muted); font-weight: 600; }
+.online-names { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.online-chip {
+  padding: 3px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
+  background: rgba(63, 168, 85, 0.12); color: var(--accent-green-light);
+  border: 1px solid rgba(63, 168, 85, 0.4);
+}
+.online-chip.more { background: none; color: var(--muted); border-color: var(--border); font-weight: 400; }
+
 /* ── 차트 (의존성 없는 CSS 막대그래프) ── */
 .chart { display: flex; align-items: flex-end; gap: 3px; height: 130px; padding-top: 18px; }
 .chart .bar-wrap {
@@ -253,6 +266,12 @@ textarea { width: 100%; resize: vertical; }
 .chart .bar-val { font-size: 10px; color: var(--text); margin-bottom: 2px; }
 .chart .bar-label { font-size: 9.5px; color: var(--muted); margin-top: 4px; white-space: nowrap; }
 .chart-note { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+/* 모바일: 14일 그래프는 숫자 겹침 방지를 위해 "최고값 + 오늘"만 값 표시 (나머지는 터치 툴팁) */
+@media (max-width: 480px) {
+  .chart.day .bar-val { visibility: hidden; }
+  .chart.day .bar-wrap.is-peak .bar-val,
+  .chart.day .bar-wrap.is-today .bar-val { visibility: visible; }
+}
 
 /* ── 피드백 스레드 ── */
 /* 목록 내부 스크롤 — 피드백이 많아도 아래 운영 기능(감사메시지·명예의전당 등)이 밀리지 않게 */

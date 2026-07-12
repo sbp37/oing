@@ -29,6 +29,15 @@ import {
 export const SESSION_FETCH_CAP = 1000; // 하루 세션 원본 조회 상한 (폭주 방지)
 const LS_PREFIX = 'oeing_admin_dailystats_';
 
+// 집계 로직 버전 — 기준이 바뀌면 올린다. 저장된 dailyStats의 v가 다르면 그 날짜만 1회 재집계.
+// v2: 신규 유저 기준을 users.createdAt(=계정 연결 시각, 가입일 아님!)에서
+//     user_stats.firstPlayed(=첫 플레이 시각, 실제 가입 개념)로 교정.
+export const STATS_V = 2;
+
+// 게임의 방문 세션 하트비트: 진입 시 + 60초 + 이후 120초 간격(최대 3회) + 게임 시작/종료/숨김 이벤트.
+// → 활동 중인 유저의 lastSeenTs는 늦어도 2~3분 안에 갱신되므로 5분 이내면 "현재 접속 중"으로 판정.
+export const ONLINE_WINDOW_MS = 5 * 60 * 1000;
+
 // dailyStats 저장이 보안 규칙에 막혔는지 여부 — 분석 탭에서 안내 표시용
 export const dailyStatsWriteState = { blocked: false };
 
@@ -36,7 +45,10 @@ export const dailyStatsWriteState = { blocked: false };
 // lastSeenTs 범위 + 같은 필드 정렬(복합 인덱스 불필요)이라,
 // 세션이 상한을 넘어도 "가장 최근" 세션부터 확보된다 (임의 잘림 방지).
 export async function getTodaySessions({ force = false } = {}) {
-  if (force) cache.bust('shared:todaySessions');
+  if (force) {
+    cache.bust('shared:todaySessions');
+    cache.bust('shared:todayCount'); // 오늘 클릭/신규 카운트도 함께 갱신 (홈/분석이 공유)
+  }
   return cache.get('shared:todaySessions', async () => {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
@@ -102,12 +114,13 @@ async function computeDayFromRaw(dateStr) {
   ));
   const agg = aggregateSessions(dateStr, sessions);
   delete agg._byVisitor;
-  // 신규 유저 수 — 문서 다운로드 없이 count 집계
+  // 신규 유저 수 = 그날 처음 플레이한 유저 (user_stats.firstPlayed 기준).
+  // ⚠️ users.createdAt은 "계정 연결 시각"이라 가입일이 아님 — 절대 신규 기준으로 쓰지 않는다.
   try {
     agg.newUsers = await countQuery(
-      collection(db, 'users'),
-      where('createdAt', '>=', dayStartTs(dateStr)),
-      where('createdAt', '<', nextDayStartTs(dateStr)),
+      collection(db, 'user_stats'),
+      where('firstPlayed', '>=', dayStartTs(dateStr)),
+      where('firstPlayed', '<', nextDayStartTs(dateStr)),
     );
   } catch { agg.newUsers = null; }
   // 후원/공유 클릭 수 — count 집계 (문서당 읽기 아님)
@@ -142,19 +155,22 @@ export async function getPastDayStats(dateStr, { allowBackfill = true } = {}) {
   const hit = cache.peek(key);
   if (hit !== undefined) return hit;
 
+  // v가 다른(구버전 기준으로 집계된) 캐시는 무시하고 1회 재집계한다
+  const isValid = (d) => d && d.final && d.v === STATS_V;
   const local = lsGet(dateStr);
-  if (local && local.final) { cache.set(key, local); return local; }
+  if (isValid(local)) { cache.set(key, local); return local; }
 
   const ref = doc(db, 'dailyStats', dateStr);
   try {
     const existing = await fetchDoc(ref);
-    if (existing && existing.final) { lsSet(dateStr, existing); cache.set(key, existing); return existing; }
+    if (isValid(existing)) { lsSet(dateStr, existing); cache.set(key, existing); return existing; }
   } catch { /* 읽기 권한 없으면 아래로 진행 */ }
 
   if (!allowBackfill) return null; // 미집계 — 캐시하지 않음 (분석 탭이 나중에 백필)
 
   const computed = await computeDayFromRaw(dateStr);
   computed.final = true;               // 지난 날짜 = 확정 데이터
+  computed.v = STATS_V;
   computed.computedAt = Date.now();
   lsSet(dateStr, computed);
   cache.set(key, computed);
@@ -179,6 +195,17 @@ export async function getDailyStatsRange(days, { force = false, allowBackfill = 
   const todayAgg = aggregateSessions(today, todaySessions);
   out.push(todayAgg);
   return out;
+}
+
+// ── 오늘 카운트 공용 캐시 — 홈/분석이 같은 값을 두 번 세지 않게 ──
+export function countTodayCached(colName) {
+  return cache.get('shared:todayCount:' + colName, () =>
+    countQuery(collection(db, colName), where('date', '==', getTodayDateStr())));
+}
+// 오늘 신규 유저 = 오늘 처음 플레이한 유저 (홈 타일·분석 그래프·주간 합계가 전부 이 값 하나를 공유)
+export function todayNewUsersCount() {
+  return cache.get('shared:todayCount:newUsers', () =>
+    countQuery(collection(db, 'user_stats'), where('firstPlayed', '>=', dayStartTs(getTodayDateStr()))));
 }
 
 // WAU: 최근 7일 고유 방문자 합집합 / 재방문율: 오늘 방문자 중 지난 6일에도 온 비율
