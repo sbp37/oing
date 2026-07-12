@@ -150,18 +150,28 @@ match /dailyStats/{date} {
 
 ```
 match /feedback_donate/{id} {
-  // 생성: 기존 게임 동작 유지 (현재 규칙과 동일하게)
-  allow create: if request.auth != null;
+  // 생성: 본인 uid만 넣을 수 있음 (게임은 미연동 유저의 글엔 uid를 아예 안 넣으므로
+  //        "uid 없음 또는 본인 uid"를 허용 — 남의 uid를 넣는 것만 차단)
+  allow create: if request.auth != null
+             && (!('uid' in request.resource.data)
+                 || request.resource.data.uid == request.auth.uid);
   // 읽기: 관리자 전체 / 유저는 자기 글만 (uid 없는 과거 글은 자동으로 관리자 전용)
   allow read: if isAdminUid()
            || (request.auth != null && resource.data.uid == request.auth.uid);
-  // 수정: 관리자는 답장(messages 등), 작성자 본인은 읽음 표시(userUnread)만
+  // 수정: 관리자는 전체(답장·수동 계정 연결/해제 포함),
+  //        작성자 본인은 읽음 표시(userUnread)만 — uid 변경(소유권 탈취)은 구조적으로 불가
   allow update: if isAdminUid()
              || (request.auth != null && resource.data.uid == request.auth.uid
                  && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userUnread']));
   allow delete: if isAdminUid();
 }
 ```
+
+⚠️ 관리자 판별(isAdminUid)은 반드시 특정 UID/이메일/claim 조건이어야 하며,
+`request.auth != null` 만으로 열면 안 됩니다 — 게임 유저 전원이 익명 로그인
+상태라 사실상 전체 공개가 됩니다. 기존 규칙에 isAdmin() 류 함수가 이미 있다면
+새로 만들지 말고 그대로 재사용하세요. 관리자의 "계정 연결/해제"(uid 필드
+merge/삭제)는 위 규칙에서 관리자 update로만 가능합니다.
 
 `uid` 필드가 없는 과거 문서는 위 조건이 항상 false가 되므로
 **아무 유저에게도 노출되지 않고 관리자만 볼 수 있습니다** (안전한 기본값).

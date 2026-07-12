@@ -16,7 +16,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/fireba
 import {
   getFirestore, collection, doc,
   getDoc, getDocs, setDoc, deleteDoc, addDoc,
-  query, where, orderBy, limit, startAfter, increment,
+  query, where, orderBy, limit, startAfter, increment, deleteField,
   getCountFromServer,
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 import {
@@ -52,7 +52,7 @@ export const fns = getFunctions(app);
 export {
   collection, doc,
   getDoc, getDocs, setDoc, deleteDoc, addDoc,
-  query, where, orderBy, limit, startAfter, increment,
+  query, where, orderBy, limit, startAfter, increment, deleteField,
   httpsCallable,
 };
 
