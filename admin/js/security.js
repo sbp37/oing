@@ -28,6 +28,12 @@ const REASON_LABELS = {
 };
 function reasonLabel(code) { return REASON_LABELS[code] || code; }
 
+// NO_SESSION(서버세션 없음)은 치팅 의심 신호가 아니라 "검증 불가" 상태다.
+// (예: startSession 호출이 인프라 문제로 실패한 정상 유저도 이 사유로 찍힘 — 2026-07-12
+//  Cloud Run IAM 권한 누락 사고로 다수 정상 유저가 이 사유로 몰린 바 있음.)
+// 의심 판정 집계·배지에서는 제외하고, 목록에서는 별도 섹션(회색 "검증 불가")으로 분리 표시한다.
+const isUnverifiable = (d) => Array.isArray(d.official?.reasons) && d.official.reasons.includes('NO_SESSION');
+
 // game_sessions에서 보류/거부 세션 최근 50건 (복합 인덱스 필요 — 첫 실행 시 콘솔 링크로 생성)
 function verdictQuery() {
   return query(
@@ -45,7 +51,7 @@ export async function loadVerdictBadge() {
   const countEl = document.getElementById('verdictBadgeCount');
   try {
     const rows = await cache.get('security:verdicts', () => fetchDocs(verdictQuery()));
-    const n = rows.length;
+    const n = rows.filter(d => !isUnverifiable(d)).length; // NO_SESSION 제외 — 실제 의심 건수만
     if (n > 0 && badge && countEl) {
       countEl.textContent = n >= 50 ? '50+' : String(n);
       badge.style.display = '';
@@ -63,9 +69,10 @@ export async function loadVerdictBadge() {
 
 function verdictRowHtml(d) {
   const dec = d.official?.decision;
+  const unverifiable = isUnverifiable(d);
   const rejected = dec === 'rejected_invalid';
-  const cls = rejected ? 'rejected' : 'pending';
-  const verdictText = rejected ? '거부' : '보류';
+  const cls = unverifiable ? 'unverifiable' : (rejected ? 'rejected' : 'pending');
+  const verdictText = unverifiable ? '검증 불가' : (rejected ? '거부' : '보류');
   const reasons = Array.isArray(d.official?.reasons) ? d.official.reasons : [];
   const elapsedSec = typeof d.serverElapsed === 'number' ? Math.round(d.serverElapsed / 1000) : null;
   const burst = d.client?.maxSuccessesIn3Sec;
@@ -87,15 +94,27 @@ async function loadVerdicts({ force = false } = {}) {
   setLoading(el);
   try {
     const rows = await cache.get('security:verdicts', () => fetchDocs(verdictQuery()));
-    // 배지도 최신 상태로 동기화
+    const suspects = rows.filter(d => !isUnverifiable(d));
+    const unverifiable = rows.filter(isUnverifiable);
+
+    // 배지도 최신 상태로 동기화 — NO_SESSION 제외한 실제 의심 건수만
     const badge = document.getElementById('verdictBadge');
     const countEl = document.getElementById('verdictBadgeCount');
     if (badge && countEl) {
-      if (rows.length) { countEl.textContent = rows.length >= 50 ? '50+' : String(rows.length); badge.style.display = ''; }
+      if (suspects.length) { countEl.textContent = suspects.length >= 50 ? '50+' : String(suspects.length); badge.style.display = ''; }
       else badge.style.display = 'none';
     }
+
     if (!rows.length) { setEmpty(el, '✅ 보류/거부된 의심 세션이 없어요'); return; }
-    el.innerHTML = rows.map(verdictRowHtml).join('');
+
+    const suspectHtml = suspects.length
+      ? suspects.map(verdictRowHtml).join('')
+      : `<div class="list-empty">✅ 의심 판정 없음</div>`;
+    const unverifiableHtml = unverifiable.length
+      ? `<div class="card-note" style="margin:12px 0 8px;">❔ 검증 불가 (서버세션 없음) — 치팅 의심이 아니라 서버세션이 생성되지 않아 판정을 확정할 수 없는 기록입니다.</div>
+         ${unverifiable.map(verdictRowHtml).join('')}`
+      : '';
+    el.innerHTML = suspectHtml + unverifiableHtml;
   } catch (e) {
     const msg = humanError(e);
     // 인덱스 미생성 시 Firestore가 주는 콘솔 에러 안내
