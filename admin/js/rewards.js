@@ -61,7 +61,8 @@ function donateItemHtml(d) {
         <div class="fb-msg ${m.from === 'admin' ? 'from-admin' : ''}">
           <span class="bubble">${escapeHtml(m.text)}</span>
         </div>`).join('')}
-      ${hasUid ? '' : '<div class="card-note">⚠️ 계정(UID) 미연결 글 — 답장을 저장해도 작성자가 게임에서 다시 볼 수 없어요 (스킨 알림·감사 쪽지로 전달 권장)</div>'}
+      ${hasUid ? '' : `<div class="card-note">⚠️ 이 글에는 작성 당시 계정(UID) 정보가 저장되지 않았어요 — 유저가 지금은 계정을 연결한 상태일 수도 있지만,
+        "이 글"의 답장은 게임의 '지난 글 보기'에 연결되지 않아요 (전달이 필요하면 스킨 알림·감사 쪽지 권장)</div>`}
       <div class="fb-reply-row">
         <textarea class="fb-reply-input" placeholder="답장 작성... (작성자만 게임의 '지난 글 보기'에서 확인)" rows="2"></textarea>
         <button class="btn btn-primary btn-sm donate-reply-btn">답장 보내기</button>
