@@ -267,6 +267,7 @@ textarea { width: 100%; resize: vertical; }
 .mini-row.clickable:hover { background: var(--surface2); }
 .mini-row .mini-go { color: var(--muted); font-size: 11px; margin-left: 4px; }
 .recent-score { color: var(--accent-green-light); font-weight: 700; font-size: 12px; margin-left: 4px; }
+.recent-score .unit { color: var(--muted); font-weight: 400; font-size: 10.5px; margin-left: 3px; }
 
 /* ── 리스트 ── */
 .list { display: flex; flex-direction: column; gap: 6px; }

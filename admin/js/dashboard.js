@@ -9,7 +9,7 @@
 //   · 실시간 리스너 없음 — "↻ 홈 새로고침" 버튼으로만 갱신
 // ══════════════════════════════════════════════════════════════
 import {
-  db, collection, doc, countQuery, fetchDoc,
+  db, collection, doc, countQuery, fetchDoc, getUserDocByNick,
   getTodayDateStr,
   fmtAgo, fmtDuration, fmtNum, escapeHtml, cache, humanError,
 } from './firebase.js';
@@ -157,13 +157,17 @@ export async function loadDashboard({ force = false } = {}) {
         <span class="sub">${v.plays}판 · ${fmtDuration(v.dur)} · ${fmtAgo(v.lastSeenTs)}</span>
       </div>`;
     }).join('');
-    // 최근 점수 — 닉네임 있는 행만 rankings에서 조회해 초록색으로 채움 (최대 10건, 실패해도 무해)
+    // 최근 점수 — 오늘 플레이한 행만 user_stats.lastScore(매판 갱신되는 마지막 판 점수)를 표시.
+    // rankings.score는 역대 최고점이라 "최근 점수"가 아님 — 0판 유저에게 옛 최고점이 떠서
+    // 혼란을 주던 원인. 오늘 0판(방문만)은 빈칸으로 둔다. (최대 10건, 실패해도 무해)
     for (const [key, v] of rows) {
       const nick = v.nickname || key.replace(/^nick:/, '');
-      if (!v.nickname) continue; // 익명 방문자는 점수 없음
-      fetchDoc(doc(db, 'rankings', nick)).then(r => {
+      if (!v.nickname || !(v.plays > 0)) continue; // 익명 방문자·오늘 0판은 점수 표시 안 함
+      cache.get('home:recentStats:' + nick, () => getUserDocByNick('user_stats', nick)).then(({ data }) => {
         const cell = recentEl.querySelector(`.recent-score[data-nick="${CSS.escape(nick)}"]`);
-        if (cell && r && typeof r.score === 'number') cell.textContent = `${fmtNum(r.score)}점`;
+        if (cell && data && typeof data.lastScore === 'number') {
+          cell.innerHTML = `${fmtNum(data.lastScore)}점<span class="unit">마지막판</span>`;
+        }
       }).catch(() => {});
     }
     return agg;
