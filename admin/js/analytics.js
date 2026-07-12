@@ -14,7 +14,7 @@ import {
 } from './firebase.js';
 import {
   getDailyStatsRange, computeWeeklyMetrics, dailyStatsWriteState,
-  countTodayCached, todayNewUsersCount, SESSION_FETCH_CAP,
+  countTodayCached, todayNewUsersCount, forceRecomputeRange, SESSION_FETCH_CAP,
 } from './stats.js';
 import { setLoading, setError, guardBtn } from './admin.js';
 
@@ -87,6 +87,17 @@ export async function loadAnalytics({ force = false } = {}) {
     barChart(chartEls[0], daily, { valueKey: 'uniqueVisitors', unit: '명' });
     barChart(chartEls[1], daily, { valueKey: 'newUsers', unit: '명' });
     barChart(chartEls[2], daily, { valueKey: 'gamePlays', unit: '판' });
+
+    // 카드 제목 옆 한 줄 요약: 14일 합계 · 일평균 (계산 로직 변경 없음 — 이미 있는 값 합산)
+    const summarize = (elId, key, unit) => {
+      const total = daily.reduce((s, d) => s + ((d && d[key]) || 0), 0);
+      const avg = (total / daily.length).toFixed(1).replace(/\.0$/, '');
+      const el = document.getElementById(elId);
+      if (el) el.textContent = `14일 합계 ${fmtNum(total)}${unit} · 일평균 ${avg}${unit}`;
+    };
+    summarize('sumVisitors', 'uniqueVisitors', '명');
+    summarize('sumNewUsers', 'newUsers', '명');
+    summarize('sumPlays', 'gamePlays', '판');
 
     // 시간대별 세션 — 14일치 dailyStats의 sessionsByHour 합산 (추가 조회 0)
     const hours = new Array(24).fill(0);
@@ -181,4 +192,27 @@ async function loadReferrerData({ force = false } = {}) {
 export function initAnalyticsTab() {
   const btn = document.getElementById('referrerLoadBtn');
   btn.addEventListener('click', guardBtn(btn, () => loadReferrerData({ force: cache.peek('analytics:referrer') != null })));
+
+  // 🛠 통계 재집계 — 이 기기의 캐시(localStorage 포함)와 저장된 dailyStats를 무시하고
+  // 지난 13일을 원본에서 다시 집계. 잘못 저장된 캐시가 의심될 때만 수동 실행.
+  const rBtn = document.getElementById('recomputeBtn');
+  rBtn.addEventListener('click', guardBtn(rBtn, async () => {
+    const ok = confirm('지난 13일 통계를 원본 데이터에서 다시 집계할까요?\n'
+      + '이 기기의 통계 캐시(localStorage)와 저장된 집계 문서를 새 값으로 덮어씁니다.\n'
+      + '(비용: 최초 백필 1회와 동일한 원본 조회가 발생 — 캐시가 의심될 때만 사용)');
+    if (!ok) return;
+    const original = rBtn.textContent;
+    try {
+      await forceRecomputeRange(14, (dateStr) => { rBtn.textContent = `재집계 중... ${dateStr.slice(5)}`; });
+      cache.bust('shared:todaySessions');
+      cache.bust('shared:todayCount');
+      cache.bust('analytics');
+      await loadAnalytics({ force: true });
+      rBtn.textContent = '✅ 재집계 완료';
+      setTimeout(() => { rBtn.textContent = original; }, 4000);
+    } catch (e) {
+      alert('재집계 실패: ' + humanError(e));
+      rBtn.textContent = original;
+    }
+  }));
 }

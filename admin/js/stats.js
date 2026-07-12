@@ -197,6 +197,33 @@ export async function getDailyStatsRange(days, { force = false, allowBackfill = 
   return out;
 }
 
+// ── 강제 재집계 (분석 탭의 "통계 재집계" 버튼 전용) ──
+// 평소 흐름은 메모리 → localStorage → dailyStats 문서 순서라, 만약 어떤 기기의
+// localStorage에 "형식은 유효(v 일치)하지만 값이 잘못된" 캐시가 남으면 일반
+// 새로고침으로는 영원히 교정되지 않는다. 이 함수는 운영자가 의도적으로 실행할 때만
+// 지난 날짜의 메모리·localStorage·dailyStats 문서를 모두 무시하고 원본에서 다시
+// 집계해 덮어쓴다 (비용: 일반 백필 1회와 동일 — 자동으로는 절대 실행되지 않음).
+export async function forceRecomputeDay(dateStr) {
+  cache.bust('shared:dailyStats:' + dateStr);
+  try { localStorage.removeItem(LS_PREFIX + dateStr); } catch {}
+  const computed = await computeDayFromRaw(dateStr);
+  computed.final = true;
+  computed.v = STATS_V;
+  computed.computedAt = Date.now();
+  lsSet(dateStr, computed);
+  cache.set('shared:dailyStats:' + dateStr, computed);
+  try { await setDoc(doc(db, 'dailyStats', dateStr), computed); }
+  catch (e) { dailyStatsWriteState.blocked = true; }
+  return computed;
+}
+export async function forceRecomputeRange(days, onProgress) {
+  for (let i = days - 1; i >= 1; i--) {
+    const dateStr = daysAgoDateStr(i);
+    if (onProgress) onProgress(dateStr);
+    await forceRecomputeDay(dateStr);
+  }
+}
+
 // ── 오늘 카운트 공용 캐시 — 홈/분석이 같은 값을 두 번 세지 않게 ──
 export function countTodayCached(colName) {
   return cache.get('shared:todayCount:' + colName, () =>

@@ -132,19 +132,22 @@
     <section id="tab-analytics" class="tab-section" style="display:none;">
       <div class="section-head">
         <h2>분석</h2>
-        <button class="btn btn-ghost btn-sm refresh-btn" data-refresh="analytics">↻ 분석 새로고침</button>
+        <div class="btn-row">
+          <button id="recomputeBtn" class="btn btn-ghost btn-sm" title="지난 13일 통계를 원본에서 다시 집계 (캐시가 의심될 때만)">🛠 통계 재집계</button>
+          <button class="btn btn-ghost btn-sm refresh-btn" data-refresh="analytics">↻ 분석 새로고침</button>
+        </div>
       </div>
       <div id="analyticsNotice" class="card-note" style="margin-bottom:10px;"></div>
       <div class="card">
-        <div class="card-head"><h3>📅 최근 14일 방문자</h3><span class="card-note">지난 날짜는 집계 캐시 재사용</span></div>
+        <div class="card-head"><h3>📅 최근 14일 방문자</h3><span id="sumVisitors" class="card-note"></span></div>
         <div id="chartVisitors" class="chart"></div>
       </div>
       <div class="card">
-        <div class="card-head"><h3>🌱 최근 14일 신규 유저</h3></div>
+        <div class="card-head"><h3>🌱 최근 14일 신규 유저</h3><span id="sumNewUsers" class="card-note"></span></div>
         <div id="chartNewUsers" class="chart"></div>
       </div>
       <div class="card">
-        <div class="card-head"><h3>🎮 최근 14일 플레이 판수</h3></div>
+        <div class="card-head"><h3>🎮 최근 14일 플레이 판수</h3><span id="sumPlays" class="card-note"></span></div>
         <div id="chartPlays" class="chart"></div>
       </div>
       <div class="card">
