@@ -6,13 +6,104 @@
 //    추가 안전장치: 삭제 전에 JSON 백업이 자동으로 다운로드된다.
 // ══════════════════════════════════════════════════════════════
 import {
-  db, collection, doc, query, orderBy, limit,
+  db, collection, doc, query, where, orderBy, limit,
   fetchDocs, fetchDoc, deleteDoc, getUserDocByNick,
-  getWeekId, fmtNum, escapeHtml, downloadJSON, humanError,
-  getTodayDateStr,
+  getWeekId, fmtNum, fmtDateTime, escapeHtml, downloadJSON, humanError,
+  getTodayDateStr, cache,
 } from './firebase.js';
 import { setLoading, setError, setEmpty, guardBtn, resultMsg } from './admin.js';
 import { deleteRankingRecord } from './users.js';
+
+// ── 🚨 서버 자동 판정 알림 (game_sessions, 읽기 전용) ──
+// 대시보드는 이 컬렉션을 절대 수정/삭제하지 않는다 (규칙상 write도 Cloud Function만 가능).
+// 문서는 30일 TTL(expireAt)로 서버가 알아서 지우므로 별도 보관 로직 없음.
+const VERDICT_DECISIONS = ['pending_review', 'rejected_invalid'];
+const REASON_LABELS = {
+  ELAPSED_TOO_SHORT: '30초 미만 즉시클리어',
+  SCORE_OVER_OFFICIAL_CAP: '점수 상한 초과(5만+)',
+  IMPOSSIBLE_BURST: '비정상 폭발 성공(버스트)',
+  COMPOSITE_ANOMALY: '복합 이상패턴',
+  NO_SESSION: '서버세션 없음',
+  OWNERSHIP: '남의 닉네임 문서 시도',
+};
+function reasonLabel(code) { return REASON_LABELS[code] || code; }
+
+// game_sessions에서 보류/거부 세션 최근 50건 (복합 인덱스 필요 — 첫 실행 시 콘솔 링크로 생성)
+function verdictQuery() {
+  return query(
+    collection(db, 'game_sessions'),
+    where('official.decision', 'in', VERDICT_DECISIONS),
+    orderBy('official.decidedAt', 'desc'),
+    limit(50),
+  );
+}
+
+// 상단 배지 — 관리자 진입 시 1회만 이 count를 위해 조회 (의심 세션 즉시 인지가 목적).
+// 결과는 세션 캐시에 담아 보안 탭이 그대로 재사용 → 탭 진입 시 추가 조회 0.
+export async function loadVerdictBadge() {
+  const badge = document.getElementById('verdictBadge');
+  const countEl = document.getElementById('verdictBadgeCount');
+  try {
+    const rows = await cache.get('security:verdicts', () => fetchDocs(verdictQuery()));
+    const n = rows.length;
+    if (n > 0 && badge && countEl) {
+      countEl.textContent = n >= 50 ? '50+' : String(n);
+      badge.style.display = '';
+    } else if (badge) {
+      badge.style.display = 'none';
+    }
+    return rows;
+  } catch (e) {
+    // 인덱스 미생성/권한 문제여도 관리자 진입 자체는 막지 않는다 (조용히 숨김)
+    console.warn('의심 판정 배지 로드 실패(무해):', e && (e.code || e.message));
+    if (badge) badge.style.display = 'none';
+    return null;
+  }
+}
+
+function verdictRowHtml(d) {
+  const dec = d.official?.decision;
+  const rejected = dec === 'rejected_invalid';
+  const cls = rejected ? 'rejected' : 'pending';
+  const verdictText = rejected ? '거부' : '보류';
+  const reasons = Array.isArray(d.official?.reasons) ? d.official.reasons : [];
+  const elapsedSec = typeof d.serverElapsed === 'number' ? Math.round(d.serverElapsed / 1000) : null;
+  const burst = d.client?.maxSuccessesIn3Sec;
+  return `
+    <div class="verdict-row ${cls}">
+      <span class="vr-main">
+        <span class="nick">${escapeHtml(d.nickname || d.uid || '?')}</span>
+        · ${fmtNum(d.client?.finalScore ?? '-')}점
+        <span class="vr-reasons">${reasons.map(r => `<span class="verdict-tag ${cls}">${escapeHtml(reasonLabel(r))}</span>`).join('')}</span>
+        <span class="vr-sub">플레이 ${elapsedSec != null ? elapsedSec + '초' : '-'}${burst != null ? ` · 3초내 최대 ${fmtNum(burst)}성공` : ''} · ${d.official?.decidedAt ? fmtDateTime(d.official.decidedAt) : '-'}</span>
+      </span>
+      <span class="vr-verdict ${cls}">${verdictText}</span>
+    </div>`;
+}
+
+async function loadVerdicts({ force = false } = {}) {
+  const el = document.getElementById('verdictList');
+  if (force) cache.bust('security:verdicts');
+  setLoading(el);
+  try {
+    const rows = await cache.get('security:verdicts', () => fetchDocs(verdictQuery()));
+    // 배지도 최신 상태로 동기화
+    const badge = document.getElementById('verdictBadge');
+    const countEl = document.getElementById('verdictBadgeCount');
+    if (badge && countEl) {
+      if (rows.length) { countEl.textContent = rows.length >= 50 ? '50+' : String(rows.length); badge.style.display = ''; }
+      else badge.style.display = 'none';
+    }
+    if (!rows.length) { setEmpty(el, '✅ 보류/거부된 의심 세션이 없어요'); return; }
+    el.innerHTML = rows.map(verdictRowHtml).join('');
+  } catch (e) {
+    const msg = humanError(e);
+    // 인덱스 미생성 시 Firestore가 주는 콘솔 에러 안내
+    const extra = /index/i.test(String(e && (e.code || e.message)))
+      ? '<br><span style="color:var(--muted);font-size:11.5px;">※ 처음 실행이면 브라우저 콘솔(F12)에 뜬 "인덱스 생성" 링크를 한 번 클릭해 인덱스를 만들어주세요.</span>' : '';
+    setError(el, msg + extra);
+  }
+}
 
 // ── 의심 기록 탐지 — 버튼 클릭 시에만 실행 ──
 // 상위 랭킹 100명을 읽고, 상위 20명은 user_stats/주간 점수와 교차 검증
@@ -204,9 +295,13 @@ export function initSecurityTab() {
   weekBtn.addEventListener('click', guardBtn(weekBtn, resetWeek));
   const crownBtn = document.getElementById('resetCrownBtn');
   crownBtn.addEventListener('click', guardBtn(crownBtn, resetCrown));
+
+  const verdictBtn = document.getElementById('verdictRefreshBtn');
+  verdictBtn.addEventListener('click', guardBtn(verdictBtn, () => loadVerdicts({ force: true })));
 }
 
-// 보안 탭은 "여는 것만으로는" 아무 데이터도 조회하지 않는다
+// 보안 탭을 열면 의심 판정 목록만 표시한다 (진입 시 이미 배지용으로 받아둔 캐시 재사용 → 추가 조회 0).
+// 나머지 조회(스캔·백업·초기화)는 전부 버튼 클릭으로만.
 export async function loadSecurity() {
-  // 의도적으로 비움 — 모든 조회는 버튼 클릭으로만
+  await loadVerdicts();
 }

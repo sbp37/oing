@@ -11,7 +11,7 @@ import { signInAnon, signInEmail, signOutAll, waitForAuth, cache } from './fireb
 import { loadDashboard } from './dashboard.js';
 import { initUsersTab, loadUsers } from './users.js';
 import { initAnalyticsTab, loadAnalytics } from './analytics.js';
-import { initSecurityTab, loadSecurity } from './security.js';
+import { initSecurityTab, loadSecurity, loadVerdictBadge } from './security.js';
 import { initRewardsTab, loadRewards } from './rewards.js';
 import { initOperationsTab, loadOperations } from './operations.js';
 
@@ -88,8 +88,17 @@ async function sha256Hex(text) {
 function showApp() {
   document.getElementById('loginGate').style.display = 'none';
   document.getElementById('adminApp').style.display = 'block';
-  // ★ 최초 진입: 홈 탭만 로드 — 다른 탭 데이터는 일절 조회하지 않음
+  // ★ 최초 진입: 홈 탭 데이터 + 의심 판정 배지 카운트만.
+  //   배지는 "치팅을 즉시 알아채는 것"이 목적이라 진입 시 1회 조회를 허용한다
+  //   (최대 50건 1쿼리). 결과는 캐시에 담겨 보안 탭이 그대로 재사용한다.
   openTab('home');
+  loadVerdictBadge();
+  // 배지 클릭 → 보안 탭으로 이동
+  const badge = document.getElementById('verdictBadge');
+  if (badge && !badge._bound) {
+    badge._bound = true;
+    badge.addEventListener('click', () => openTab('security'));
+  }
 }
 
 async function enterAdmin() {

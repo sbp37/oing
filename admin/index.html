@@ -37,6 +37,7 @@
   <header class="topbar">
     <div class="topbar-title">🐱 오잉게임 관리자</div>
     <div class="topbar-right">
+      <button id="verdictBadge" class="verdict-badge" style="display:none;" title="서버가 자동 판정한 의심 세션 — 눌러서 확인">🚨 의심 판정 <b id="verdictBadgeCount">0</b>건</button>
       <span id="readCounter" class="read-counter" title="이번 세션의 Firestore 조회량 추정치 — 실제 청구 읽기 수와 다소 차이가 있을 수 있어요">추정 읽기 0 · 쿼리 0</span>
       <button id="logoutBtn" class="btn btn-ghost btn-sm">잠금</button>
     </div>
@@ -177,7 +178,16 @@
 
       <div class="card">
         <div class="card-head">
-          <h3>🕵️ 의심 기록 탐지</h3>
+          <h3>🚨 의심 판정 알림</h3>
+          <button id="verdictRefreshBtn" class="btn btn-ghost btn-sm">↻ 새로고침</button>
+        </div>
+        <div class="card-note" style="margin-bottom:8px;">서버가 자동으로 판정한 보류/거부 세션 (game_sessions · 최근 50건). 읽기 전용입니다.</div>
+        <div id="verdictList" class="list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>🕵️ 의심 기록 탐지 (수동 스캔)</h3>
           <button id="suspectScanBtn" class="btn btn-primary btn-sm">스캔 실행</button>
         </div>
         <div class="card-note" style="margin-bottom:8px;">상위 랭킹 100명을 기준으로 비정상 점수(플레이 대비 과도한 점수, 주간&gt;전체 불일치 등)를 검사합니다. 버튼을 눌렀을 때만 조회합니다.</div>
