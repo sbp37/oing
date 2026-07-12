@@ -2750,7 +2750,7 @@ if ('serviceWorker' in navigator) {
   <div class="overlay-card" style="max-width:300px; text-align:center;">
     <div style="font-size:44px; margin-bottom:6px;">😻</div>
     <div class="overlay-title" style="font-size:17px;" id="thanksNoteTitle">응원해주셔서 감사합니다냥😻</div>
-    <div style="font-size:13.5px; color:var(--muted); margin-top:8px; line-height:1.5;">덕분에 게임이 계속 자란다냥🐾</div>
+    <div id="thanksNoteMsg" style="font-size:13.5px; color:var(--muted); margin-top:8px; line-height:1.5; white-space:pre-wrap;">덕분에 게임이 계속 자란다냥🐾</div>
     <button id="thanksNoteCloseBtn" class="action-btn" style="width:100%; margin-top:16px;">😸</button>
   </div>
 </div>
@@ -2827,13 +2827,13 @@ if ('serviceWorker' in navigator) {
     <div class="sound-row" style="flex-direction:column; align-items:stretch; gap:8px;">
       <div style="display:flex; align-items:center; justify-content:space-between;">
         <span>🔉 배경음악 크기</span>
-        <span id="bgmVolumeLabel" style="font-size:13px; color:var(--muted); font-weight:900;">16%</span>
+        <span id="bgmVolumeLabel" style="font-size:13px; color:var(--muted); font-weight:900;">40%</span>
       </div>
-      <input type="range" id="bgmVolumeSlider" min="0" max="100" value="16" step="1"
+      <input type="range" id="bgmVolumeSlider" min="0" max="100" value="40" step="1"
         style="width:100%; accent-color:var(--blue-bright); cursor:pointer;">
     </div>
     <div style="font-size:12px; color:var(--muted); margin:6px 2px 14px; line-height:1.5;">
-      배경음악은 게임이 시작되면 나온다냥 🎶<br>설정은 다음에 켜도 그대로 유지된다냥!
+      배경음악은 게임이 시작되면 나온다냥 🎶 0으로 두면 꺼진다냥!<br>설정은 다음에 켜도 그대로 유지된다냥!
     </div>
     <button id="soundSettingsClose" class="action-btn secondary">닫기</button>
   </div>
@@ -2906,6 +2906,22 @@ if ('serviceWorker' in navigator) {
       게임 방향성 디자인은 계속 다듬는 중이다냥!<br>일부 기능은 예고 없이 바뀌거나 사라질 수 있다냥~
     </div>
     <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
+
+      <!-- v4.1 -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v4.1</div>
+        <span id="newBadge41" style="display:none;background:#DD6032;color:white;font-size:11px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:#DA9845;margin-bottom:5px;">🎉 새 기능 · 개선</div>
+      <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
+        <li>▫️ 🔉 배경음악 크기 조절 개선 — 낮게 두면 <b>진짜 작게</b> 들리고, <b>0으로 두면 꺼져요</b></li>
+        <li>▫️ 🍎 아이폰에서도 배경음악 크기 조절이 되게 고쳤어요</li>
+      </ul>
+      <div style="font-size:13px;font-weight:700;color:#f87171;margin-bottom:5px;">🐛 버그 수정</div>
+      <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
+        <li>▫️ 판이 바뀌기 직전에 클로버(힌트)를 쓰면, 다음 판에서 엉뚱한 칸이 정답처럼 표시되던 문제 수정</li>
+      </ul>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
 
       <!-- v4.0 -->
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
@@ -5169,23 +5185,64 @@ function vibrateFeedback(pattern) {
 //  기본값: 음악 OFF(효과음만) / 음악은 카운트다운 GO! 때 재생, 종료 시 정지, 루프
 // ══════════════════════════════
 const ENABLE_BGM = true;
-const BGM_VOLUME_DEFAULT = 0.16;
-const BGM_VOL_KEY = 'oeing_bgm_vol_v1';
-// 저장된 배경음악 크기 — 없거나 잘못된 값이면 기존 기본값(0.16) 그대로 유지
+const BGM_VOLUME_DEFAULT = 0.4; // 슬라이더 기본값 40% — 제곱 커브 적용 시 실제 음량 0.16 (기존 기본 크기와 동일한 체감)
+const BGM_VOL_KEY = 'oeing_bgm_vol_v2'; // 슬라이더 값(0~1) 저장 — v1은 실제 음량을 저장해서 의미가 달라 키 분리
+const BGM_VOL_KEY_V1 = 'oeing_bgm_vol_v1';
+// 저장된 배경음악 크기 — v2가 없으면 v1(선형 음량)을 같은 체감 크기의 슬라이더 값(√)으로 변환해서 이어받음
 let bgmVolume = (() => {
   const raw = localStorage.getItem(BGM_VOL_KEY);
   const n = raw !== null ? parseFloat(raw) : NaN;
-  return (!isNaN(n) && n >= 0 && n <= 1) ? n : BGM_VOLUME_DEFAULT;
+  if (!isNaN(n) && n >= 0 && n <= 1) return n;
+  const raw1 = localStorage.getItem(BGM_VOL_KEY_V1);
+  const n1 = raw1 !== null ? parseFloat(raw1) : NaN;
+  if (!isNaN(n1) && n1 >= 0 && n1 <= 1) return Math.sqrt(n1);
+  return BGM_VOLUME_DEFAULT;
 })();
 const bgmAudioEl = document.getElementById('bgmAudio');
-if (bgmAudioEl) bgmAudioEl.volume = bgmVolume; // 효과음보다 확실히 작게 (기본값 기준)
 let bgmFadeTimer = null;
 
+// ── 배경음악 음량 라우팅 ──
+// 아이폰(iOS 사파리/웹뷰)은 <audio>.volume 대입을 무시하고 항상 100%로 재생한다.
+// 그래서 <audio>를 WebAudio GainNode에 연결해 gain으로 음량을 조절 — 모든 기기에서 동작.
+// 실제 음량은 슬라이더 값의 제곱(bgmTargetGain) — 낮은 구간(1~10%)이 진짜 작게 들리게 하는 커브.
+let bgmCtx = null, bgmGainNode = null;
+function bgmTargetGain() {
+  return bgmVolume > 0 ? bgmVolume * bgmVolume : 0; // 0이면 배경음악 기능 자체를 끔
+}
+function ensureBgmRouting() {
+  if (bgmGainNode || !bgmAudioEl) return;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    bgmCtx = new Ctx();
+    const src = bgmCtx.createMediaElementSource(bgmAudioEl); // 이후 소리는 이 그래프로만 나감
+    bgmGainNode = bgmCtx.createGain();
+    bgmGainNode.gain.value = bgmTargetGain();
+    src.connect(bgmGainNode);
+    bgmGainNode.connect(bgmCtx.destination);
+    bgmAudioEl.volume = 1; // 음량은 gain으로만 — element.volume과 이중 감쇠 방지
+  } catch (e) { bgmCtx = null; bgmGainNode = null; } // 실패 시 element.volume 폴백 (기존 방식)
+}
+function resumeBgmCtx() {
+  if (bgmCtx && bgmCtx.state !== 'running') { try { bgmCtx.resume().catch(() => {}); } catch {} }
+}
+// iOS는 AudioContext 생성/resume이 사용자 제스처 안에서만 확실 — 음악을 켜둔 유저는
+// 아무 터치에서나 라우팅을 만들어 깨워둠 (게임 시작 탭에서 미리 준비 + 재생 중 suspend 복구 겸용)
+document.addEventListener('pointerdown', () => {
+  if (ENABLE_BGM && musicOn && bgmAudioEl) { ensureBgmRouting(); resumeBgmCtx(); }
+}, { capture: true, passive: true });
+function applyBgmGain(v) {
+  if (bgmGainNode) { try { bgmGainNode.gain.value = v; } catch {} }
+  else if (bgmAudioEl) { try { bgmAudioEl.volume = v; } catch {} }
+}
+if (bgmAudioEl) { try { bgmAudioEl.volume = bgmTargetGain(); } catch {} } // 라우팅 전 폴백 초기값
+
 function playBgm() {
-  if (!ENABLE_BGM || !musicOn || !bgmAudioEl) return;
+  if (!ENABLE_BGM || !musicOn || !bgmAudioEl || bgmVolume <= 0) return; // 음량 0 = 기능 끔
+  ensureBgmRouting();
+  resumeBgmCtx();
   if (bgmFadeTimer) { clearInterval(bgmFadeTimer); bgmFadeTimer = null; }
   try {
-    bgmAudioEl.volume = bgmVolume;
+    applyBgmGain(bgmTargetGain());
     bgmAudioEl.currentTime = 0;
     bgmAudioEl.play().catch(() => {});
   } catch {}
@@ -5193,32 +5250,45 @@ function playBgm() {
 function stopBgm() {
   if (!bgmAudioEl) return;
   if (bgmFadeTimer) { clearInterval(bgmFadeTimer); bgmFadeTimer = null; }
-  try { bgmAudioEl.pause(); bgmAudioEl.volume = bgmVolume; } catch {}
+  try { bgmAudioEl.pause(); } catch {}
+  applyBgmGain(bgmTargetGain());
 }
 // 게임이 끝날 때 뚝 끊지 않고 부드럽게 페이드아웃
 function fadeOutBgm(dur = 1100) {
   if (!bgmAudioEl) return;
   if (bgmFadeTimer) { clearInterval(bgmFadeTimer); bgmFadeTimer = null; }
-  if (bgmAudioEl.paused) { try { bgmAudioEl.volume = bgmVolume; } catch {} return; }
-  const startVol = bgmAudioEl.volume || bgmVolume;
+  if (bgmAudioEl.paused) { applyBgmGain(bgmTargetGain()); return; }
+  const startVol = bgmGainNode ? bgmGainNode.gain.value : (bgmAudioEl.volume || bgmTargetGain());
   const steps = 22; let i = 0;
   bgmFadeTimer = setInterval(() => {
     i++;
-    try { bgmAudioEl.volume = Math.max(0, startVol * (1 - i / steps)); } catch {}
+    applyBgmGain(Math.max(0, startVol * (1 - i / steps)));
     if (i >= steps) {
       clearInterval(bgmFadeTimer); bgmFadeTimer = null;
-      try { bgmAudioEl.pause(); bgmAudioEl.volume = bgmVolume; } catch {}
+      try { bgmAudioEl.pause(); } catch {}
+      applyBgmGain(bgmTargetGain());
     }
   }, dur / steps);
 }
-// 슬라이더로 배경음악 크기 조절 — 기기에 저장, 재생 중이면(페이드 중이 아닐 때) 바로 반영
+// 슬라이더로 배경음악 크기 조절 — 기기에 저장, 재생 중이면(페이드 중이 아닐 때) 바로 반영.
+// 0으로 내리면 배경음악 기능을 끈 것과 동일(즉시 정지), 다시 올리면 게임 중일 때 이어서 재생.
 function setBgmVolume(v) {
+  const wasZero = bgmVolume <= 0;
   bgmVolume = Math.max(0, Math.min(1, v));
   try { localStorage.setItem(BGM_VOL_KEY, String(bgmVolume)); } catch {}
   const label = document.getElementById('bgmVolumeLabel');
-  if (label) label.textContent = Math.round(bgmVolume * 100) + '%';
-  if (bgmAudioEl && !bgmAudioEl.paused && !bgmFadeTimer) {
-    try { bgmAudioEl.volume = bgmVolume; } catch {}
+  if (label) label.textContent = bgmVolume <= 0 ? 'OFF' : Math.round(bgmVolume * 100) + '%';
+  if (!bgmAudioEl) return;
+  if (bgmVolume <= 0) {
+    if (bgmFadeTimer) { clearInterval(bgmFadeTimer); bgmFadeTimer = null; }
+    try { bgmAudioEl.pause(); } catch {}
+    return;
+  }
+  if (!bgmFadeTimer) applyBgmGain(bgmTargetGain());
+  if (wasZero && gameRunning && musicOn && !gameEnding) {
+    // 슬라이더 조작은 사용자 제스처라 iOS에서도 여기서 라우팅/재개가 확실히 됨
+    ensureBgmRouting(); resumeBgmCtx();
+    try { bgmAudioEl.play().catch(() => {}); } catch {}
   }
 }
 // 앱/화면을 벗어나면(백그라운드) 배경음악 + 효과음 모두 즉시 멈춤. 돌아왔을 때 게임 중이면 음악은 이어서 재생
@@ -5228,8 +5298,10 @@ document.addEventListener('visibilitychange', () => {
     try { if (AC && AC.state === 'running') AC.suspend().catch(() => {}); } catch {}
     if (bgmAudioEl) { try { bgmAudioEl.pause(); } catch {} }
   } else if (document.visibilityState === 'visible') {
-    if (bgmAudioEl && gameRunning && musicOn && !gameEnding) {
-      try { bgmAudioEl.volume = bgmVolume; bgmAudioEl.play().catch(() => {}); } catch {}
+    if (bgmAudioEl && gameRunning && musicOn && !gameEnding && bgmVolume > 0) {
+      resumeBgmCtx();
+      applyBgmGain(bgmTargetGain());
+      try { bgmAudioEl.play().catch(() => {}); } catch {}
     }
   }
 });
@@ -5250,7 +5322,7 @@ function updateSoundToggles() {
   const label = document.getElementById('bgmVolumeLabel');
   const pct = Math.round(bgmVolume * 100);
   if (slider) slider.value = pct;
-  if (label) label.textContent = pct + '%';
+  if (label) label.textContent = pct <= 0 ? 'OFF' : pct + '%';
 }
 function setMusicOn(v) {
   musicOn = v;
@@ -5329,7 +5401,8 @@ function playStagePass() {
   o2.start(t2); o2.stop(t2 + 0.22);
 }
 
-// 10초 경고음 — "띠디디" x3, 약 1.6초간 길게 울려서 확실히 알림 (게임 방해 안 되게 볼륨은 적당히)
+// 10초 경고음 — "띠디디" x3. 예전 square(1560Hz)가 스트레스라는 피드백 반영:
+// 부드러운 sine + 낮은 음정 + 볼륨 다운 + 어택을 살짝 늦춰 "삑" 하고 찌르는 느낌 제거
 function playTimeWarnBeeps() {
   resumeAC();
   const now = AC.currentTime;
@@ -5338,13 +5411,13 @@ function playTimeWarnBeeps() {
     [0, 0.13, 0.26].forEach((off, idx) => {
       const t = base + off;
       const o = AC.createOscillator(); const g = AC.createGain();
-      o.type = 'square';
-      o.frequency.value = idx === 0 ? 1560 : 1240; // 띠(높) - 디디(낮)
+      o.type = 'sine';
+      o.frequency.value = idx === 0 ? 1180 : 940; // 띠(높) - 디디(낮)
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.linearRampToValueAtTime(idx === 0 ? 0.09 : 0.065, t + 0.012);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+      g.gain.linearRampToValueAtTime(idx === 0 ? 0.05 : 0.035, t + 0.025);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
       o.connect(g); g.connect(AC.destination);
-      o.start(t); o.stop(t + 0.12);
+      o.start(t); o.stop(t + 0.14);
     });
   }
 }
@@ -5831,7 +5904,7 @@ function triggerCaughtItem(bd, rr, cc, chainDepth) {
 }
 
 function playLucky() {
-  playSfx('clover', 0.15); // 🍀 반짝아르페지오 — 다른 효과음(합성음, 피크게인 ~0.1-0.15) 대비 원본 mp3 자체 음압이 높아 0.35로는 부족, 추가로 낮춤(파일은 그대로)
+  playSfx('clover', 0.09); // 🍀 반짝아르페지오 — 원본 mp3 자체 음압이 높아 계속 낮춰온 값 (0.35→0.15→0.09), 파일은 그대로
 }
 
 function playHint() {
@@ -6697,6 +6770,11 @@ function triggerBoardReset() {
   if (boardResetting) return; // 여러 경로가 동시에 부르면 한 번만
   boardResetting = true;
   resetCount++;
+  // 판 갈이 직전에 떠 있던 정답 표시(클로버/힌트/뉴비힌트)는 여기서 정리 —
+  // 새 판에서도 이전 판 좌표가 그대로 강조돼 "틀린 답"이 표시되던 버그 수정
+  clearCloverHintHighlight();
+  clearAnswerHighlight();
+  clearNewbieHintHighlight();
   // 남은 숫자칸이 0이면 "완전 클리어" — 큰 연출, 아니면 가벼운 새 판 연출
   let leftoverNums = 0;
   for (let r = 0; r < ROWS; r++)
@@ -6984,13 +7062,20 @@ function updateTimer() {
   const t2 = document.getElementById('timerDisp2');
   if (t2) t2.textContent = txt + (t2.dataset.freeze ? ' ❄️' : '');
   const dangerFx = document.getElementById('timeDangerFx');
-  if (timeLeft <= 10) {
+  if (timeLeft <= 10 && !freezeActive) {
     timerDisp.classList.add('danger-pulse');
     if (t2) t2.classList.add('danger-pulse');
     if (gameRunning && dangerFx) dangerFx.classList.add('on');
     if (gameRunning && !timeWarned) { timeWarned = true; try { playTimeWarnBeeps(); } catch {} }
+  } else if (freezeActive) {
+    // ❄️ 프리즈 중엔 시간이 안 줄어드니 빨간 경고(테두리/깜빡임)를 전부 숨김 — 풀리면 다시 표시
+    timerDisp.classList.remove('danger-pulse');
+    if (t2) t2.classList.remove('danger-pulse');
+    if (dangerFx) dangerFx.classList.remove('on');
   } else if (timeLeft > 12) {
     timeWarned = false; // 보너스로 시간 다시 확보되면 경고 재무장
+    timerDisp.classList.remove('danger-pulse');
+    if (t2) t2.classList.remove('danger-pulse');
     if (dangerFx) dangerFx.classList.remove('on');
   }
 
@@ -7475,7 +7560,7 @@ async function endGame() {
           nickDone.style.fontSize = '12px';
           nickDone.style.color = 'var(--muted)';
           nickDone.style.fontWeight = '600';
-          nickDone.innerHTML = '🎉 자동 등록 완료';
+          nickDone.innerHTML = `🎉 ${escapeHtml(savedNick)} 자동 등록 완료`;
           if (isResultScreenVisible()) showNewRecordPop();
         } else {
           renderRanking();
@@ -7483,7 +7568,7 @@ async function endGame() {
           nickDone.style.fontSize = '12px';
           nickDone.style.color = 'var(--muted)';
           nickDone.style.fontWeight = '600';
-          nickDone.innerHTML = '🎉 자동 등록 완료';
+          nickDone.innerHTML = `🎉 ${escapeHtml(savedNick)} 자동 등록 완료`;
           // 비기록 판 → 두 번째 줄에 "다음 목표" 멘트를 기본으로 보여주고,
           // 세션당 1회 쉬는 타이밍이면 그 자리에 쉬는 멘트를 대신 표시
           const nextGoalEl = document.getElementById('nextGoal');
@@ -7506,7 +7591,7 @@ async function endGame() {
       // Firebase 실패해도 결과창은 이미 떠있음
       // 점수 본체는 저장됐고 순위 조회 같은 부가 작업만 실패/타임아웃한 경우엔 완료로 표시
       const ndEl = document.getElementById('nickDone');
-      ndEl.textContent = scoreSaved ? '🎉 자동 등록 완료' : '점수 저장에 실패했다냥 😿 잠시 후 다시 시도해달라냥!';
+      ndEl.textContent = scoreSaved ? `🎉 ${savedNick} 자동 등록 완료` : '점수 저장에 실패했다냥 😿 잠시 후 다시 시도해달라냥!';
     }
   } else {
     document.getElementById('nickSection2').style.display = 'block';
@@ -8089,8 +8174,9 @@ function renderMyRankSummary(list, myIdx, prevRank, periodLabel) {
   const period = periodLabel || '지난번 대비';
   const isFriends = currentRankMode === 'friends';
 
+  // 리본엔 고정 라벨 대신 내 닉네임을 표시 (닉네임은 최대 6자라 리본 폭에 안정적으로 맞음)
   const tagEl = document.getElementById('mrsTag');
-  if (tagEl) tagEl.textContent = isFriends ? '친구 중 내 순위' : (currentRankMode === 'all' ? '전체 내 순위' : '이번 주 내 순위');
+  if (tagEl) tagEl.textContent = list[myIdx].nickname;
 
   document.getElementById('mrsRank').textContent = `${rank}위`;
   document.getElementById('mrsScore').textContent = `${score}pt`;
@@ -8166,7 +8252,7 @@ async function showMyRankCardIfBelowCut(myNick, isWeek) {
     if (score == null) return false;
     box.style.display = 'flex';
     const tagEl = document.getElementById('mrsTag');
-    if (tagEl) tagEl.textContent = isWeek ? '이번 주 내 순위' : '전체 내 순위';
+    if (tagEl) tagEl.textContent = myNick;
     const rankEl = document.getElementById('mrsRank'); if (rankEl) rankEl.textContent = '집계 밖';
     const scoreEl = document.getElementById('mrsScore'); if (scoreEl) scoreEl.textContent = `${score}pt`;
     const nextLabelEl = document.getElementById('mrsNextLabel'); if (nextLabelEl) nextLabelEl.textContent = '현재';
@@ -9403,19 +9489,19 @@ document.addEventListener('mouseup', () => {
 });
 
 // 업데이트 내역 팝업
-const UPDATE_VERSION = 'v4.0';
+const UPDATE_VERSION = 'v4.1';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1783665356;
+const BUILD = 1783950000; // 점수저장(PR3 연동) 복원 배포 — 캐시된 이전 빌드에 새로고침 배너 유도
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
-const SEEN_KEY = 'seenUpdate_v4.0';
+const SEEN_KEY = 'seenUpdate_v4.1';
 
 function openUpdateLog() {
   document.getElementById('updateLog').style.display = 'flex';
   // NEW 뱃지 숨기기 + 본 것으로 저장
   localStorage.setItem(SEEN_KEY, '1');
-  const badge = document.getElementById('newBadge40');
+  const badge = document.getElementById('newBadge41');
   if (badge) badge.style.display = 'none';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'none';
@@ -9428,7 +9514,7 @@ document.getElementById('updateLogBtn').addEventListener('click', openUpdateLog)
 
 // 최초 방문 시 NEW 뱃지 표시
 if (!localStorage.getItem(SEEN_KEY)) {
-  const badge = document.getElementById('newBadge40');
+  const badge = document.getElementById('newBadge41');
   if (badge) badge.style.display = 'inline';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'inline';
@@ -10154,8 +10240,11 @@ function getFeedbackMessages(data) {
 }
 
 let currentOpenFeedbackId = null;
-function openMyFeedbackDetail(id, data, readOnly) {
-  currentOpenFeedbackId = readOnly ? null : id;
+// colName: 'feedback'(일반 문의) 또는 'feedback_donate'(후원 확인 쪽지 — 본인 것만 uid로 조회됨).
+// 후원 쪽지는 열람 전용(추가 회신은 일반 문의로) — appendFeedbackMessage 서버 함수는 feedback 전용이므로.
+function openMyFeedbackDetail(id, data, readOnly, colName = 'feedback') {
+  const isDonate = colName === 'feedback_donate';
+  currentOpenFeedbackId = (readOnly || isDonate) ? null : id;
   const threadEl = document.getElementById('myFeedbackThread');
   const messages = getFeedbackMessages(data);
   threadEl.innerHTML = messages.map(m => `
@@ -10165,13 +10254,14 @@ function openMyFeedbackDetail(id, data, readOnly) {
     </div>
   `).join('');
   document.getElementById('myFeedbackReplyInput').value = '';
-  document.getElementById('myFeedbackReplyInput').style.display = readOnly ? 'none' : '';
+  const hideReply = readOnly || isDonate; // 후원 쪽지는 열람 전용
+  document.getElementById('myFeedbackReplyInput').style.display = hideReply ? 'none' : '';
   const replySendBtn = document.getElementById('myFeedbackReplySendBtn');
-  if (replySendBtn) replySendBtn.style.display = readOnly ? 'none' : '';
+  if (replySendBtn) replySendBtn.style.display = hideReply ? 'none' : '';
   document.getElementById('myFeedbackOverlay').style.display = 'flex';
-  // 열어봤으니 안읽음 표시 해제
+  // 열어봤으니 안읽음 표시 해제 (본인 문서 — 규칙이 소유자 update를 허용해야 동작, 실패해도 무해)
   if (!readOnly && data.userUnread) {
-    setDoc(doc(db, 'feedback', id), { userUnread: false }, { merge: true }).catch(() => {});
+    setDoc(doc(db, colName, id), { userUnread: false }, { merge: true }).catch(() => {});
   }
 }
 
@@ -10245,18 +10335,24 @@ async function checkSkinNotification() {
       if (overlay) overlay.style.display = 'flex';
       await setDoc(ref, { notifyPending: false, thanksPending: false }, { merge: true });
     } else if (d.thanksPending) {
-      // 감사 쪽지만 (리워드 없이)
+      // 감사 쪽지만 (리워드 없이) — 관리자가 thanksText를 넣어뒀으면 그 문구를 그대로 보여줌
       const titleEl = document.getElementById('thanksNoteTitle');
       if (titleEl) titleEl.textContent = `${myNick}님, 응원해주셔서 감사합니다냥😻`;
+      const msgEl = document.getElementById('thanksNoteMsg');
+      const customMsg = (typeof d.thanksText === 'string' && d.thanksText.trim()) ? d.thanksText.trim() : '';
+      if (msgEl) msgEl.textContent = customMsg || '덕분에 게임이 계속 자란다냥🐾';
       const overlay = document.getElementById('thanksNoteOverlay');
       if (overlay) {
         overlay.style.display = 'flex';
-        // 잠시 후 자동으로 스르륵 사라짐 (탭해서 바로 닫기도 가능)
-        setTimeout(() => {
-          overlay.style.transition = 'opacity 0.6s';
-          overlay.style.opacity = '0';
-          setTimeout(() => { overlay.style.display = 'none'; overlay.style.opacity = '1'; overlay.style.transition = ''; }, 650);
-        }, 4500);
+        // 기본 쪽지는 잠시 후 자동으로 사라짐. 직접 쓴 쪽지는 읽을 시간이 필요하니
+        // 자동으로 닫지 않고 유저가 버튼을 눌러 닫게 둔다.
+        if (!customMsg) {
+          setTimeout(() => {
+            overlay.style.transition = 'opacity 0.6s';
+            overlay.style.opacity = '0';
+            setTimeout(() => { overlay.style.display = 'none'; overlay.style.opacity = '1'; overlay.style.transition = ''; }, 650);
+          }, 4500);
+        }
       }
       await setDoc(ref, { thanksPending: false }, { merge: true });
     }
@@ -10271,30 +10367,35 @@ async function checkUnreadReply() {
   // 자기 nickname 값을 아무거나 넣어 남의 글처럼 조회를 시도할 수 있어서). uid로 연결된
   // 사람만 안전하게 조회 가능 — 아직 연결 안 됐으면 이 확인 자체를 건너뜀(조용히, 기능 저하 없음).
   if (!isUidLinked()) return;
-  try {
-    const q = query(collection(db, 'feedback'), where('uid', '==', MY_UID), where('userUnread', '==', true));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
+  // 일반 문의(feedback)와 후원 확인 쪽지(feedback_donate)를 순서대로 확인 —
+  // 각각 별도 try/catch: 후원 쪽지 규칙이 아직 소유자 read를 허용하지 않아도 일반 알림은 정상 동작.
+  for (const colName of ['feedback', 'feedback_donate']) {
+    try {
+      const q = query(collection(db, colName), where('uid', '==', MY_UID), where('userUnread', '==', true));
+      const snap = await getDocs(q);
+      if (snap.empty) continue;
       const d = snap.docs[0];
       const data = d.data();
       // 같은 상태(메시지 개수 동일)의 알림은 한 번만 보여주고, 닫거나 답 안 해도 다음부턴 다시 안 뜨게 함
-      const versionKey = `oeing_notified_reply_${d.id}`;
+      // (후원 쪽지는 키에 컬렉션 접두사를 붙여 일반 문의 알림 기록과 절대 안 섞이게)
+      const versionKey = colName === 'feedback' ? `oeing_notified_reply_${d.id}` : `oeing_notified_reply_donate_${d.id}`;
       const currentVersion = String(getFeedbackMessages(data).length);
       let lastNotified = null;
       try { lastNotified = localStorage.getItem(versionKey); } catch {}
-      if (lastNotified === currentVersion) return;
+      if (lastNotified === currentVersion) continue;
       try { localStorage.setItem(versionKey, currentVersion); } catch {}
-      showReplyNotification(d.id, data);
-    }
-  } catch (e) { console.warn('답장 확인 실패:', e); }
+      showReplyNotification(d.id, data, colName);
+      return; // 배너는 한 번에 하나만
+    } catch (e) { console.warn('답장 확인 실패(' + colName + '):', e); }
+  }
 }
-function showReplyNotification(id, data) {
+function showReplyNotification(id, data, colName = 'feedback') {
   const banner = document.getElementById('replyNotifyBanner');
   if (!banner) return;
   banner.style.transform = 'translate(-50%, 0)';
   const onOpen = () => {
     banner.style.transform = 'translate(-50%, -120%)';
-    openMyFeedbackDetail(id, data);
+    openMyFeedbackDetail(id, data, false, colName);
     banner.removeEventListener('click', onOpen);
   };
   banner.addEventListener('click', onOpen);
@@ -10328,22 +10429,46 @@ async function renderFeedbackBoard() {
   const pinnedIds = new Set();
   if (isUidLinked() && pinnedWrap && pinnedList) {
     try {
+      // 일반 문의 — 기존과 동일 (uid 소유권 기준)
       const myQ = query(collection(db, 'feedback'), where('uid', '==', MY_UID));
       const mySnap = await getDocs(myQ);
-      if (!mySnap.empty) {
-        const mine = mySnap.docs.map(d => ({ id: d.id, data: d.data() }))
-          .sort((a, b) => (b.data.lastTs || b.data.ts || 0) - (a.data.lastTs || a.data.ts || 0));
+      const mine = mySnap.docs.map(d => ({ id: d.id, data: d.data(), col: 'feedback' }));
+      // 후원 확인 쪽지 — 내 것만 uid로 조회. 완전 비밀글이라 여기(본인 고정 섹션)에만 뜨고
+      // 아래 공개 게시판 목록에는 절대 나가지 않는다. 규칙이 아직 소유자 read를 허용하지
+      // 않으면 이 조회만 조용히 실패하고 일반 문의는 정상 표시된다.
+      try {
+        const dQ = query(collection(db, 'feedback_donate'), where('uid', '==', MY_UID));
+        const dSnap = await getDocs(dQ);
+        dSnap.docs.forEach(d => mine.push({ id: d.id, data: d.data(), col: 'feedback_donate' }));
+      } catch (e) { console.warn('내 후원 쪽지 조회 실패(규칙 미허용 시 정상):', e && e.code); }
+
+      if (mine.length) {
+        mine.sort((a, b) => (b.data.lastTs || b.data.ts || 0) - (a.data.lastTs || a.data.ts || 0));
         pinnedList.innerHTML = '';
-        mine.forEach(({ id, data }) => {
-          pinnedIds.add(id);
+        mine.forEach(({ id, data, col }) => {
+          if (col === 'feedback') pinnedIds.add(id);
+          const isDonate = col === 'feedback_donate';
           const hasReply = getFeedbackMessages(data).some(m => m.from === 'admin');
-          const row = document.createElement('div');
-          row.style.cssText = `display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;border:1px solid var(--blue-bright);background:var(--blue-dim);font-size:13px;cursor:pointer;`;
-          row.innerHTML = `
-            <span style="color:var(--blue-light);">🔒 내 글${hasReply ? ' 💬 답글 있음' : ''}</span>
+          // 상태: 새 답변(안 읽음) > 답글 있음 > 답변 대기중
+          const rowHtml = () => {
+            const hasReplyNow = getFeedbackMessages(data).some(m => m.from === 'admin');
+            const status = data.userUnread
+              ? ' <span style="color:#fde68a;font-weight:800;">🔔 새 답변</span>'
+              : (hasReplyNow ? ' 💬 답글 있음' : ' <span style="color:var(--muted);">답변 대기중</span>');
+            return `
+            <span style="color:${isDonate ? '#f0d8a8' : 'var(--blue-light)'};">${isDonate ? '💛 후원 확인' : '🔒 일반 문의'}${status}</span>
             <span style="color:var(--muted);font-size:12px;">${formatFeedbackDate(data.ts)}</span>
           `;
-          row.addEventListener('click', () => openMyFeedbackDetail(id, data, false));
+          };
+          const row = document.createElement('div');
+          row.style.cssText = `display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;border:1px solid ${isDonate ? '#DA9845' : 'var(--blue-bright)'};background:${isDonate ? 'rgba(218,152,69,0.1)' : 'var(--blue-dim)'};font-size:13px;cursor:pointer;`;
+          row.innerHTML = rowHtml();
+          row.addEventListener('click', () => {
+            openMyFeedbackDetail(id, data, false, col);
+            // 열람 즉시 이 행의 표시만 로컬 갱신 — 목록 재조회 없음 (서버 반영은 openMyFeedbackDetail이 처리)
+            data.userUnread = false;
+            row.innerHTML = rowHtml();
+          });
           pinnedList.appendChild(row);
         });
         pinnedWrap.style.display = 'block';

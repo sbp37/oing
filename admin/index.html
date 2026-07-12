@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>오잉게임 관리자</title>
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<!-- ══════════ 로그인 게이트 ══════════ -->
+<div id="loginGate" class="login-gate">
+  <div class="login-card">
+    <div class="login-logo">🐱</div>
+    <h1>오잉게임 관리자</h1>
+    <p class="login-sub">관리자 암호를 입력하세요</p>
+    <input id="loginPw" type="password" placeholder="관리자 암호" autocomplete="current-password">
+    <button id="loginBtn" class="btn btn-primary btn-block">입장</button>
+    <div id="loginErr" class="login-err"></div>
+    <button id="loginEmailToggle" class="login-email-toggle">Firebase 관리자 계정으로 로그인 (보안 규칙용) ▾</button>
+    <div id="loginEmailBox" class="login-email-box" style="display:none;">
+      <input id="loginEmail" type="email" placeholder="관리자 이메일" autocomplete="username">
+      <input id="loginEmailPw" type="password" placeholder="계정 비밀번호" autocomplete="current-password">
+      <div class="login-hint">⚠️ 위 암호는 화면 잠금일 뿐이고, 실제 데이터 권한은 Firebase 보안 규칙이 결정합니다.<br>
+      스킨 지급·피드백 열람·초기화 같은 관리자 작업은 보안 규칙상 관리자 계정 인증이 필요할 가능성이 높으니,
+      되도록 여기에 관리자 계정으로 로그인하세요.<br>
+      비워두면 게임과 동일한 익명 인증으로 접속하며, 규칙이 막는 작업은 해당 카드에 "권한 없음"으로 표시됩니다.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ 관리자 본체 ══════════ -->
+<div id="adminApp" class="admin-app" style="display:none;">
+
+  <header class="topbar">
+    <div class="topbar-title">🐱 오잉게임 관리자</div>
+    <div class="topbar-right">
+      <button id="verdictBadge" class="verdict-badge" style="display:none;" title="서버가 자동 판정한 의심 세션 — 눌러서 확인">🚨 의심 판정 <b id="verdictBadgeCount">0</b>건</button>
+      <span id="readCounter" class="read-counter" title="이번 세션의 Firestore 조회량 추정치 — 실제 청구 읽기 수와 다소 차이가 있을 수 있어요">추정 읽기 0 · 쿼리 0</span>
+      <button id="logoutBtn" class="btn btn-ghost btn-sm">잠금</button>
+    </div>
+  </header>
+
+  <nav class="tabbar" id="tabbar">
+    <button class="tab-btn active" data-tab="home">🏠 홈</button>
+    <button class="tab-btn" data-tab="users">👥 유저</button>
+    <button class="tab-btn" data-tab="analytics">📈 분석</button>
+    <button class="tab-btn" data-tab="security">🛡️ 보안</button>
+    <button class="tab-btn" data-tab="rewards">💛 후원·리워드</button>
+    <button class="tab-btn" data-tab="operations">🛠️ 운영</button>
+  </nav>
+
+  <main class="content">
+
+    <!-- ── 홈 ── -->
+    <section id="tab-home" class="tab-section">
+      <div class="section-head">
+        <h2>오늘의 핵심 지표</h2>
+        <button class="btn btn-ghost btn-sm refresh-btn" data-refresh="home">↻ 홈 새로고침</button>
+      </div>
+
+      <!-- 현재 접속 중 — 오늘 세션 데이터 재사용 (추가 조회 없음), 최상단 표시 -->
+      <div class="card online-card" id="homeOnlineCard"></div>
+
+      <!-- A. 핵심 4개 — 크게 강조 (모바일 2×2) -->
+      <div id="homeCoreGrid" class="stat-grid core"></div>
+
+      <!-- B. 운영 지표 4개 — 컴팩트 2열 -->
+      <div id="homeOpsGrid" class="stat-grid ops"></div>
+
+      <!-- C. 오늘 클릭 현황 — 카드 1개로 통합 -->
+      <div class="card">
+        <div class="card-head"><h3>💛 오늘 클릭 현황</h3></div>
+        <div id="homeClicksList" class="mini-list"></div>
+      </div>
+
+      <!-- D. 주간 지표 — 카드 1개로 통합, 미집계 안내는 1회만 -->
+      <div class="card">
+        <div class="card-head"><h3>📊 주간 지표</h3></div>
+        <div id="homeWeeklyList" class="mini-list"></div>
+        <div id="homeWeeklyNote" class="card-note" style="margin-top:6px;"></div>
+      </div>
+
+      <!-- F. 최근 접속 — 맨 아래, 섹션으로 분리 -->
+      <div class="section-head" style="margin-top:22px;">
+        <h2>최근 접속</h2>
+      </div>
+      <div class="card" id="homeRecentCard">
+        <div class="card-head"><span class="card-note">오늘 방문 세션 기준 · 새로고침으로 갱신</span></div>
+        <div id="homeRecentList" class="list"></div>
+      </div>
+    </section>
+
+    <!-- ── 유저 ── -->
+    <section id="tab-users" class="tab-section" style="display:none;">
+      <div class="section-head">
+        <h2>유저 관리</h2>
+        <button class="btn btn-ghost btn-sm refresh-btn" data-refresh="users">↻ 유저 새로고침</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>🔍 닉네임 검색</h3></div>
+        <div class="row">
+          <input id="userSearchInput" type="text" placeholder="정확한 닉네임 입력">
+          <button id="userSearchBtn" class="btn btn-primary">검색</button>
+        </div>
+        <div id="userSearchResult"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>🌱 오늘 들어온 유저</h3><span class="card-note">오늘 접속한 유저 · 최근 접속순</span></div>
+        <div id="usersTodayList" class="list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>👥 전체 유저 현황</h3>
+          <select id="userSortSel" class="sel">
+            <option value="lastPlayed">최근 플레이순</option>
+            <option value="bestScore">점수순</option>
+            <option value="playCount">플레이 횟수순</option>
+            <option value="totalPlayTime">플레이 시간순</option>
+          </select>
+        </div>
+        <div id="usersList" class="list"></div>
+        <button id="usersMoreBtn" class="btn btn-ghost btn-block">더 보기 (30명씩)</button>
+      </div>
+    </section>
+
+    <!-- ── 분석 ── -->
+    <section id="tab-analytics" class="tab-section" style="display:none;">
+      <div class="section-head">
+        <h2>분석</h2>
+        <div class="btn-row">
+          <button id="recomputeBtn" class="btn btn-ghost btn-sm" title="지난 13일 통계를 원본에서 다시 집계 (캐시가 의심될 때만)">🛠 통계 재집계</button>
+          <button class="btn btn-ghost btn-sm refresh-btn" data-refresh="analytics">↻ 분석 새로고침</button>
+        </div>
+      </div>
+      <div id="analyticsNotice" class="card-note" style="margin-bottom:10px;"></div>
+      <div class="card">
+        <div class="card-head"><h3>📅 최근 14일 방문자</h3><span id="sumVisitors" class="card-note"></span></div>
+        <div id="chartVisitors" class="chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>🌱 최근 14일 신규 유저</h3><span id="sumNewUsers" class="card-note"></span></div>
+        <div id="chartNewUsers" class="chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>🎮 최근 14일 플레이 판수</h3><span id="sumPlays" class="card-note"></span></div>
+        <div id="chartPlays" class="chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>⏰ 시간대별 세션 (최근 14일)</h3></div>
+        <div id="chartHourly" class="chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>📊 주간 지표</h3></div>
+        <div id="analyticsWeekly" class="stat-grid small"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h3>🧭 유입경로 · 친구초대</h3>
+          <button id="referrerLoadBtn" class="btn btn-ghost btn-sm">유입 데이터 불러오기</button>
+        </div>
+        <div class="card-note" style="margin-bottom:8px;">유저 통계 문서를 읽어야 해서(최대 500명) 버튼을 눌렀을 때만 조회합니다.</div>
+        <div id="referrerResult"></div>
+      </div>
+    </section>
+
+    <!-- ── 보안 ── -->
+    <section id="tab-security" class="tab-section" style="display:none;">
+      <div class="section-head">
+        <h2>보안 / 기록 관리</h2>
+        <button class="btn btn-ghost btn-sm refresh-btn" data-refresh="security">↻ 보안 새로고침</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>🚨 의심 판정 알림</h3>
+          <button id="verdictRefreshBtn" class="btn btn-ghost btn-sm">↻ 새로고침</button>
+        </div>
+        <div class="card-note" style="margin-bottom:8px;">서버가 자동으로 판정한 보류/거부 세션 (game_sessions · 최근 50건). 읽기 전용입니다.</div>
+        <div id="verdictList" class="list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>🕵️ 의심 기록 탐지 (수동 스캔)</h3>
+          <button id="suspectScanBtn" class="btn btn-primary btn-sm">스캔 실행</button>
+        </div>
+        <div class="card-note" style="margin-bottom:8px;">상위 랭킹 100명을 기준으로 비정상 점수(플레이 대비 과도한 점수, 주간&gt;전체 불일치 등)를 검사합니다. 버튼을 눌렀을 때만 조회합니다.</div>
+        <div id="suspectResult"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>🗑️ 랭킹 기록 삭제</h3></div>
+        <div class="row">
+          <input id="secDeleteNick" type="text" placeholder="삭제할 닉네임">
+          <button id="secDeleteBtn" class="btn btn-danger">기록 삭제</button>
+        </div>
+        <div class="card-note">전체 랭킹 + 이번주 랭킹에서 해당 닉네임 점수를 삭제합니다. (유저 계정/스킨은 유지)</div>
+        <div id="secDeleteResult"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>💾 백업</h3></div>
+        <div class="btn-row">
+          <button class="btn btn-ghost backup-btn" data-backup="rankings">전체 랭킹 백업</button>
+          <button class="btn btn-ghost backup-btn" data-backup="weekly">이번주 랭킹 백업</button>
+          <button class="btn btn-ghost backup-btn" data-backup="champions">왕관 기록 백업</button>
+          <button class="btn btn-ghost backup-btn" data-backup="user_stats">유저 통계 백업</button>
+        </div>
+        <div class="card-note">JSON 파일로 다운로드됩니다. 초기화 전 자동 백업과 별개로 수동 백업할 때 사용하세요.</div>
+        <div id="backupResult"></div>
+      </div>
+
+      <div class="card danger-card">
+        <div class="card-head"><h3>⚠️ 위험 구역 — 초기화</h3></div>
+        <div class="card-note" style="margin-bottom:10px;">실행 전 자동으로 JSON 백업이 다운로드되고, 기존과 동일한 다단계 확인창을 거칩니다.</div>
+        <div class="btn-row">
+          <button id="resetWeekBtn" class="btn btn-danger">이번주 랭킹만 초기화</button>
+          <button id="resetCrownBtn" class="btn btn-danger">👑 왕관 기록만 초기화</button>
+          <button id="resetAllBtn" class="btn btn-danger">랭킹 전체 초기화</button>
+        </div>
+        <div id="resetResult"></div>
+      </div>
+    </section>
+
+    <!-- ── 후원·리워드 ── -->
+    <section id="tab-rewards" class="tab-section" style="display:none;">
+      <div class="section-head">
+        <h2>후원 / 리워드</h2>
+        <button class="btn btn-ghost btn-sm refresh-btn" data-refresh="rewards">↻ 후원 새로고침</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>🎁 리워드 지급</h3></div>
+        <div class="row">
+          <input id="rwNick" type="text" placeholder="닉네임">
+        </div>
+        <div class="btn-row" style="margin-top:8px;">
+          <button id="rwSkinGrantBtn" class="btn btn-primary">😻 고양이 스킨 지급</button>
+          <button id="rwSkinRevokeBtn" class="btn btn-ghost">스킨 해제</button>
+        </div>
+        <textarea id="rwThanksText" rows="2" placeholder="쪽지 내용 (비우면 기본 감사 문구) — 예: 쑤님 입금 확인했어요! 스킨 곧 보내드릴게요 💛" style="margin-top:8px;"></textarea>
+        <div class="btn-row" style="margin-top:6px;">
+          <button id="rwThanksNoteBtn" class="btn btn-warm">💌 감사 쪽지 보내기</button>
+        </div>
+        <div class="card-note">쪽지는 닉네임만 알면 누구에게나 보낼 수 있어요 (계정 연결 불필요). 다음 접속 때 팝업으로 표시됩니다.</div>
+        <div class="row" style="margin-top:8px;">
+          <input id="rwJellyAmount" type="number" min="1" placeholder="젤리 개수">
+          <button id="rwJellyBtn" class="btn btn-warm">🍬 젤리 지급</button>
+        </div>
+        <div class="card-note">지급/해제/쪽지는 유저가 다음에 게임을 열 때 알림 팝업으로 한 번 전달돼요.</div>
+        <div id="rwResult"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>💌 후원 확인 쪽지함</h3></div>
+        <div id="donateFeedbackList" class="list"></div>
+        <button id="donateFeedbackMoreBtn" class="btn btn-ghost btn-block">이전 기록 더 보기</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>🧾 클릭 기록</h3>
+          <select id="clickLogSel" class="sel">
+            <option value="donate_clicks">990원 응원 클릭</option>
+            <option value="support_topbtn_clicks">응원하기 버튼 클릭</option>
+            <option value="snack_clicks">간식 사주기 클릭</option>
+            <option value="supporterpack_clicks">서포터팩 클릭</option>
+            <option value="share_clicks">카카오톡 공유 클릭</option>
+            <option value="skin_requests">스킨 꾸미기 신청</option>
+            <option value="jellyshop_clicks">젤리상점 열람</option>
+            <option value="tutorial_starts">튜토리얼 시작</option>
+            <option value="updatelog_clicks">업데이트로그 클릭</option>
+            <option value="thanks_toggle_clicks">감사메시지 열람</option>
+          </select>
+        </div>
+        <div id="clickLogList" class="list"></div>
+        <button id="clickLogMoreBtn" class="btn btn-ghost btn-block">이전 기록 더 보기</button>
+      </div>
+    </section>
+
+    <!-- ── 운영 ── -->
+    <section id="tab-operations" class="tab-section" style="display:none;">
+      <div class="section-head">
+        <h2>운영</h2>
+        <button class="btn btn-ghost btn-sm refresh-btn" data-refresh="operations">↻ 운영 새로고침</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>💬 피드백 관리</h3></div>
+        <div id="feedbackList" class="list"></div>
+        <button id="feedbackMoreBtn" class="btn btn-ghost btn-block">이전 문의 더 보기</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>🐾 이번 달 함께해주신 분</h3></div>
+        <textarea id="opThanksText" rows="3" placeholder="예: 제제, 준석리, 쿠앙"></textarea>
+        <div class="btn-row" style="margin-top:8px;">
+          <button id="opThanksSaveBtn" class="btn btn-warm">저장 (랭킹 화면 하단에 표시)</button>
+          <button id="opThanksClearBtn" class="btn btn-ghost">비우기 (표시 숨김)</button>
+        </div>
+        <div id="opThanksResult"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>👑 명예의전당</h3></div>
+        <div id="hallList" class="list"></div>
+        <div class="row" style="margin-top:10px;">
+          <input id="hallNick" type="text" placeholder="닉네임">
+          <input id="hallCount" type="number" min="0" placeholder="횟수" style="max-width:90px;">
+          <button id="hallSetBtn" class="btn btn-primary">설정 저장</button>
+        </div>
+        <button id="hallSyncBtn" class="btn btn-ghost btn-block" style="margin-top:8px;">현재 1등을 챔피언으로 동기화</button>
+        <div id="hallResult"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>ℹ️ 앱 버전</h3></div>
+        <div id="opVersionInfo" class="card-note">-</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- 유저 상세 모달 -->
+<div id="userModal" class="modal" style="display:none;">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="userModalTitle">유저 상세</h3>
+      <button id="userModalClose" class="btn btn-ghost btn-sm">✕</button>
+    </div>
+    <div id="userModalBody"></div>
+  </div>
+</div>
+
+<script type="module" src="js/admin.js"></script>
+</body>
+</html>
