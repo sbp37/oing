@@ -8,8 +8,8 @@
 import {
   db, collection, doc, query, where, orderBy, limit,
   fetchDocs, fetchDoc, deleteDoc, getUserDocByNick,
-  getWeekId, fmtNum, fmtDateTime, escapeHtml, downloadJSON, humanError,
-  getTodayDateStr, cache,
+  getWeekId, fmtNum, fmtDateTime, fmtAgo, escapeHtml, downloadJSON, humanError,
+  getTodayDateStr, cache, fns, httpsCallable, normalizeNickname,
 } from './firebase.js';
 import { setLoading, setError, setEmpty, guardBtn, resultMsg } from './admin.js';
 import { deleteRankingRecord } from './users.js';
@@ -105,8 +105,97 @@ async function loadVerdicts({ force = false } = {}) {
   }
 }
 
+// ── 🔑 PIN 재설정 (분실 유저용) ──
+// PIN 해시/솔트는 users_private에 있고 규칙상 클라이언트가 못 건드리므로,
+// 실제 교체는 서버 함수 adminResetPin(Admin SDK)만 한다. 여기서는:
+//  ① 닉네임 → nickname_lookup으로 UID 후보 확인(계정 연결된 유저만 대상)
+//  ② 새 PIN 자동생성/직접입력 → 서버 함수 호출 → 성공 시 새 PIN을 화면에 표시
+// 기존 PIN 원문을 조회하는 기능은 만들지 않는다.
+function gen4Pin() {
+  // 브라우저 crypto로 0000~9999 균등 생성 (Math.random 대신)
+  const a = new Uint32Array(1);
+  crypto.getRandomValues(a);
+  return String(a[0] % 10000).padStart(4, '0');
+}
+
+async function pinResetSearch(rawNick) {
+  const el = document.getElementById('pinResetResult');
+  const norm = normalizeNickname(rawNick);
+  if (!norm) { setEmpty(el, '닉네임을 입력하세요.'); return; }
+  setLoading(el, '계정 확인 중...');
+  try {
+    // 닉변 유저 대응: renamedTo tombstone을 최대 6홉 따라가 현재 계정 uid를 찾는다
+    let curNorm = norm, curRaw = rawNick, renamed = false, lk = null;
+    const seen = new Set();
+    for (let hop = 0; hop < 6; hop++) {
+      if (seen.has(curNorm)) break;
+      seen.add(curNorm);
+      lk = await fetchDoc(doc(db, 'nickname_lookup', curNorm));
+      if (!lk) break;
+      if (lk.nickname) curRaw = lk.nickname;
+      if (!lk.renamedTo) break;
+      renamed = true; curNorm = normalizeNickname(lk.renamedTo);
+    }
+    if (!lk || !lk.uid) {
+      setEmpty(el, `'${escapeHtml(rawNick)}' — 계정(UID)이 연결된 유저가 아니에요.<br>PIN은 계정 연결된 유저만 재설정할 수 있어요. (해당 유저가 게임에서 계정 연결을 먼저 해야 함)`);
+      return;
+    }
+    const stats = await fetchDoc(doc(db, 'user_stats', lk.uid)).catch(() => null);
+    const renameNote = renamed ? `<div class="card-note" style="color:#fde68a;">↪ '${escapeHtml(rawNick)}'은(는) 현재 '${escapeHtml(curRaw)}'(으)로 닉변된 계정</div>` : '';
+    el.innerHTML = `
+      ${renameNote}
+      <div class="list-row" style="margin-bottom:8px;">
+        <span class="main"><span class="nick">${escapeHtml(curRaw)}</span> <span class="badge green">계정 연동</span><br>
+          <span class="sub">UID ${escapeHtml(lk.uid.slice(0, 10))}… · 최근 ${stats && stats.lastPlayed ? fmtAgo(stats.lastPlayed) : '-'}</span></span>
+      </div>
+      <div class="row">
+        <input id="pinResetInput" type="text" inputmode="numeric" maxlength="4" placeholder="새 4자리 PIN" style="max-width:120px;">
+        <button id="pinResetGenBtn" class="btn btn-ghost">자동생성</button>
+        <button id="pinResetApplyBtn" class="btn btn-danger" data-uid="${escapeHtml(lk.uid)}" data-nick="${escapeHtml(curRaw)}">PIN 재설정</button>
+      </div>
+      <div id="pinResetApplyResult" class="result-msg"></div>`;
+    document.getElementById('pinResetGenBtn').addEventListener('click', () => {
+      document.getElementById('pinResetInput').value = gen4Pin();
+    });
+    const applyBtn = document.getElementById('pinResetApplyBtn');
+    applyBtn.addEventListener('click', guardBtn(applyBtn, () => pinResetApply(lk.uid, curRaw)));
+  } catch (e) {
+    setError(el, humanError(e));
+  }
+}
+
+async function pinResetApply(uid, nick) {
+  const input = document.getElementById('pinResetInput');
+  const out = document.getElementById('pinResetApplyResult');
+  const pin = (input.value || '').trim();
+  if (!/^\d{4}$/.test(pin)) { out.className = 'result-msg err'; out.textContent = '4자리 숫자 PIN을 입력하거나 "자동생성"을 누르세요.'; return; }
+  if (!confirm(`'${nick}' 님의 PIN을 [ ${pin} ] (으)로 재설정할까요?\n기존 PIN은 더 이상 작동하지 않게 됩니다.`)) return;
+  out.className = 'result-msg'; out.textContent = '서버에 재설정 요청 중...';
+  try {
+    const fn = httpsCallable(fns, 'adminResetPin');
+    const res = await fn({ uid, nickname: nick, newPin: pin });
+    const d = (res && res.data) || {};
+    if (d.ok) {
+      out.className = 'result-msg ok';
+      out.innerHTML = `✅ 재설정 완료! 이 유저에게 알려줄 새 PIN: <b style="font-size:18px;color:var(--accent-green-light);">${pin}</b><br>
+        <span style="color:var(--muted);font-size:12px;">유저는 다른 기기에서 "이어하기 → 닉네임 + 이 PIN"으로 계정을 복구할 수 있어요.</span>`;
+    } else {
+      out.className = 'result-msg err';
+      out.textContent = '재설정 실패: ' + (d.reason || '서버가 ok를 반환하지 않았어요.');
+    }
+  } catch (e) {
+    const code = String((e && (e.code || e.message)) || e);
+    out.className = 'result-msg err';
+    if (/not-found|internal|functions\/not-found|CORS|does not exist/i.test(code)) {
+      out.innerHTML = '⚠️ 서버 함수 <b>adminResetPin</b>이 아직 배포되지 않았어요.<br><span style="color:var(--muted);font-size:12px;">Functions 프로젝트에 함수를 배포해야 이 버튼이 작동해요 (배포용 코드는 별도 제공).</span>';
+    } else {
+      out.textContent = '재설정 실패: ' + humanError(e);
+    }
+  }
+}
+
 // ── 의심 기록 탐지 — 버튼 클릭 시에만 실행 ──
-// 상위 랭킹 100명을 읽고, 상위 20명은 user_stats/주간 점수와 교차 검증
+// 상위 랭킹 30명을 읽고, 상위 20명은 user_stats/주간 점수와 교차 검증
 const SUSPECT_SCAN_TOP = 30;
 const SUSPECT_DEEP_TOP = 20;
 
@@ -268,6 +357,10 @@ async function resetCrown() {
 export function initSecurityTab() {
   const scanBtn = document.getElementById('suspectScanBtn');
   scanBtn.addEventListener('click', guardBtn(scanBtn, scanSuspects));
+
+  const pinSearchBtn = document.getElementById('pinResetSearchBtn');
+  pinSearchBtn.addEventListener('click', guardBtn(pinSearchBtn, () => pinResetSearch(document.getElementById('pinResetNick').value.trim())));
+  document.getElementById('pinResetNick').addEventListener('keydown', e => { if (e.key === 'Enter') pinSearchBtn.click(); });
 
   const delBtn = document.getElementById('secDeleteBtn');
   delBtn.addEventListener('click', guardBtn(delBtn, async () => {
