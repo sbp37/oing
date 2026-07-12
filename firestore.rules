@@ -397,11 +397,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // game_sessions — 서버 세션 shadow telemetry (PR2). 클라이언트는 read/write 절대 불가.
-    // 오직 Cloud Function(Admin SDK, 규칙 우회)만 create/update. 아래 catch-all이 이미
-    // 막지만, 의도를 규칙에 명시하고 회귀 테스트로 고정하기 위해 별도 블록으로 둔다.
+    // game_sessions — 서버 세션 shadow telemetry (PR2) + 공식 판정(PR3).
+    // write 는 오직 Cloud Function(Admin SDK, 규칙 우회)만. 클라이언트 write 절대 불가.
+    // read 는 어드민(관리자 대시보드)만 허용 — 보류/거부된 판(official.decision)을
+    // 관리자 알림 패널에서 조회하기 위함. 일반 유저는 인증 여부와 무관하게 read 불가.
     match /game_sessions/{sessionId} {
-      allow read, write: if false;
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /{document=**} {
