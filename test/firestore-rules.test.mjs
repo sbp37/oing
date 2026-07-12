@@ -135,8 +135,19 @@ test('users_private: 일반 read 거부', async () => {
   await assertFails(getDoc(doc(unauth(), 'users_private', 'u1')));
 });
 
-// ─────────────── game_sessions (PR2 shadow — 클라이언트 접근 완전 차단) ───────────────
-// CF(Admin SDK)만 write. 클라이언트는 인증 여부와 무관하게 read/create/update/delete 전부 거부.
+// ─────────────── game_sessions (PR2 shadow — write 전면차단, read는 어드민만) ───────────────
+// CF(Admin SDK)만 write. 일반 클라이언트는 read/write 전부 거부. 어드민 UID만 read 허용(알림 패널).
+const ADMIN = 'dofesyOMISTSAKEKBEpqAyV2PTr2';
+test('game_sessions: 어드민 read 허용 (보류/거부 알림 패널용)', async () => {
+  await seed((db) => setDoc(doc(db, 'game_sessions', 'adm1'), { uid: 'u1', official: { decision: 'pending_review' } }));
+  await assertSucceeds(getDoc(doc(asUser(ADMIN), 'game_sessions', 'adm1')));
+});
+test('game_sessions: 어드민도 write 거부 (CF만)', async () => {
+  await assertFails(setDoc(doc(asUser(ADMIN), 'game_sessions', 'adm2'), { uid: 'x', status: 'active' }));
+  await seed((db) => setDoc(doc(db, 'game_sessions', 'adm3'), { uid: 'u1', status: 'active' }));
+  await assertFails(updateDoc(doc(asUser(ADMIN), 'game_sessions', 'adm3'), { finalScore: 1 }));
+  await assertFails(deleteDoc(doc(asUser(ADMIN), 'game_sessions', 'adm3')));
+});
 test('game_sessions: 클라 create 거부 (미인증)', async () => {
   await assertFails(setDoc(doc(unauth(), 'game_sessions', 's1'), { uid: 'x', status: 'active' }));
 });
