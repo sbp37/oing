@@ -59,9 +59,32 @@
         <h2>오늘의 핵심 지표</h2>
         <button class="btn btn-ghost btn-sm refresh-btn" data-refresh="home">↻ 홈 새로고침</button>
       </div>
-      <div id="homeStatGrid" class="stat-grid"></div>
+
+      <!-- A. 핵심 4개 — 크게 강조 (모바일 2×2) -->
+      <div id="homeCoreGrid" class="stat-grid core"></div>
+
+      <!-- B. 운영 지표 4개 — 컴팩트 2열 -->
+      <div id="homeOpsGrid" class="stat-grid ops"></div>
+
+      <!-- C. 오늘 클릭 현황 — 카드 1개로 통합 -->
+      <div class="card">
+        <div class="card-head"><h3>💛 오늘 클릭 현황</h3></div>
+        <div id="homeClicksList" class="mini-list"></div>
+      </div>
+
+      <!-- D. 주간 지표 — 카드 1개로 통합, 미집계 안내는 1회만 -->
+      <div class="card">
+        <div class="card-head"><h3>📊 주간 지표</h3></div>
+        <div id="homeWeeklyList" class="mini-list"></div>
+        <div id="homeWeeklyNote" class="card-note" style="margin-top:6px;"></div>
+      </div>
+
+      <!-- F. 최근 접속 — 맨 아래, 섹션으로 분리 -->
+      <div class="section-head" style="margin-top:22px;">
+        <h2>최근 접속</h2>
+      </div>
       <div class="card" id="homeRecentCard">
-        <div class="card-head"><h3>🟢 최근 접속</h3><span class="card-note">오늘 방문 세션 기준 · 새로고침으로 갱신</span></div>
+        <div class="card-head"><span class="card-note">오늘 방문 세션 기준 · 새로고침으로 갱신</span></div>
         <div id="homeRecentList" class="list"></div>
       </div>
     </section>

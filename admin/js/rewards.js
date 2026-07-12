@@ -98,15 +98,45 @@ const CLICK_LABELS = {
 const clickState = {};
 
 function clickRowHtml(colName, r) {
-  let extra = '';
+  // 스킨 신청은 기존 스키마의 fulfilled 필드로 대기/처리됨을 표시하고,
+  // 대기 건에는 "처리 완료" 버튼을 붙인다 (문서의 다른 필드는 건드리지 않음)
   if (colName === 'skin_requests') {
-    extra = ` · ${escapeHtml(r.label || '')} ${fmtNum(r.price || 0)}원 ${r.fulfilled ? '<span class="badge green">처리됨</span>' : '<span class="badge warn">대기</span>'}`;
+    const pending = r.fulfilled !== true;
+    return `
+      <div class="list-row" data-reqid="${escapeHtml(r.id)}">
+        <span class="main"><span class="nick">${escapeHtml(r.nickname || '익명')}</span>
+          · ${escapeHtml(r.label || '')} ${fmtNum(r.price || 0)}원
+          ${pending ? '<span class="badge warn">대기</span>' : '<span class="badge green">처리됨</span>'}
+          <span class="skinreq-err list-error" style="display:block;padding:0;text-align:left;"></span></span>
+        <span class="sub">${fmtDateTime(r.ts)}</span>
+        ${pending ? `<button class="btn btn-primary btn-sm skinreq-fulfill" data-reqid="${escapeHtml(r.id)}">처리 완료</button>` : ''}
+      </div>`;
   }
   return `
     <div class="list-row">
-      <span class="main"><span class="nick">${escapeHtml(r.nickname || '익명')}</span>${extra}</span>
+      <span class="main"><span class="nick">${escapeHtml(r.nickname || '익명')}</span></span>
       <span class="sub">${fmtDateTime(r.ts)}</span>
     </div>`;
+}
+
+// "처리 완료" — 확인창 후 fulfilled:true 만 merge 저장, 해당 행만 UI 갱신 (재조회 없음)
+async function fulfillSkinRequest(id, btn) {
+  const st = clickState['skin_requests'];
+  const row = st && st.rows.find(r => r.id === id);
+  if (!row) return;
+  const ok = confirm(`'${row.nickname || '익명'}' 님의 스킨 신청(${row.label || ''} ${fmtNum(row.price || 0)}원)을\n처리 완료로 표시할까요?`);
+  if (!ok) return;
+  btn.disabled = true;
+  const rowEl = btn.closest('.list-row');
+  try {
+    await setDoc(doc(db, 'skin_requests', id), { fulfilled: true }, { merge: true });
+    row.fulfilled = true; // 세션 캐시도 갱신 — 재렌더/재조회 없이 상태 유지
+    if (rowEl) rowEl.outerHTML = clickRowHtml('skin_requests', row);
+  } catch (e) {
+    btn.disabled = false;
+    const errEl = rowEl && rowEl.querySelector('.skinreq-err');
+    if (errEl) errEl.textContent = '⚠️ ' + humanError(e);
+  }
 }
 async function loadClickLog(colName, { reset = false } = {}) {
   const el = document.getElementById('clickLogList');
@@ -186,6 +216,11 @@ export function initRewardsTab() {
   })));
 
   document.getElementById('clickLogSel').addEventListener('change', (e) => loadClickLog(e.target.value));
+  // 스킨 신청 "처리 완료" — 목록이 다시 그려져도 동작하도록 위임 바인딩 (1회)
+  document.getElementById('clickLogList').addEventListener('click', (e) => {
+    const btn = e.target.closest('.skinreq-fulfill');
+    if (btn && !btn.disabled) fulfillSkinRequest(btn.dataset.reqid, btn);
+  });
   const moreBtn = document.getElementById('clickLogMoreBtn');
   moreBtn.addEventListener('click', () => loadMoreClickLog(document.getElementById('clickLogSel').value));
   const dMoreBtn = document.getElementById('donateFeedbackMoreBtn');

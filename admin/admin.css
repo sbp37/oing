@@ -117,14 +117,11 @@ textarea { width: 100%; resize: vertical; }
 
 .tabbar {
   position: sticky; top: 0; z-index: 50;
-  display: flex; gap: 6px;
+  display: flex; flex-wrap: wrap; /* 모바일에서 2줄로 전부 보이게 — 가로 잘림 없음 */
+  gap: 6px;
   padding: 8px 0;
   background: var(--bg);
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
 }
-.tabbar::-webkit-scrollbar { display: none; }
 .tab-btn {
   flex-shrink: 0;
   padding: 8px 14px;
@@ -184,6 +181,35 @@ textarea { width: 100%; resize: vertical; }
 .stat-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
 .stat-tile.loading .stat-value { color: var(--muted); font-size: 13px; font-weight: 400; }
 .stat-tile.error .stat-value { color: #fca5a5; font-size: 12px; font-weight: 400; line-height: 1.4; }
+
+/* 홈 정보 위계 — A. 핵심(크게) / B. 운영(컴팩트) */
+.stat-grid.core { grid-template-columns: repeat(2, 1fr); }
+.stat-tile.big { border-color: var(--border2); }
+.stat-tile.big .stat-value { font-size: 27px; word-break: keep-all; }
+.stat-tile.big.loading .stat-value, .stat-tile.big.error .stat-value { font-size: 13px; }
+.stat-grid.ops { grid-template-columns: repeat(2, 1fr); }
+.stat-tile.compact { padding: 9px 12px; }
+.stat-tile.compact .stat-value { font-size: 17px; }
+.stat-tile.compact .stat-sub { display: none; } /* 컴팩트 타일은 라벨+값만 */
+@media (min-width: 720px) {
+  .stat-grid.core, .stat-grid.ops { grid-template-columns: repeat(4, 1fr); }
+  .stat-tile.compact .stat-sub { display: block; }
+}
+
+/* C·D. 통합 카드 안의 간결한 지표 행 */
+.mini-list { display: flex; flex-direction: column; }
+.mini-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 2px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+}
+.mini-row:last-child { border-bottom: none; }
+.mini-label { color: var(--muted); }
+.mini-val { font-weight: 800; font-size: 15px; }
+.mini-val .unit { font-size: 11.5px; font-weight: 400; color: var(--muted); margin-left: 2px; }
+.mini-val.loading { color: var(--muted); font-weight: 400; font-size: 12.5px; }
+.mini-val.error { color: #fca5a5; font-weight: 400; font-size: 11.5px; max-width: 70%; text-align: right; }
 
 /* ── 리스트 ── */
 .list { display: flex; flex-direction: column; gap: 6px; }

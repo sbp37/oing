@@ -16,33 +16,49 @@ import {
 import { getTodaySessions, aggregateSessions, getDailyStatsRange, computeWeeklyMetrics, SESSION_FETCH_CAP } from './stats.js';
 import { setError, setEmpty } from './admin.js';
 
-// 홈에 표시할 타일 정의 (id, 라벨, 부가설명)
-const TILES = [
-  ['visitors',   '오늘 방문자', '고유 방문자 기준'],
-  ['newUsers',   '오늘 신규 유저', 'users.createdAt 기준'],
-  ['plays',      '오늘 총 플레이 판수', ''],
+// ── 홈 화면 구성 (정보 위계) ──
+// A. 핵심 4개 — 크게 / B. 운영 4개 — 컴팩트 타일 /
+// C. 클릭 5종 — 카드 1개 안의 행 / D. 주간 2종 — 카드 1개 안의 행
+// 화면에는 내부 컬렉션·필드명을 쓰지 않는다 (사람이 읽는 설명만).
+const CORE_TILES = [
+  ['visitors', '오늘 방문자', '고유 방문자 기준'],
+  ['plays',    '오늘 총 플레이 판수', ''],
+  ['newUsers', '오늘 신규 유저', '오늘 가입한 계정'],
+  ['mvp',      '오늘 MVP', '가장 많이 플레이'],
+];
+const OPS_TILES = [
   ['avgDur',     '평균 체류시간', '세션 기준'],
   ['startRate',  '게임 시작률', '방문자 중 플레이 시작'],
   ['bounceRate', '바로 나간 비율', '15초 미만 · 미플레이'],
-  ['mvp',        '오늘 MVP', '오늘 가장 많이 플레이'],
   ['totalUsers', '전체 유저 수', '점수 등록 계정'],
-  ['donate',     '오늘 990원 클릭', 'donate_clicks'],
-  ['support',    '오늘 응원하기 클릭', 'support_topbtn_clicks'],
-  ['snack',      '오늘 간식사주기 클릭', 'snack_clicks'],
-  ['share',      '오늘 카톡 공유 클릭', 'share_clicks'],
-  ['pack',       '오늘 서포터팩 클릭', 'supporterpack_clicks'],
-  ['wau',        'WAU (7일 방문자)', 'dailyStats 집계'],
-  ['returnRate', '오늘 재방문율', '지난 6일 내 방문 이력'],
+];
+const CLICK_ROWS = [   // 990원 응원 / 상단 응원 버튼 / 간식 / 카톡 공유 / 서포터팩 클릭 로그
+  ['donate',  '990원'],
+  ['support', '응원하기'],
+  ['snack',   '간식'],
+  ['share',   '카톡 공유'],
+  ['pack',    '서포터팩'],
+];
+const WEEKLY_ROWS = [
+  ['wau',        'WAU (7일 방문자)'],
+  ['returnRate', '오늘 재방문율'],
 ];
 
 function renderTileGrid() {
-  const grid = document.getElementById('homeStatGrid');
-  grid.innerHTML = TILES.map(([id, label, sub]) => `
-    <div class="stat-tile loading" id="tile-${id}">
+  const tile = ([id, label, sub], big) => `
+    <div class="stat-tile loading ${big ? 'big' : 'compact'}" id="tile-${id}">
       <div class="stat-label">${label}</div>
       <div class="stat-value">불러오는 중...</div>
       ${sub ? `<div class="stat-sub">${sub}</div>` : ''}
-    </div>`).join('');
+    </div>`;
+  document.getElementById('homeCoreGrid').innerHTML = CORE_TILES.map(t => tile(t, true)).join('');
+  document.getElementById('homeOpsGrid').innerHTML = OPS_TILES.map(t => tile(t, false)).join('');
+  const miniRow = ([id, label]) => `
+    <div class="mini-row"><span class="mini-label">${label}</span>
+      <span class="mini-val loading" id="mini-${id}">…</span></div>`;
+  document.getElementById('homeClicksList').innerHTML = CLICK_ROWS.map(miniRow).join('');
+  document.getElementById('homeWeeklyList').innerHTML = WEEKLY_ROWS.map(miniRow).join('');
+  document.getElementById('homeWeeklyNote').textContent = '';
 }
 function setTile(id, valueHtml, ok = true) {
   const el = document.getElementById('tile-' + id);
@@ -52,6 +68,14 @@ function setTile(id, valueHtml, ok = true) {
   el.querySelector('.stat-value').innerHTML = valueHtml;
 }
 function tileErr(id, e) { setTile(id, humanError(e), false); }
+function setMini(id, valueHtml, ok = true) {
+  const el = document.getElementById('mini-' + id);
+  if (!el) return;
+  el.classList.remove('loading');
+  el.classList.toggle('error', !ok);
+  el.innerHTML = valueHtml;
+}
+function miniErr(id, e) { setMini(id, '⚠️ ' + humanError(e), false); }
 
 export async function loadDashboard({ force = false } = {}) {
   renderTileGrid();
@@ -102,38 +126,42 @@ export async function loadDashboard({ force = false } = {}) {
     return null;
   });
 
-  // ── ② count 집계 타일 — 병렬 실행, 각 타일 독립 처리 ──
+  // ── ② count 집계 — 병렬 실행, 항목별 독립 처리 (조회 로직은 기존과 동일) ──
   const todayCount = (col) => countQuery(collection(db, col), where('date', '==', today));
-  const countJobs = [
+  const clickJobs = [
     ['donate',  () => todayCount('donate_clicks')],
     ['support', () => todayCount('support_topbtn_clicks')],
     ['snack',   () => todayCount('snack_clicks')],
     ['share',   () => todayCount('share_clicks')],
     ['pack',    () => todayCount('supporterpack_clicks')],
+  ];
+  const userJobs = [
     ['totalUsers', () => cache.get('home:totalUsers', () => countQuery(collection(db, 'users')))],
     ['newUsers',   () => countQuery(collection(db, 'users'), where('createdAt', '>=', todayStartTs()))],
   ];
-  const countsPromise = Promise.all(countJobs.map(([id, job]) =>
-    job()
-      .then(n => setTile(id, `${fmtNum(n)}<span class="unit">${id === 'totalUsers' || id === 'newUsers' ? '명' : '회'}</span>`))
-      .catch(e => tileErr(id, e))
-  ));
+  const countsPromise = Promise.all([
+    ...clickJobs.map(([id, job]) =>
+      job().then(n => setMini(id, `${fmtNum(n)}<span class="unit">회</span>`)).catch(e => miniErr(id, e))),
+    ...userJobs.map(([id, job]) =>
+      job().then(n => setTile(id, `${fmtNum(n)}<span class="unit">명</span>`)).catch(e => tileErr(id, e))),
+  ]);
 
   // ── ③ WAU/재방문율 — dailyStats "읽기 전용" (날짜당 문서 1개, 최대 6읽기) ──
   // 홈에서는 절대 원본(visit_sessions 과거분)을 백필하지 않는다.
-  // 미집계 날짜가 있으면 부분 집계로 표시하고, 분석 탭을 열면 백필된다.
+  // 미집계 안내는 카드 하단에 1회만 표시.
   const weeklyPromise = (async () => {
     try {
-      setTile('wau', '집계 중...');
-      setTile('returnRate', '집계 중...');
+      setMini('wau', '집계 중...');
+      setMini('returnRate', '집계 중...');
       const daily = await getDailyStatsRange(7, { force, allowBackfill: false });
       const wk = computeWeeklyMetrics(daily);
-      const missNote = wk.missingDays ? ` · ${wk.missingDays}일 미집계 (분석 탭에서 집계됨)` : '';
-      setTile('wau', `${fmtNum(wk.wau)}<span class="unit">명${missNote}</span>`);
-      setTile('returnRate', `${wk.returnRate}<span class="unit">% (${wk.returning}명)${missNote}</span>`);
+      setMini('wau', `${fmtNum(wk.wau)}<span class="unit">명</span>`);
+      setMini('returnRate', `${wk.returnRate}<span class="unit">% (${wk.returning}명)</span>`);
+      document.getElementById('homeWeeklyNote').textContent =
+        wk.missingDays ? `${wk.missingDays}일 미집계 · 분석 탭을 열면 집계됩니다` : '';
     } catch (e) {
-      tileErr('wau', e);
-      tileErr('returnRate', e);
+      miniErr('wau', e);
+      miniErr('returnRate', e);
     }
   })();
 
