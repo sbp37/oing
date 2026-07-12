@@ -1,0 +1,199 @@
+// ══════════════════════════════════════════════════════════════
+//  rewards.js — 후원 / 리워드 탭
+//
+//  · 스킨 지급/해제/감사쪽지: 기존 관리자와 완전히 동일한 데이터 방식
+//    (nickname_skins/{닉네임} 문서에 cat / notifyPending / thanksPending 플래그,
+//     merge 저장 — 게임 쪽 checkSkinNotification 이 그대로 알아듣는다)
+//  · 클릭 기록/후원 쪽지함: 처음 30건만 + "이전 기록 더 보기" 커서 페이지네이션.
+//    실시간 리스너 없음 — 과거 로그는 변하지 않으므로 getDocs면 충분.
+// ══════════════════════════════════════════════════════════════
+import {
+  db, collection, doc, query, orderBy, limit, where,
+  fetchDocs, setDoc, increment, makePager, getUserDocByNick, countQuery,
+  getTodayDateStr, fmtDateTime, fmtNum, escapeHtml, humanError,
+} from './firebase.js';
+import { setLoading, setError, setEmpty, guardBtn, resultMsg } from './admin.js';
+
+const PAGE_SIZE = 30;
+
+// ── 스킨 / 감사 쪽지 (기존 로직 그대로) ──
+async function grantSkin(nick) {
+  await setDoc(doc(db, 'nickname_skins', nick), { cat: true, notifyPending: true }, { merge: true });
+  resultMsg('rwResult', `😻 '${escapeHtml(nick)}' 님에게 고양이 스킨을 적용했어요. 다음 접속 때 알림 팝업이 떠요.`);
+}
+async function revokeSkin(nick) {
+  await setDoc(doc(db, 'nickname_skins', nick), { cat: false }, { merge: true });
+  resultMsg('rwResult', `'${escapeHtml(nick)}' 님의 고양이 스킨을 해제했어요.`);
+}
+async function sendThanksNote(nick) {
+  await setDoc(doc(db, 'nickname_skins', nick), { thanksPending: true }, { merge: true });
+  resultMsg('rwResult', `💌 '${escapeHtml(nick)}' 님에게 감사 쪽지를 보냈어요. 다음 접속 때 팝업으로 한 번 떠요.`);
+}
+
+// ── 젤리 지급 — UID 문서 우선 해석 후 increment (원자적 증가) ──
+async function grantJelly(nick, amount) {
+  const { ref, data } = await getUserDocByNick('user_stats', nick);
+  if (!data) {
+    resultMsg('rwResult', `'${escapeHtml(nick)}' 의 user_stats 문서를 찾지 못했어요. (점수를 한 번이라도 등록한 유저만 지급 가능)`, false);
+    return;
+  }
+  await setDoc(ref, { jelly: increment(amount) }, { merge: true });
+  resultMsg('rwResult', `🍬 '${escapeHtml(nick)}' 님에게 젤리 ${fmtNum(amount)}개를 지급했어요. (기존 ${fmtNum(data.jelly || 0)}개)`);
+}
+
+// ── 후원 확인 쪽지함 (feedback_donate) ──
+let donatePager = null;
+const donateRows = [];
+function donateItemHtml(d) {
+  const msgs = Array.isArray(d.messages) ? d.messages : [];
+  return `
+    <div class="fb-item ${d.adminUnread ? 'unread' : ''}">
+      <div class="fb-head">
+        <span><span class="nick">${escapeHtml(d.nickname || '?')}</span>${d.adminUnread ? ' 🔔' : ''}
+          ${d.type === 'donate_confirm' ? '<span class="badge gold">입금 확인</span>' : ''}</span>
+        <span class="sub">${fmtDateTime(d.lastTs || d.ts)}</span>
+      </div>
+      ${msgs.map(m => `
+        <div class="fb-msg ${m.from === 'admin' ? 'from-admin' : ''}">
+          <span class="bubble">${escapeHtml(m.text)}</span>
+        </div>`).join('')}
+    </div>`;
+}
+async function loadDonateFeedback({ reset = false } = {}) {
+  const el = document.getElementById('donateFeedbackList');
+  const moreBtn = document.getElementById('donateFeedbackMoreBtn');
+  if (reset || !donatePager) {
+    donatePager = makePager(() => [collection(db, 'feedback_donate'), orderBy('lastTs', 'desc')], PAGE_SIZE);
+    donateRows.length = 0;
+  }
+  if (!donateRows.length) setLoading(el);
+  moreBtn.disabled = true;
+  try {
+    const page = await donatePager.next();
+    donateRows.push(...page);
+    if (!donateRows.length) { setEmpty(el, '후원 확인 쪽지가 없어요'); }
+    else el.innerHTML = donateRows.map(donateItemHtml).join('');
+    moreBtn.style.display = donatePager.done ? 'none' : 'flex';
+  } catch (e) {
+    setError(el, humanError(e));
+  } finally {
+    moreBtn.disabled = false;
+  }
+}
+
+// ── 클릭 기록 (990원/응원/간식/서포터팩/공유/스킨신청/젤리상점) ──
+const CLICK_LABELS = {
+  donate_clicks: '990원 응원',
+  support_topbtn_clicks: '응원하기',
+  snack_clicks: '간식',
+  supporterpack_clicks: '서포터팩',
+  share_clicks: '카톡 공유',
+  skin_requests: '스킨 신청',
+  jellyshop_clicks: '젤리상점',
+};
+// 컬렉션별 pager/rows/오늘 카운트를 세션 내 캐시 — 로그 종류를 오가도 재조회 없음
+const clickState = {};
+
+function clickRowHtml(colName, r) {
+  let extra = '';
+  if (colName === 'skin_requests') {
+    extra = ` · ${escapeHtml(r.label || '')} ${fmtNum(r.price || 0)}원 ${r.fulfilled ? '<span class="badge green">처리됨</span>' : '<span class="badge warn">대기</span>'}`;
+  }
+  return `
+    <div class="list-row">
+      <span class="main"><span class="nick">${escapeHtml(r.nickname || '익명')}</span>${extra}</span>
+      <span class="sub">${fmtDateTime(r.ts)}</span>
+    </div>`;
+}
+async function loadClickLog(colName, { reset = false } = {}) {
+  const el = document.getElementById('clickLogList');
+  const moreBtn = document.getElementById('clickLogMoreBtn');
+  if (reset || !clickState[colName]) {
+    clickState[colName] = {
+      pager: makePager(() => [collection(db, colName), orderBy('ts', 'desc')], PAGE_SIZE),
+      rows: [],
+      todayCount: null,
+    };
+  }
+  const st = clickState[colName];
+  if (st.rows.length) { // 이미 로드된 종류 — 재조회 없이 그대로 표시
+    el.innerHTML = headerHtml(colName, st) + st.rows.map(r => clickRowHtml(colName, r)).join('');
+    moreBtn.style.display = st.pager.done ? 'none' : 'flex';
+    return;
+  }
+  setLoading(el);
+  moreBtn.disabled = true;
+  try {
+    // 오늘 개수는 count 집계 (문서 다운로드 없음)
+    if (st.todayCount === null) {
+      st.todayCount = await countQuery(collection(db, colName), where('date', '==', getTodayDateStr())).catch(() => null);
+    }
+    const page = await st.pager.next();
+    st.rows.push(...page);
+    if (!st.rows.length) { setEmpty(el, `${CLICK_LABELS[colName]} 기록이 없어요`); }
+    else el.innerHTML = headerHtml(colName, st) + st.rows.map(r => clickRowHtml(colName, r)).join('');
+    moreBtn.style.display = st.pager.done ? 'none' : 'flex';
+  } catch (e) {
+    setError(el, humanError(e));
+  } finally {
+    moreBtn.disabled = false;
+  }
+}
+function headerHtml(colName, st) {
+  return `<div class="card-note" style="margin-bottom:4px;">오늘 ${CLICK_LABELS[colName]} ${st.todayCount != null ? fmtNum(st.todayCount) + '회' : '-'} · 최근 기록부터 ${PAGE_SIZE}건씩</div>`;
+}
+async function loadMoreClickLog(colName) {
+  const st = clickState[colName];
+  if (!st || st.pager.done) return;
+  const el = document.getElementById('clickLogList');
+  const moreBtn = document.getElementById('clickLogMoreBtn');
+  moreBtn.disabled = true;
+  try {
+    const page = await st.pager.next();
+    st.rows.push(...page);
+    el.innerHTML = headerHtml(colName, st) + st.rows.map(r => clickRowHtml(colName, r)).join('');
+    moreBtn.style.display = st.pager.done ? 'none' : 'flex';
+  } catch (e) {
+    setError(el, humanError(e));
+  } finally {
+    moreBtn.disabled = false;
+  }
+}
+
+// ── 바인딩 / 로드 ──
+export function initRewardsTab() {
+  const nickOf = () => document.getElementById('rwNick').value.trim();
+  const needNick = (fn) => async () => {
+    const nick = nickOf();
+    if (!nick) { resultMsg('rwResult', '닉네임을 입력하세요.', false); return; }
+    try { await fn(nick); document.getElementById('rwNick').value = ''; }
+    catch (e) { resultMsg('rwResult', humanError(e), false); }
+  };
+  const g = document.getElementById('rwSkinGrantBtn');
+  g.addEventListener('click', guardBtn(g, needNick(grantSkin)));
+  const r = document.getElementById('rwSkinRevokeBtn');
+  r.addEventListener('click', guardBtn(r, needNick(revokeSkin)));
+  const t = document.getElementById('rwThanksNoteBtn');
+  t.addEventListener('click', guardBtn(t, needNick(sendThanksNote)));
+  const j = document.getElementById('rwJellyBtn');
+  j.addEventListener('click', guardBtn(j, needNick(async (nick) => {
+    const amount = Math.floor(Number(document.getElementById('rwJellyAmount').value));
+    if (!amount || amount < 1) { resultMsg('rwResult', '지급할 젤리 개수를 입력하세요.', false); return; }
+    await grantJelly(nick, amount);
+  })));
+
+  document.getElementById('clickLogSel').addEventListener('change', (e) => loadClickLog(e.target.value));
+  const moreBtn = document.getElementById('clickLogMoreBtn');
+  moreBtn.addEventListener('click', () => loadMoreClickLog(document.getElementById('clickLogSel').value));
+  const dMoreBtn = document.getElementById('donateFeedbackMoreBtn');
+  dMoreBtn.addEventListener('click', () => loadDonateFeedback());
+}
+
+export async function loadRewards({ force = false } = {}) {
+  if (force) { donatePager = null; for (const k of Object.keys(clickState)) delete clickState[k]; }
+  const colName = document.getElementById('clickLogSel').value;
+  await Promise.allSettled([
+    loadDonateFeedback({ reset: force }),
+    loadClickLog(colName, { reset: force }),
+  ]);
+}
