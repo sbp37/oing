@@ -2917,6 +2917,10 @@ if ('serviceWorker' in navigator) {
         <li>▫️ 🔉 배경음악 크기 조절 개선 — 낮게 두면 <b>진짜 작게</b> 들리고, <b>0으로 두면 꺼져요</b></li>
         <li>▫️ 🍎 아이폰에서도 배경음악 크기 조절이 되게 고쳤어요</li>
       </ul>
+      <div style="font-size:13px;font-weight:700;color:#f87171;margin-bottom:5px;">🐛 버그 수정</div>
+      <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
+        <li>▫️ 판이 바뀌기 직전에 클로버(힌트)를 쓰면, 다음 판에서 엉뚱한 칸이 정답처럼 표시되던 문제 수정</li>
+      </ul>
       <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
 
       <!-- v4.0 -->
@@ -8088,8 +8092,9 @@ function renderMyRankSummary(list, myIdx, prevRank, periodLabel) {
   const period = periodLabel || '지난번 대비';
   const isFriends = currentRankMode === 'friends';
 
+  // 리본엔 고정 라벨 대신 내 닉네임을 표시 (닉네임은 최대 6자라 리본 폭에 안정적으로 맞음)
   const tagEl = document.getElementById('mrsTag');
-  if (tagEl) tagEl.textContent = isFriends ? '친구 중 내 순위' : (currentRankMode === 'all' ? '전체 내 순위' : '이번 주 내 순위');
+  if (tagEl) tagEl.textContent = list[myIdx].nickname;
 
   document.getElementById('mrsRank').textContent = `${rank}위`;
   document.getElementById('mrsScore').textContent = `${score}pt`;
@@ -8165,7 +8170,7 @@ async function showMyRankCardIfBelowCut(myNick, isWeek) {
     if (score == null) return false;
     box.style.display = 'flex';
     const tagEl = document.getElementById('mrsTag');
-    if (tagEl) tagEl.textContent = isWeek ? '이번 주 내 순위' : '전체 내 순위';
+    if (tagEl) tagEl.textContent = myNick;
     const rankEl = document.getElementById('mrsRank'); if (rankEl) rankEl.textContent = '집계 밖';
     const scoreEl = document.getElementById('mrsScore'); if (scoreEl) scoreEl.textContent = `${score}pt`;
     const nextLabelEl = document.getElementById('mrsNextLabel'); if (nextLabelEl) nextLabelEl.textContent = '현재';
