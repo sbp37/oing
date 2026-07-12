@@ -12,7 +12,7 @@ import {
   db, collection, query, orderBy, limit,
   fetchDocs, fmtNum, fmtDuration, escapeHtml, cache, humanError,
 } from './firebase.js';
-import { getDailyStatsRange, computeWeeklyMetrics } from './stats.js';
+import { getDailyStatsRange, computeWeeklyMetrics, dailyStatsWriteState, SESSION_FETCH_CAP } from './stats.js';
 import { setLoading, setError, guardBtn } from './admin.js';
 
 const DAYS = 14;
@@ -83,6 +83,17 @@ export async function loadAnalytics({ force = false } = {}) {
         <div class="stat-label">${label}</div>
         <div class="stat-value" style="font-size:16px;">${val}</div>
       </div>`).join('');
+
+    // 운영자에게 알려야 할 상태 안내 (조용한 잘림/캐시 미공유 방지)
+    const notices = [];
+    if (daily.some(d => d && d.truncated)) {
+      notices.push(`⚠️ 세션이 하루 ${SESSION_FETCH_CAP}건을 넘은 날이 있어 해당 날짜는 근사치입니다.`);
+    }
+    if (dailyStatsWriteState.blocked) {
+      notices.push('⚠️ dailyStats 저장이 보안 규칙에 막혀 이 기기(localStorage)에만 캐시됩니다. '
+        + '다른 기기/브라우저에서는 백필이 반복되니, 규칙에 dailyStats 쓰기 허용을 추가하는 것을 권장합니다 (README 참고).');
+    }
+    document.getElementById('analyticsNotice').innerHTML = notices.join('<br>');
   } catch (e) {
     chartEls.forEach(el => setError(el, humanError(e)));
   }

@@ -13,7 +13,7 @@ import {
   getTodayDateStr, todayStartTs,
   fmtAgo, fmtDuration, fmtNum, escapeHtml, cache, humanError,
 } from './firebase.js';
-import { getTodaySessions, aggregateSessions, getDailyStatsRange, computeWeeklyMetrics } from './stats.js';
+import { getTodaySessions, aggregateSessions, getDailyStatsRange, computeWeeklyMetrics, SESSION_FETCH_CAP } from './stats.js';
 import { setError, setEmpty } from './admin.js';
 
 // 홈에 표시할 타일 정의 (id, 라벨, 부가설명)
@@ -86,7 +86,10 @@ export async function loadDashboard({ force = false } = {}) {
       .sort((a, b) => b[1].lastSeenTs - a[1].lastSeenTs)
       .slice(0, 10);
     if (!rows.length) { setEmpty(recentEl, '오늘 방문 기록이 아직 없어요'); return agg; }
-    recentEl.innerHTML = rows.map(([key, v]) => `
+    // 조회 상한 도달 = 오늘 지표가 "최근 세션 기준 근사치"임을 명시 (조용한 잘림 방지)
+    const capNote = agg.truncated
+      ? `<div class="list-error">⚠️ 오늘 세션이 ${SESSION_FETCH_CAP}건을 넘어 최근 ${SESSION_FETCH_CAP}건 기준 근사치입니다</div>` : '';
+    recentEl.innerHTML = capNote + rows.map(([key, v]) => `
       <div class="list-row">
         <span class="main"><span class="nick">${escapeHtml(v.nickname || key.replace(/^nick:/, ''))}</span>
           ${v.started ? '<span class="badge green">플레이</span>' : '<span class="badge">방문만</span>'}</span>
@@ -116,15 +119,18 @@ export async function loadDashboard({ force = false } = {}) {
       .catch(e => tileErr(id, e))
   ));
 
-  // ── ③ WAU/재방문율 — dailyStats 기반 (첫 1회만 백필, 이후 날짜당 1읽기) ──
+  // ── ③ WAU/재방문율 — dailyStats "읽기 전용" (날짜당 문서 1개, 최대 6읽기) ──
+  // 홈에서는 절대 원본(visit_sessions 과거분)을 백필하지 않는다.
+  // 미집계 날짜가 있으면 부분 집계로 표시하고, 분석 탭을 열면 백필된다.
   const weeklyPromise = (async () => {
     try {
       setTile('wau', '집계 중...');
       setTile('returnRate', '집계 중...');
-      const daily = await getDailyStatsRange(7, { force });
+      const daily = await getDailyStatsRange(7, { force, allowBackfill: false });
       const wk = computeWeeklyMetrics(daily);
-      setTile('wau', `${fmtNum(wk.wau)}<span class="unit">명</span>`);
-      setTile('returnRate', `${wk.returnRate}<span class="unit">% (${wk.returning}명)</span>`);
+      const missNote = wk.missingDays ? ` · ${wk.missingDays}일 미집계 (분석 탭에서 집계됨)` : '';
+      setTile('wau', `${fmtNum(wk.wau)}<span class="unit">명${missNote}</span>`);
+      setTile('returnRate', `${wk.returnRate}<span class="unit">% (${wk.returning}명)${missNote}</span>`);
     } catch (e) {
       tileErr('wau', e);
       tileErr('returnRate', e);

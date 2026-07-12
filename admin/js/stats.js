@@ -21,22 +21,29 @@
 //  · 기존 컬렉션/데이터는 일절 건드리지 않는 "추가 전용" 구조
 // ══════════════════════════════════════════════════════════════
 import {
-  db, collection, doc, query, where, limit,
+  db, collection, doc, query, where, orderBy, limit,
   fetchDocs, fetchDoc, setDoc, countQuery,
   getTodayDateStr, daysAgoDateStr, cache,
 } from './firebase.js';
 
-const SESSION_FETCH_CAP = 1000; // 하루 세션 원본 조회 상한 (폭주 방지)
+export const SESSION_FETCH_CAP = 1000; // 하루 세션 원본 조회 상한 (폭주 방지)
 const LS_PREFIX = 'oeing_admin_dailystats_';
 
+// dailyStats 저장이 보안 규칙에 막혔는지 여부 — 분석 탭에서 안내 표시용
+export const dailyStatsWriteState = { blocked: false };
+
 // ── 오늘 세션 원본 (홈/분석 탭이 공유 — 같은 데이터 중복 조회 방지) ──
+// lastSeenTs 범위 + 같은 필드 정렬(복합 인덱스 불필요)이라,
+// 세션이 상한을 넘어도 "가장 최근" 세션부터 확보된다 (임의 잘림 방지).
 export async function getTodaySessions({ force = false } = {}) {
   if (force) cache.bust('shared:todaySessions');
   return cache.get('shared:todaySessions', async () => {
-    const today = getTodayDateStr();
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
     return fetchDocs(query(
       collection(db, 'visit_sessions'),
-      where('date', '==', today),
+      where('lastSeenTs', '>=', start.getTime()),
+      orderBy('lastSeenTs', 'desc'),
       limit(SESSION_FETCH_CAP),
     ));
   });
@@ -67,6 +74,8 @@ export function aggregateSessions(date, sessions) {
   const startedVisitors = [...byVisitor.values()].filter(v => v.started).length;
   return {
     date,
+    truncated: sessions.length >= SESSION_FETCH_CAP, // 상한 도달 = 일부만 집계된 근사치
+
     sessions: sessions.length,
     uniqueVisitors,
     visitorKeys: [...byVisitor.keys()].slice(0, 3000), // WAU/재방문율 계산용 (상한)
@@ -126,33 +135,45 @@ function lsSet(dateStr, stats) {
 }
 
 // 지난 하루치 통계 — ① 메모리 → ② localStorage → ③ dailyStats 문서 → ④ 원본 집계(+저장)
-export async function getPastDayStats(dateStr) {
-  return cache.get('shared:dailyStats:' + dateStr, async () => {
-    const local = lsGet(dateStr);
-    if (local && local.final) return local;
+// allowBackfill:false 면 ④(원본 집계)를 하지 않고 null 반환 — 홈 탭용.
+// 원본 백필은 분석 탭에서만 실행돼서 홈 최초 진입이 가볍게 유지된다.
+export async function getPastDayStats(dateStr, { allowBackfill = true } = {}) {
+  const key = 'shared:dailyStats:' + dateStr;
+  const hit = cache.peek(key);
+  if (hit !== undefined) return hit;
 
-    const ref = doc(db, 'dailyStats', dateStr);
-    try {
-      const existing = await fetchDoc(ref);
-      if (existing && existing.final) { lsSet(dateStr, existing); return existing; }
-    } catch { /* 읽기 권한 없으면 원본 집계로 진행 */ }
+  const local = lsGet(dateStr);
+  if (local && local.final) { cache.set(key, local); return local; }
 
-    const computed = await computeDayFromRaw(dateStr);
-    computed.final = true;               // 지난 날짜 = 확정 데이터
-    computed.computedAt = Date.now();
-    lsSet(dateStr, computed);
-    // 다음부터는 문서 1개만 읽으면 되도록 저장 — 실패해도(규칙 차단 등) 기능엔 지장 없음
-    try { await setDoc(ref, computed); } catch (e) { console.warn('dailyStats 저장 불가(로컬 캐시로 대체):', e && e.code); }
-    return computed;
-  });
+  const ref = doc(db, 'dailyStats', dateStr);
+  try {
+    const existing = await fetchDoc(ref);
+    if (existing && existing.final) { lsSet(dateStr, existing); cache.set(key, existing); return existing; }
+  } catch { /* 읽기 권한 없으면 아래로 진행 */ }
+
+  if (!allowBackfill) return null; // 미집계 — 캐시하지 않음 (분석 탭이 나중에 백필)
+
+  const computed = await computeDayFromRaw(dateStr);
+  computed.final = true;               // 지난 날짜 = 확정 데이터
+  computed.computedAt = Date.now();
+  lsSet(dateStr, computed);
+  cache.set(key, computed);
+  // 다음부터는 문서 1개만 읽으면 되도록 저장 — 실패해도(규칙 차단 등) 기능엔 지장 없음
+  try { await setDoc(ref, computed); }
+  catch (e) {
+    dailyStatsWriteState.blocked = true;
+    console.warn('dailyStats 저장 불가(이 기기 localStorage 캐시로 대체):', e && e.code);
+  }
+  return computed;
 }
 
-// 최근 N일 통계 (오늘 포함) — 오늘은 항상 라이브 계산
-export async function getDailyStatsRange(days, { force = false } = {}) {
+// 최근 N일 통계 (오늘 포함) — 오늘은 항상 라이브 계산.
+// allowBackfill:false 면 미집계 날짜는 null로 채워짐.
+export async function getDailyStatsRange(days, { force = false, allowBackfill = true } = {}) {
   const today = getTodayDateStr();
   const out = [];
   for (let i = days - 1; i >= 1; i--) {
-    out.push(await getPastDayStats(daysAgoDateStr(i)));
+    out.push(await getPastDayStats(daysAgoDateStr(i), { allowBackfill }));
   }
   const todaySessions = await getTodaySessions({ force });
   const todayAgg = aggregateSessions(today, todaySessions);
@@ -161,18 +182,25 @@ export async function getDailyStatsRange(days, { force = false } = {}) {
 }
 
 // WAU: 최근 7일 고유 방문자 합집합 / 재방문율: 오늘 방문자 중 지난 6일에도 온 비율
+// 미집계 날짜(null)는 건너뛰고 missingDays 로 개수를 알려준다.
 export function computeWeeklyMetrics(dailyList) {
   const last7 = dailyList.slice(-7);
+  const missingDays = last7.filter(d => !d).length;
+  const present = last7.filter(Boolean);
   const union = new Set();
-  for (const d of last7) for (const k of (d.visitorKeys || [])) union.add(k);
+  for (const d of present) for (const k of (d.visitorKeys || [])) union.add(k);
   const today = dailyList[dailyList.length - 1];
   const prevKeys = new Set();
-  for (const d of last7.slice(0, -1)) for (const k of (d.visitorKeys || [])) prevKeys.add(k);
+  for (const d of present) {
+    if (today && d.date === today.date) continue;
+    for (const k of (d.visitorKeys || [])) prevKeys.add(k);
+  }
   const todayKeys = today ? (today.visitorKeys || []) : [];
   const returning = todayKeys.filter(k => prevKeys.has(k)).length;
   return {
     wau: union.size,
     returnRate: todayKeys.length ? Math.round(returning / todayKeys.length * 100) : 0,
     returning,
+    missingDays,
   };
 }

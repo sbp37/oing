@@ -118,13 +118,17 @@ export function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-// ── 읽기 카운터 (이번 세션 동안 Firebase 문서를 몇 개 읽었는지 표시용) ──
+// ── DB 조회 카운터 (이번 세션의 Firestore 조회량 "추정치") ──
+// 실제 청구 읽기 수와 완전히 같지는 않다:
+//  · count 집계는 결과 1000건당 1읽기 과금 — 여기선 항상 1로 계산 (초과분 과소집계)
+//  · 빈 결과 쿼리도 최소 1읽기 과금 — 아래에서 min 1로 보정
+//  · 캐시 재사용/오프라인 캐시 히트는 반영 못 함
 export const readStats = { docs: 0, queries: 0 };
 function bump(nDocs) {
   readStats.queries += 1;
-  readStats.docs += nDocs;
+  readStats.docs += Math.max(1, nDocs); // 빈 결과도 최소 1읽기로 과금되므로 보정
   const el = document.getElementById('readCounter');
-  if (el) el.textContent = `읽기 ${readStats.docs} · 쿼리 ${readStats.queries}`;
+  if (el) el.textContent = `추정 읽기 ${readStats.docs} · 쿼리 ${readStats.queries}`;
 }
 
 // ── 공통 조회 래퍼 ────────────────────────────────────────────
