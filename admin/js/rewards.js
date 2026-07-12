@@ -90,6 +90,9 @@ const CLICK_LABELS = {
   share_clicks: '카톡 공유',
   skin_requests: '스킨 신청',
   jellyshop_clicks: '젤리상점',
+  tutorial_starts: '튜토리얼 시작',
+  updatelog_clicks: '업데이트로그',
+  thanks_toggle_clicks: '감사메시지 열람',
 };
 // 컬렉션별 pager/rows/오늘 카운트를 세션 내 캐시 — 로그 종류를 오가도 재조회 없음
 const clickState = {};
