@@ -2914,12 +2914,8 @@ if ('serviceWorker' in navigator) {
       </div>
       <div style="font-size:13px;font-weight:700;color:#DA9845;margin-bottom:5px;">🎉 새 기능 · 개선</div>
       <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
-        <li>▫️ 🎉 게임이 끝나면 "OO 자동 등록 완료"처럼 <b>내 닉네임</b>이 다시 보여요</li>
         <li>▫️ 🔉 배경음악 크기 조절 개선 — 낮게 두면 <b>진짜 작게</b> 들리고, <b>0으로 두면 꺼져요</b></li>
         <li>▫️ 🍎 아이폰에서도 배경음악 크기 조절이 되게 고쳤어요</li>
-        <li>▫️ ⏰ 10초 경고음을 더 부드러운 소리로 바꿨어요</li>
-        <li>▫️ ❄️ 시간 멈춤 중에는 빨간 경고 표시가 잠시 사라져요 — 풀리면 다시 표시</li>
-        <li>▫️ 🍀 클로버 효과음을 조금 더 줄였어요</li>
       </ul>
       <div style="font-size:13px;font-weight:700;color:#f87171;margin-bottom:5px;">🐛 버그 수정</div>
       <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
@@ -8096,8 +8092,9 @@ function renderMyRankSummary(list, myIdx, prevRank, periodLabel) {
   const period = periodLabel || '지난번 대비';
   const isFriends = currentRankMode === 'friends';
 
+  // 리본엔 고정 라벨 대신 내 닉네임을 표시 (닉네임은 최대 6자라 리본 폭에 안정적으로 맞음)
   const tagEl = document.getElementById('mrsTag');
-  if (tagEl) tagEl.textContent = isFriends ? '친구 중 내 순위' : (currentRankMode === 'all' ? '전체 내 순위' : '이번 주 내 순위');
+  if (tagEl) tagEl.textContent = list[myIdx].nickname;
 
   document.getElementById('mrsRank').textContent = `${rank}위`;
   document.getElementById('mrsScore').textContent = `${score}pt`;
@@ -8173,7 +8170,7 @@ async function showMyRankCardIfBelowCut(myNick, isWeek) {
     if (score == null) return false;
     box.style.display = 'flex';
     const tagEl = document.getElementById('mrsTag');
-    if (tagEl) tagEl.textContent = isWeek ? '이번 주 내 순위' : '전체 내 순위';
+    if (tagEl) tagEl.textContent = myNick;
     const rankEl = document.getElementById('mrsRank'); if (rankEl) rankEl.textContent = '집계 밖';
     const scoreEl = document.getElementById('mrsScore'); if (scoreEl) scoreEl.textContent = `${score}pt`;
     const nextLabelEl = document.getElementById('mrsNextLabel'); if (nextLabelEl) nextLabelEl.textContent = '현재';
@@ -9412,7 +9409,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.1';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1783848163;
+const BUILD = 1783852500;
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
