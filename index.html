@@ -2750,7 +2750,7 @@ if ('serviceWorker' in navigator) {
   <div class="overlay-card" style="max-width:300px; text-align:center;">
     <div style="font-size:44px; margin-bottom:6px;">😻</div>
     <div class="overlay-title" style="font-size:17px;" id="thanksNoteTitle">응원해주셔서 감사합니다냥😻</div>
-    <div style="font-size:13.5px; color:var(--muted); margin-top:8px; line-height:1.5;">덕분에 게임이 계속 자란다냥🐾</div>
+    <div id="thanksNoteMsg" style="font-size:13.5px; color:var(--muted); margin-top:8px; line-height:1.5; white-space:pre-wrap;">덕분에 게임이 계속 자란다냥🐾</div>
     <button id="thanksNoteCloseBtn" class="action-btn" style="width:100%; margin-top:16px;">😸</button>
   </div>
 </div>
@@ -10141,8 +10141,11 @@ function getFeedbackMessages(data) {
 }
 
 let currentOpenFeedbackId = null;
-function openMyFeedbackDetail(id, data, readOnly) {
-  currentOpenFeedbackId = readOnly ? null : id;
+// colName: 'feedback'(일반 문의) 또는 'feedback_donate'(후원 확인 쪽지 — 본인 것만 uid로 조회됨).
+// 후원 쪽지는 열람 전용(추가 회신은 일반 문의로) — appendFeedbackMessage 서버 함수는 feedback 전용이므로.
+function openMyFeedbackDetail(id, data, readOnly, colName = 'feedback') {
+  const isDonate = colName === 'feedback_donate';
+  currentOpenFeedbackId = (readOnly || isDonate) ? null : id;
   const threadEl = document.getElementById('myFeedbackThread');
   const messages = getFeedbackMessages(data);
   threadEl.innerHTML = messages.map(m => `
@@ -10152,13 +10155,14 @@ function openMyFeedbackDetail(id, data, readOnly) {
     </div>
   `).join('');
   document.getElementById('myFeedbackReplyInput').value = '';
-  document.getElementById('myFeedbackReplyInput').style.display = readOnly ? 'none' : '';
+  const hideReply = readOnly || isDonate; // 후원 쪽지는 열람 전용
+  document.getElementById('myFeedbackReplyInput').style.display = hideReply ? 'none' : '';
   const replySendBtn = document.getElementById('myFeedbackReplySendBtn');
-  if (replySendBtn) replySendBtn.style.display = readOnly ? 'none' : '';
+  if (replySendBtn) replySendBtn.style.display = hideReply ? 'none' : '';
   document.getElementById('myFeedbackOverlay').style.display = 'flex';
-  // 열어봤으니 안읽음 표시 해제
+  // 열어봤으니 안읽음 표시 해제 (본인 문서 — 규칙이 소유자 update를 허용해야 동작, 실패해도 무해)
   if (!readOnly && data.userUnread) {
-    setDoc(doc(db, 'feedback', id), { userUnread: false }, { merge: true }).catch(() => {});
+    setDoc(doc(db, colName, id), { userUnread: false }, { merge: true }).catch(() => {});
   }
 }
 
@@ -10232,18 +10236,24 @@ async function checkSkinNotification() {
       if (overlay) overlay.style.display = 'flex';
       await setDoc(ref, { notifyPending: false, thanksPending: false }, { merge: true });
     } else if (d.thanksPending) {
-      // 감사 쪽지만 (리워드 없이)
+      // 감사 쪽지만 (리워드 없이) — 관리자가 thanksText를 넣어뒀으면 그 문구를 그대로 보여줌
       const titleEl = document.getElementById('thanksNoteTitle');
       if (titleEl) titleEl.textContent = `${myNick}님, 응원해주셔서 감사합니다냥😻`;
+      const msgEl = document.getElementById('thanksNoteMsg');
+      const customMsg = (typeof d.thanksText === 'string' && d.thanksText.trim()) ? d.thanksText.trim() : '';
+      if (msgEl) msgEl.textContent = customMsg || '덕분에 게임이 계속 자란다냥🐾';
       const overlay = document.getElementById('thanksNoteOverlay');
       if (overlay) {
         overlay.style.display = 'flex';
-        // 잠시 후 자동으로 스르륵 사라짐 (탭해서 바로 닫기도 가능)
-        setTimeout(() => {
-          overlay.style.transition = 'opacity 0.6s';
-          overlay.style.opacity = '0';
-          setTimeout(() => { overlay.style.display = 'none'; overlay.style.opacity = '1'; overlay.style.transition = ''; }, 650);
-        }, 4500);
+        // 기본 쪽지는 잠시 후 자동으로 사라짐. 직접 쓴 쪽지는 읽을 시간이 필요하니
+        // 자동으로 닫지 않고 유저가 버튼을 눌러 닫게 둔다.
+        if (!customMsg) {
+          setTimeout(() => {
+            overlay.style.transition = 'opacity 0.6s';
+            overlay.style.opacity = '0';
+            setTimeout(() => { overlay.style.display = 'none'; overlay.style.opacity = '1'; overlay.style.transition = ''; }, 650);
+          }, 4500);
+        }
       }
       await setDoc(ref, { thanksPending: false }, { merge: true });
     }
@@ -10258,30 +10268,35 @@ async function checkUnreadReply() {
   // 자기 nickname 값을 아무거나 넣어 남의 글처럼 조회를 시도할 수 있어서). uid로 연결된
   // 사람만 안전하게 조회 가능 — 아직 연결 안 됐으면 이 확인 자체를 건너뜀(조용히, 기능 저하 없음).
   if (!isUidLinked()) return;
-  try {
-    const q = query(collection(db, 'feedback'), where('uid', '==', MY_UID), where('userUnread', '==', true));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
+  // 일반 문의(feedback)와 후원 확인 쪽지(feedback_donate)를 순서대로 확인 —
+  // 각각 별도 try/catch: 후원 쪽지 규칙이 아직 소유자 read를 허용하지 않아도 일반 알림은 정상 동작.
+  for (const colName of ['feedback', 'feedback_donate']) {
+    try {
+      const q = query(collection(db, colName), where('uid', '==', MY_UID), where('userUnread', '==', true));
+      const snap = await getDocs(q);
+      if (snap.empty) continue;
       const d = snap.docs[0];
       const data = d.data();
       // 같은 상태(메시지 개수 동일)의 알림은 한 번만 보여주고, 닫거나 답 안 해도 다음부턴 다시 안 뜨게 함
-      const versionKey = `oeing_notified_reply_${d.id}`;
+      // (후원 쪽지는 키에 컬렉션 접두사를 붙여 일반 문의 알림 기록과 절대 안 섞이게)
+      const versionKey = colName === 'feedback' ? `oeing_notified_reply_${d.id}` : `oeing_notified_reply_donate_${d.id}`;
       const currentVersion = String(getFeedbackMessages(data).length);
       let lastNotified = null;
       try { lastNotified = localStorage.getItem(versionKey); } catch {}
-      if (lastNotified === currentVersion) return;
+      if (lastNotified === currentVersion) continue;
       try { localStorage.setItem(versionKey, currentVersion); } catch {}
-      showReplyNotification(d.id, data);
-    }
-  } catch (e) { console.warn('답장 확인 실패:', e); }
+      showReplyNotification(d.id, data, colName);
+      return; // 배너는 한 번에 하나만
+    } catch (e) { console.warn('답장 확인 실패(' + colName + '):', e); }
+  }
 }
-function showReplyNotification(id, data) {
+function showReplyNotification(id, data, colName = 'feedback') {
   const banner = document.getElementById('replyNotifyBanner');
   if (!banner) return;
   banner.style.transform = 'translate(-50%, 0)';
   const onOpen = () => {
     banner.style.transform = 'translate(-50%, -120%)';
-    openMyFeedbackDetail(id, data);
+    openMyFeedbackDetail(id, data, false, colName);
     banner.removeEventListener('click', onOpen);
   };
   banner.addEventListener('click', onOpen);
@@ -10315,22 +10330,46 @@ async function renderFeedbackBoard() {
   const pinnedIds = new Set();
   if (isUidLinked() && pinnedWrap && pinnedList) {
     try {
+      // 일반 문의 — 기존과 동일 (uid 소유권 기준)
       const myQ = query(collection(db, 'feedback'), where('uid', '==', MY_UID));
       const mySnap = await getDocs(myQ);
-      if (!mySnap.empty) {
-        const mine = mySnap.docs.map(d => ({ id: d.id, data: d.data() }))
-          .sort((a, b) => (b.data.lastTs || b.data.ts || 0) - (a.data.lastTs || a.data.ts || 0));
+      const mine = mySnap.docs.map(d => ({ id: d.id, data: d.data(), col: 'feedback' }));
+      // 후원 확인 쪽지 — 내 것만 uid로 조회. 완전 비밀글이라 여기(본인 고정 섹션)에만 뜨고
+      // 아래 공개 게시판 목록에는 절대 나가지 않는다. 규칙이 아직 소유자 read를 허용하지
+      // 않으면 이 조회만 조용히 실패하고 일반 문의는 정상 표시된다.
+      try {
+        const dQ = query(collection(db, 'feedback_donate'), where('uid', '==', MY_UID));
+        const dSnap = await getDocs(dQ);
+        dSnap.docs.forEach(d => mine.push({ id: d.id, data: d.data(), col: 'feedback_donate' }));
+      } catch (e) { console.warn('내 후원 쪽지 조회 실패(규칙 미허용 시 정상):', e && e.code); }
+
+      if (mine.length) {
+        mine.sort((a, b) => (b.data.lastTs || b.data.ts || 0) - (a.data.lastTs || a.data.ts || 0));
         pinnedList.innerHTML = '';
-        mine.forEach(({ id, data }) => {
-          pinnedIds.add(id);
+        mine.forEach(({ id, data, col }) => {
+          if (col === 'feedback') pinnedIds.add(id);
+          const isDonate = col === 'feedback_donate';
           const hasReply = getFeedbackMessages(data).some(m => m.from === 'admin');
-          const row = document.createElement('div');
-          row.style.cssText = `display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;border:1px solid var(--blue-bright);background:var(--blue-dim);font-size:13px;cursor:pointer;`;
-          row.innerHTML = `
-            <span style="color:var(--blue-light);">🔒 내 글${hasReply ? ' 💬 답글 있음' : ''}</span>
+          // 상태: 새 답변(안 읽음) > 답글 있음 > 답변 대기중
+          const rowHtml = () => {
+            const hasReplyNow = getFeedbackMessages(data).some(m => m.from === 'admin');
+            const status = data.userUnread
+              ? ' <span style="color:#fde68a;font-weight:800;">🔔 새 답변</span>'
+              : (hasReplyNow ? ' 💬 답글 있음' : ' <span style="color:var(--muted);">답변 대기중</span>');
+            return `
+            <span style="color:${isDonate ? '#f0d8a8' : 'var(--blue-light)'};">${isDonate ? '💛 후원 확인' : '🔒 일반 문의'}${status}</span>
             <span style="color:var(--muted);font-size:12px;">${formatFeedbackDate(data.ts)}</span>
           `;
-          row.addEventListener('click', () => openMyFeedbackDetail(id, data, false));
+          };
+          const row = document.createElement('div');
+          row.style.cssText = `display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;border:1px solid ${isDonate ? '#DA9845' : 'var(--blue-bright)'};background:${isDonate ? 'rgba(218,152,69,0.1)' : 'var(--blue-dim)'};font-size:13px;cursor:pointer;`;
+          row.innerHTML = rowHtml();
+          row.addEventListener('click', () => {
+            openMyFeedbackDetail(id, data, false, col);
+            // 열람 즉시 이 행의 표시만 로컬 갱신 — 목록 재조회 없음 (서버 반영은 openMyFeedbackDetail이 처리)
+            data.userUnread = false;
+            row.innerHTML = rowHtml();
+          });
           pinnedList.appendChild(row);
         });
         pinnedWrap.style.display = 'block';
