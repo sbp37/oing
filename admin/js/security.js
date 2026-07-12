@@ -34,6 +34,30 @@ function reasonLabel(code) { return REASON_LABELS[code] || code; }
 // 의심 판정 집계·배지에서는 제외하고, 목록에서는 별도 섹션(회색 "검증 불가")으로 분리 표시한다.
 const isUnverifiable = (d) => Array.isArray(d.official?.reasons) && d.official.reasons.includes('NO_SESSION');
 
+// ── ✔ 처리완료 숨김 (localStorage — 기기별) ──────────────────
+// game_sessions는 규칙상 클라이언트 쓰기 금지이므로 서버 데이터는 절대 건드리지 않고,
+// "이 기기에서 확인 끝낸 판정" 목록만 로컬에 둔다. 세션 문서는 30일 TTL로 알아서
+// 사라지므로 60일 지난 항목은 정리해 무한히 자라지 않게 한다.
+const HANDLED_KEY = 'oeing_admin_handled_v1';
+function getHandledMap() {
+  try {
+    const m = JSON.parse(localStorage.getItem(HANDLED_KEY) || '{}');
+    const cutoff = Date.now() - 60 * 24 * 3600 * 1000;
+    let dirty = false;
+    for (const [sid, ts] of Object.entries(m)) if (ts < cutoff) { delete m[sid]; dirty = true; }
+    if (dirty) localStorage.setItem(HANDLED_KEY, JSON.stringify(m));
+    return m;
+  } catch (e) { return {}; }
+}
+function isHandled(sid) { return !!getHandledMap()[sid]; }
+function setHandled(sid, on) {
+  try {
+    const m = getHandledMap();
+    if (on) m[sid] = Date.now(); else delete m[sid];
+    localStorage.setItem(HANDLED_KEY, JSON.stringify(m));
+  } catch (e) { /* 저장 실패해도 무해 */ }
+}
+
 // ── 🚨 판정 급증 = 장애 의심 배너 ─────────────────────────────
 // 이미 배지용으로 받아온 50건을 재활용한다 (추가 쿼리 0).
 // 같은 사유가 1시간 안에 INCIDENT_THRESHOLD건 이상이면 인프라 장애 의심으로 판단
@@ -47,6 +71,7 @@ export function updateIncidentBanner(rows) {
   const cutoff = Date.now() - INCIDENT_WINDOW_MS;
   const counts = new Map(); // reason → 최근 1시간 건수
   for (const d of rows || []) {
+    if (isHandled(d.id)) continue; // 처리완료한 판정은 장애 신호에서 제외
     const decidedAt = d.official?.decidedAt || 0;
     if (decidedAt < cutoff) continue;
     for (const r of (Array.isArray(d.official?.reasons) ? d.official.reasons : [])) {
@@ -93,7 +118,7 @@ export async function loadVerdictBadge() {
   try {
     const rows = await cache.get('security:verdicts', () => fetchDocs(verdictQuery()));
     updateIncidentBanner(rows); // 같은 50건으로 장애 의심 배너도 갱신 (추가 쿼리 0)
-    const n = rows.filter(d => !isUnverifiable(d)).length; // NO_SESSION 제외 — 실제 의심 건수만
+    const n = rows.filter(d => !isUnverifiable(d) && !isHandled(d.id)).length; // NO_SESSION·처리완료 제외
     if (n > 0 && badge && countEl) {
       countEl.textContent = n >= 50 ? '50+' : String(n);
       badge.style.display = '';
@@ -113,21 +138,74 @@ function verdictRowHtml(d) {
   const dec = d.official?.decision;
   const unverifiable = isUnverifiable(d);
   const rejected = dec === 'rejected_invalid';
+  const handled = isHandled(d.id);
   const cls = unverifiable ? 'unverifiable' : (rejected ? 'rejected' : 'pending');
   const verdictText = unverifiable ? '검증 불가' : (rejected ? '거부' : '보류');
   const reasons = Array.isArray(d.official?.reasons) ? d.official.reasons : [];
   const elapsedSec = typeof d.serverElapsed === 'number' ? Math.round(d.serverElapsed / 1000) : null;
   const burst = d.client?.maxSuccessesIn3Sec;
   return `
-    <div class="verdict-row ${cls}">
+    <div class="verdict-row ${cls}${handled ? ' handled' : ''}">
       <span class="vr-main">
         <span class="nick">${escapeHtml(d.nickname || d.uid || '?')}</span>
         · ${fmtNum(d.client?.finalScore ?? '-')}점
         <span class="vr-reasons">${reasons.map(r => `<span class="verdict-tag ${cls}">${escapeHtml(reasonLabel(r))}</span>`).join('')}</span>
         <span class="vr-sub">플레이 ${elapsedSec != null ? elapsedSec + '초' : '-'}${burst != null ? ` · 3초내 최대 ${fmtNum(burst)}성공` : ''} · ${d.official?.decidedAt ? fmtDateTime(d.official.decidedAt) : '-'}</span>
       </span>
-      <span class="vr-verdict ${cls}">${verdictText}</span>
+      <span class="vr-side">
+        <span class="vr-verdict ${cls}">${handled ? '처리완료' : verdictText}</span>
+        <button class="vr-handle" data-sid="${escapeHtml(d.id)}" title="${handled ? '다시 목록에 표시' : '확인 끝 — 목록에서 숨기기 (이 기기에서만)'}">${handled ? '↩ 복원' : '✔ 처리완료'}</button>
+      </span>
     </div>`;
+}
+
+let _verdictRows = null;   // 마지막으로 받아온 판정 50건 (토글 재렌더용 — 재조회 없음)
+let _showHandled = false;  // ✔ 처리완료 보기 토글 상태
+
+function renderVerdictList() {
+  const el = document.getElementById('verdictList');
+  if (!el || !_verdictRows) return;
+  const rows = _verdictRows;
+  const handledCount = rows.filter(d => isHandled(d.id)).length;
+  const visible = _showHandled ? rows : rows.filter(d => !isHandled(d.id));
+  const suspects = visible.filter(d => !isUnverifiable(d));
+  const unverifiable = visible.filter(isUnverifiable);
+
+  // 배지도 최신 상태로 동기화 — NO_SESSION·처리완료 제외한 실제 의심 건수만
+  const activeSuspects = rows.filter(d => !isUnverifiable(d) && !isHandled(d.id)).length;
+  const badge = document.getElementById('verdictBadge');
+  const countEl = document.getElementById('verdictBadgeCount');
+  if (badge && countEl) {
+    if (activeSuspects) { countEl.textContent = activeSuspects >= 50 ? '50+' : String(activeSuspects); badge.style.display = ''; }
+    else badge.style.display = 'none';
+  }
+
+  if (!rows.length) { setEmpty(el, '✅ 보류/거부된 의심 세션이 없어요'); return; }
+
+  const suspectHtml = suspects.length
+    ? suspects.map(verdictRowHtml).join('')
+    : `<div class="list-empty">✅ 의심 판정 없음</div>`;
+  const unverifiableHtml = unverifiable.length
+    ? `<div class="card-note" style="margin:12px 0 8px;">❔ 검증 불가 (서버세션 없음) — 치팅 의심이 아니라 서버세션이 생성되지 않아 판정을 확정할 수 없는 기록입니다.</div>
+       ${unverifiable.map(verdictRowHtml).join('')}`
+    : '';
+  const toggleHtml = handledCount
+    ? `<div style="text-align:center;margin-top:10px;">
+         <button class="btn btn-ghost btn-sm" id="vrShowHandledBtn">${_showHandled ? '처리완료 숨기기' : `✔ 처리완료 ${handledCount}건 보기`}</button>
+       </div>`
+    : '';
+  el.innerHTML = suspectHtml + unverifiableHtml + toggleHtml;
+
+  const tbtn = el.querySelector('#vrShowHandledBtn');
+  if (tbtn) tbtn.onclick = () => { _showHandled = !_showHandled; renderVerdictList(); };
+  el.querySelectorAll('.vr-handle').forEach(b => {
+    b.onclick = () => {
+      const sid = b.dataset.sid;
+      setHandled(sid, !isHandled(sid));
+      renderVerdictList();
+      updateIncidentBanner(_verdictRows); // 처리완료가 바뀌면 장애 배너 기준도 갱신
+    };
+  });
 }
 
 async function loadVerdicts({ force = false } = {}) {
@@ -137,27 +215,8 @@ async function loadVerdicts({ force = false } = {}) {
   try {
     const rows = await cache.get('security:verdicts', () => fetchDocs(verdictQuery()));
     updateIncidentBanner(rows); // 새로고침 시 배너도 최신화
-    const suspects = rows.filter(d => !isUnverifiable(d));
-    const unverifiable = rows.filter(isUnverifiable);
-
-    // 배지도 최신 상태로 동기화 — NO_SESSION 제외한 실제 의심 건수만
-    const badge = document.getElementById('verdictBadge');
-    const countEl = document.getElementById('verdictBadgeCount');
-    if (badge && countEl) {
-      if (suspects.length) { countEl.textContent = suspects.length >= 50 ? '50+' : String(suspects.length); badge.style.display = ''; }
-      else badge.style.display = 'none';
-    }
-
-    if (!rows.length) { setEmpty(el, '✅ 보류/거부된 의심 세션이 없어요'); return; }
-
-    const suspectHtml = suspects.length
-      ? suspects.map(verdictRowHtml).join('')
-      : `<div class="list-empty">✅ 의심 판정 없음</div>`;
-    const unverifiableHtml = unverifiable.length
-      ? `<div class="card-note" style="margin:12px 0 8px;">❔ 검증 불가 (서버세션 없음) — 치팅 의심이 아니라 서버세션이 생성되지 않아 판정을 확정할 수 없는 기록입니다.</div>
-         ${unverifiable.map(verdictRowHtml).join('')}`
-      : '';
-    el.innerHTML = suspectHtml + unverifiableHtml;
+    _verdictRows = rows;
+    renderVerdictList();
   } catch (e) {
     const raw = String((e && e.message) || '');
     const isIndex = /failed-precondition/i.test(String(e && (e.code || e.message))) || /requires an index/i.test(raw);
