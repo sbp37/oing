@@ -25,9 +25,13 @@ async function revokeSkin(nick) {
   await setDoc(doc(db, 'nickname_skins', nick), { cat: false }, { merge: true });
   resultMsg('rwResult', `'${escapeHtml(nick)}' 님의 고양이 스킨을 해제했어요.`);
 }
+// 감사 쪽지 — 내용을 쓰면 그 문구가, 비우면 기본 감사 문구가 유저 팝업에 표시됨.
+// 닉네임 기반(nickname_skins/{닉})이라 계정 연결 여부와 무관하게 누구에게나 전달 가능.
 async function sendThanksNote(nick) {
-  await setDoc(doc(db, 'nickname_skins', nick), { thanksPending: true }, { merge: true });
-  resultMsg('rwResult', `💌 '${escapeHtml(nick)}' 님에게 감사 쪽지를 보냈어요. 다음 접속 때 팝업으로 한 번 떠요.`);
+  const text = (document.getElementById('rwThanksText').value || '').trim();
+  await setDoc(doc(db, 'nickname_skins', nick), { thanksPending: true, thanksText: text }, { merge: true });
+  document.getElementById('rwThanksText').value = '';
+  resultMsg('rwResult', `💌 '${escapeHtml(nick)}' 님에게 쪽지를 보냈어요${text ? ` — "${escapeHtml(text.slice(0, 30))}${text.length > 30 ? '…' : ''}"` : ' (기본 감사 문구)'}. 다음 접속 때 팝업으로 떠요.`);
 }
 
 // ── 젤리 지급 — UID 문서 우선 해석 후 increment (원자적 증가) ──

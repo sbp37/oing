@@ -2750,7 +2750,7 @@ if ('serviceWorker' in navigator) {
   <div class="overlay-card" style="max-width:300px; text-align:center;">
     <div style="font-size:44px; margin-bottom:6px;">😻</div>
     <div class="overlay-title" style="font-size:17px;" id="thanksNoteTitle">응원해주셔서 감사합니다냥😻</div>
-    <div style="font-size:13.5px; color:var(--muted); margin-top:8px; line-height:1.5;">덕분에 게임이 계속 자란다냥🐾</div>
+    <div id="thanksNoteMsg" style="font-size:13.5px; color:var(--muted); margin-top:8px; line-height:1.5; white-space:pre-wrap;">덕분에 게임이 계속 자란다냥🐾</div>
     <button id="thanksNoteCloseBtn" class="action-btn" style="width:100%; margin-top:16px;">😸</button>
   </div>
 </div>
@@ -10167,18 +10167,24 @@ async function checkSkinNotification() {
       if (overlay) overlay.style.display = 'flex';
       await setDoc(ref, { notifyPending: false, thanksPending: false }, { merge: true });
     } else if (d.thanksPending) {
-      // 감사 쪽지만 (리워드 없이)
+      // 감사 쪽지만 (리워드 없이) — 관리자가 thanksText를 넣어뒀으면 그 문구를 그대로 보여줌
       const titleEl = document.getElementById('thanksNoteTitle');
       if (titleEl) titleEl.textContent = `${myNick}님, 응원해주셔서 감사합니다냥😻`;
+      const msgEl = document.getElementById('thanksNoteMsg');
+      const customMsg = (typeof d.thanksText === 'string' && d.thanksText.trim()) ? d.thanksText.trim() : '';
+      if (msgEl) msgEl.textContent = customMsg || '덕분에 게임이 계속 자란다냥🐾';
       const overlay = document.getElementById('thanksNoteOverlay');
       if (overlay) {
         overlay.style.display = 'flex';
-        // 잠시 후 자동으로 스르륵 사라짐 (탭해서 바로 닫기도 가능)
-        setTimeout(() => {
-          overlay.style.transition = 'opacity 0.6s';
-          overlay.style.opacity = '0';
-          setTimeout(() => { overlay.style.display = 'none'; overlay.style.opacity = '1'; overlay.style.transition = ''; }, 650);
-        }, 4500);
+        // 기본 쪽지는 잠시 후 자동으로 사라짐. 직접 쓴 쪽지는 읽을 시간이 필요하니
+        // 자동으로 닫지 않고 유저가 버튼을 눌러 닫게 둔다.
+        if (!customMsg) {
+          setTimeout(() => {
+            overlay.style.transition = 'opacity 0.6s';
+            overlay.style.opacity = '0';
+            setTimeout(() => { overlay.style.display = 'none'; overlay.style.opacity = '1'; overlay.style.transition = ''; }, 650);
+          }, 4500);
+        }
       }
       await setDoc(ref, { thanksPending: false }, { merge: true });
     }
