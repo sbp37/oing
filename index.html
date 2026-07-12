@@ -3312,7 +3312,7 @@ if ('serviceWorker' in navigator) {
 //  FIREBASE 초기화
 // ══════════════════════════════
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, getDoc, orderBy, query, limit, deleteDoc, addDoc, increment, where, runTransaction }
+import { getFirestore, collection, getDocs, doc, setDoc, getDoc, updateDoc, orderBy, query, limit, deleteDoc, addDoc, increment, where, runTransaction }
   from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken }
   from "https://www.gstatic.com/firebasejs/12.15.0/firebase-auth.js";
@@ -8161,7 +8161,10 @@ async function saveRankSnapshot(ranks) {
 }
 async function mergeRankSnapshot(partialRanksDotted) {
   try {
-    await setDoc(doc(db, 'meta', 'rankSnapshot'), partialRanksDotted, { merge: true });
+    // updateDoc()만 점(.) 구분 키를 실제 중첩 경로(ranks.닉네임)로 해석한다.
+    // setDoc(...,{merge:true})는 점 포함 키를 문자 그대로의 새 필드로 취급해 rules의
+    // hasOnly(['date','savedAt','ranks','v'])에 걸려 매번 permission-denied가 났었음.
+    await updateDoc(doc(db, 'meta', 'rankSnapshot'), partialRanksDotted);
   } catch (e) { console.warn('순위 스냅샷 병합 실패:', e); }
 }
 // 상단 '내 순위' 요약 바 렌더
@@ -8624,7 +8627,9 @@ async function saveWeeklyRankSnapshot(weekId, ranks) {
 }
 async function mergeWeeklyRankSnapshot(partialRanksDotted) {
   try {
-    await setDoc(doc(db, 'meta', 'weeklyRankSnapshot'), partialRanksDotted, { merge: true });
+    // updateDoc()만 점(.) 구분 키를 실제 중첩 경로(ranks.닉네임)로 해석한다 — 이유는
+    // mergeRankSnapshot 주석 참고. 같은 버그로 새로 참여한 유저가 계속 NEW로 남아있었음.
+    await updateDoc(doc(db, 'meta', 'weeklyRankSnapshot'), partialRanksDotted);
   } catch (e) { console.warn('주간 순위 스냅샷 병합 실패:', e); }
 }
 
@@ -9491,7 +9496,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.1';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1783950000; // 점수저장(PR3 연동) 복원 배포 — 캐시된 이전 빌드에 새로고침 배너 유도
+const BUILD = 1784010000; // 순위변동 스냅샷 병합(dotted-key merge) 버그 수정 배포
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
