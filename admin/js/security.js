@@ -136,49 +136,74 @@ async function pinResetSearch(rawNick) {
       if (!lk.renamedTo) break;
       renamed = true; curNorm = normalizeNickname(lk.renamedTo);
     }
-    if (!lk || !lk.uid) {
-      setEmpty(el, `'${escapeHtml(rawNick)}' — 계정(UID)이 연결된 유저가 아니에요.<br>PIN은 계정 연결된 유저만 재설정할 수 있어요. (해당 유저가 게임에서 계정 연결을 먼저 해야 함)`);
+    // UID 계정이면 uid 로, 레거시(UID 미연결)면 닉네임 기록 존재 여부로 대상 판정
+    const isUid = !!(lk && lk.uid);
+    let stats = null, exists = isUid;
+    if (isUid) {
+      stats = await fetchDoc(doc(db, 'user_stats', lk.uid)).catch(() => null);
+    } else {
+      // 레거시: rankings 또는 user_stats(닉네임 키)에 실제 기록이 있어야 대상
+      const [rank, legacyStats] = await Promise.all([
+        fetchDoc(doc(db, 'rankings', curRaw)).catch(() => null),
+        fetchDoc(doc(db, 'user_stats', curRaw)).catch(() => null),
+      ]);
+      stats = legacyStats;
+      exists = !!(rank || legacyStats);
+    }
+    if (!exists) {
+      setEmpty(el, `'${escapeHtml(rawNick)}' — 기록이 있는 닉네임이 아니에요. 정확한 닉네임인지 확인해주세요.`);
       return;
     }
-    const stats = await fetchDoc(doc(db, 'user_stats', lk.uid)).catch(() => null);
     const renameNote = renamed ? `<div class="card-note" style="color:#fde68a;">↪ '${escapeHtml(rawNick)}'은(는) 현재 '${escapeHtml(curRaw)}'(으)로 닉변된 계정</div>` : '';
+    const badge = isUid
+      ? '<span class="badge green">계정 연동</span>'
+      : '<span class="badge">레거시 (기기 바뀜/PIN 분실 복구용)</span>';
+    const idLine = isUid
+      ? `UID ${escapeHtml(lk.uid.slice(0, 10))}… · 최근 ${stats && stats.lastPlayed ? fmtAgo(stats.lastPlayed) : '-'}`
+      : `최고 ${stats && typeof stats.bestScore === 'number' ? fmtNum(stats.bestScore) + 'pt' : '-'} · 최근 ${stats && stats.lastPlayed ? fmtAgo(stats.lastPlayed) : '-'}`;
     el.innerHTML = `
       ${renameNote}
       <div class="list-row" style="margin-bottom:8px;">
-        <span class="main"><span class="nick">${escapeHtml(curRaw)}</span> <span class="badge green">계정 연동</span><br>
-          <span class="sub">UID ${escapeHtml(lk.uid.slice(0, 10))}… · 최근 ${stats && stats.lastPlayed ? fmtAgo(stats.lastPlayed) : '-'}</span></span>
+        <span class="main"><span class="nick">${escapeHtml(curRaw)}</span> ${badge}<br>
+          <span class="sub">${idLine}</span></span>
       </div>
       <div class="row">
         <input id="pinResetInput" type="text" inputmode="numeric" maxlength="4" placeholder="새 4자리 PIN" style="max-width:120px;">
         <button id="pinResetGenBtn" class="btn btn-ghost">자동생성</button>
-        <button id="pinResetApplyBtn" class="btn btn-danger" data-uid="${escapeHtml(lk.uid)}" data-nick="${escapeHtml(curRaw)}">PIN 재설정</button>
+        <button id="pinResetApplyBtn" class="btn btn-danger">PIN 재설정</button>
       </div>
       <div id="pinResetApplyResult" class="result-msg"></div>`;
     document.getElementById('pinResetGenBtn').addEventListener('click', () => {
       document.getElementById('pinResetInput').value = gen4Pin();
     });
     const applyBtn = document.getElementById('pinResetApplyBtn');
-    applyBtn.addEventListener('click', guardBtn(applyBtn, () => pinResetApply(lk.uid, curRaw)));
+    // UID 계정이면 uid 전달, 레거시면 uid 없이 닉네임만 전달 → 서버가 legacy_account_secrets로 처리
+    applyBtn.addEventListener('click', guardBtn(applyBtn, () => pinResetApply(isUid ? lk.uid : null, curRaw, isUid)));
   } catch (e) {
     setError(el, humanError(e));
   }
 }
 
-async function pinResetApply(uid, nick) {
+async function pinResetApply(uid, nick, isUid) {
   const input = document.getElementById('pinResetInput');
   const out = document.getElementById('pinResetApplyResult');
   const pin = (input.value || '').trim();
   if (!/^\d{4}$/.test(pin)) { out.className = 'result-msg err'; out.textContent = '4자리 숫자 PIN을 입력하거나 "자동생성"을 누르세요.'; return; }
-  if (!confirm(`'${nick}' 님의 PIN을 [ ${pin} ] (으)로 재설정할까요?\n기존 PIN은 더 이상 작동하지 않게 됩니다.`)) return;
+  const kindMsg = isUid ? '기존 PIN은 더 이상 작동하지 않게 됩니다.' : '레거시 계정 복구용 새 PIN이 설정됩니다.';
+  if (!confirm(`'${nick}' 님의 PIN을 [ ${pin} ] (으)로 재설정할까요?\n${kindMsg}`)) return;
   out.className = 'result-msg'; out.textContent = '서버에 재설정 요청 중...';
   try {
     const fn = httpsCallable(fns, 'adminResetPin');
-    const res = await fn({ uid, nickname: nick, newPin: pin });
+    // 레거시는 uid 없이 nickname만 보냄 (서버가 legacy_account_secrets로 처리)
+    const payload = isUid ? { uid, nickname: nick, newPin: pin } : { nickname: nick, newPin: pin };
+    const res = await fn(payload);
     const d = (res && res.data) || {};
     if (d.ok) {
       out.className = 'result-msg ok';
+      const legacyNote = d.mode === 'legacy'
+        ? '<br><span style="color:var(--muted);font-size:12px;">※ 레거시 계정이라, 유저가 새 PIN으로 이어하기하면 그때 계정(UID)이 자동 연결돼요.</span>' : '';
       out.innerHTML = `✅ 재설정 완료! 이 유저에게 알려줄 새 PIN: <b style="font-size:18px;color:var(--accent-green-light);">${pin}</b><br>
-        <span style="color:var(--muted);font-size:12px;">유저는 다른 기기에서 "이어하기 → 닉네임 + 이 PIN"으로 계정을 복구할 수 있어요.</span>`;
+        <span style="color:var(--muted);font-size:12px;">유저는 다른 기기에서 "이어하기 → 닉네임 + 이 PIN"으로 계정을 복구할 수 있어요.</span>${legacyNote}`;
     } else {
       out.className = 'result-msg err';
       out.textContent = '재설정 실패: ' + (d.reason || '서버가 ok를 반환하지 않았어요.');
