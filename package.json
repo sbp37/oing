@@ -5,6 +5,8 @@
   "type": "module",
   "description": "Firestore security rules regression tests for oing-game (emulator-based, no deploy).",
   "scripts": {
+    "guard": "node test/guard-no-direct-score-write.mjs",
+    "pretest": "npm run guard",
     "test": "firebase emulators:exec --only firestore --project demo-oing-rules \"node --test test/firestore-rules.test.mjs\""
   },
   "devDependencies": {
