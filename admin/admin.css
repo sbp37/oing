@@ -255,8 +255,17 @@ textarea { width: 100%; resize: vertical; }
 .chart-note { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
 
 /* ── 피드백 스레드 ── */
+/* 목록 내부 스크롤 — 피드백이 많아도 아래 운영 기능(감사메시지·명예의전당 등)이 밀리지 않게 */
+#feedbackList { max-height: 60vh; overflow-y: auto; padding-right: 2px; }
+@media (min-width: 720px) { #feedbackList { max-height: 72vh; } }
 .fb-item { padding: 10px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border); }
 .fb-item.unread { border-color: var(--accent-lemon); }
+.fb-item.collapsed { cursor: pointer; padding: 8px 10px; }
+.fb-item.collapsed:hover { border-color: var(--blue-bright); }
+.fb-preview {
+  color: var(--muted); font-size: 12.5px; margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .fb-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
 .fb-msg { margin-bottom: 6px; }
 .fb-msg .bubble {

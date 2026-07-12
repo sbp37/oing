@@ -42,12 +42,16 @@ async function grantJelly(nick, amount) {
 }
 
 // ── 후원 확인 쪽지함 (feedback_donate) ──
+// 답장은 일반 피드백과 완전히 동일한 구조 재사용: messages 배열에 {from:'admin'} 추가 +
+// userUnread:true (유저 접속 시 "새 답변" 배너·지난 글 보기 NEW 표시) + adminUnread:false.
+// 원문(입금자명 등)은 그대로 유지 — merge 저장이라 다른 필드는 건드리지 않음.
 let donatePager = null;
 const donateRows = [];
 function donateItemHtml(d) {
   const msgs = Array.isArray(d.messages) ? d.messages : [];
+  const hasUid = !!d.uid;
   return `
-    <div class="fb-item ${d.adminUnread ? 'unread' : ''}">
+    <div class="fb-item ${d.adminUnread ? 'unread' : ''}" data-id="${escapeHtml(d.id)}">
       <div class="fb-head">
         <span><span class="nick">${escapeHtml(d.nickname || '?')}</span>${d.adminUnread ? ' 🔔' : ''}
           ${d.type === 'donate_confirm' ? '<span class="badge gold">입금 확인</span>' : ''}</span>
@@ -57,7 +61,38 @@ function donateItemHtml(d) {
         <div class="fb-msg ${m.from === 'admin' ? 'from-admin' : ''}">
           <span class="bubble">${escapeHtml(m.text)}</span>
         </div>`).join('')}
+      ${hasUid ? '' : '<div class="card-note">⚠️ 계정(UID) 미연결 글 — 답장을 저장해도 작성자가 게임에서 다시 볼 수 없어요 (스킨 알림·감사 쪽지로 전달 권장)</div>'}
+      <div class="fb-reply-row">
+        <textarea class="fb-reply-input" placeholder="답장 작성... (작성자만 게임의 '지난 글 보기'에서 확인)" rows="2"></textarea>
+        <button class="btn btn-primary btn-sm donate-reply-btn">답장 보내기</button>
+      </div>
     </div>`;
+}
+
+function renderDonateFeedback() {
+  const el = document.getElementById('donateFeedbackList');
+  if (!donateRows.length) { setEmpty(el, '후원 확인 쪽지가 없어요'); return; }
+  el.innerHTML = donateRows.map(donateItemHtml).join('');
+  el.querySelectorAll('.donate-reply-btn').forEach(btn => {
+    btn.addEventListener('click', guardBtn(btn, async () => {
+      const item = btn.closest('.fb-item');
+      const id = item.dataset.id;
+      const textarea = item.querySelector('.fb-reply-input');
+      const replyText = (textarea.value || '').trim();
+      if (!replyText) return;
+      try {
+        const row = donateRows.find(r => r.id === id);
+        const messages = Array.isArray(row.messages) ? [...row.messages] : [];
+        const ts = Date.now();
+        messages.push({ from: 'admin', text: replyText, ts });
+        await setDoc(doc(db, 'feedback_donate', id), { messages, lastTs: ts, userUnread: true, adminUnread: false }, { merge: true });
+        Object.assign(row, { messages, lastTs: ts, userUnread: true, adminUnread: false });
+        renderDonateFeedback();
+      } catch (e) {
+        alert('답장 전송 실패: ' + humanError(e));
+      }
+    }));
+  });
 }
 async function loadDonateFeedback({ reset = false } = {}) {
   const el = document.getElementById('donateFeedbackList');
@@ -71,8 +106,7 @@ async function loadDonateFeedback({ reset = false } = {}) {
   try {
     const page = await donatePager.next();
     donateRows.push(...page);
-    if (!donateRows.length) { setEmpty(el, '후원 확인 쪽지가 없어요'); }
-    else el.innerHTML = donateRows.map(donateItemHtml).join('');
+    renderDonateFeedback();
     moreBtn.style.display = donatePager.done ? 'none' : 'flex';
   } catch (e) {
     setError(el, humanError(e));

@@ -17,21 +17,47 @@ import { setLoading, setError, setEmpty, guardBtn, resultMsg } from './admin.js'
 const PAGE_SIZE = 30;
 
 // ── 피드백 관리 ──
+// · 최신 작성글이 맨 위 (ts = createdAt 기준 desc, 커서 페이지네이션 유지)
+// · 기본은 접힌 컴팩트 카드(NEW 배지 + 본문 미리보기 1줄) — 클릭한 카드만 펼쳐짐
+// · NEW 판별: 기존 adminUnread 필드 재사용 (새 글/유저 추가 메시지 때 게임이 true로 설정,
+//   답변 여부와 무관). 관리자가 카드를 실제로 "펼쳤을 때"만 adminUnread:false 로 읽음 처리 —
+//   목록에 렌더링된 것만으로는 절대 읽음 처리하지 않는다.
 let fbPager = null;
 const fbRows = [];
+const fbExpanded = new Set(); // 펼쳐진 문서 id — 카드별 독립
+
+function getMsgs(d) { // 옛 단일 필드(content/reply) 구조 호환
+  if (Array.isArray(d.messages)) return d.messages;
+  const msgs = [{ from: 'user', text: d.content || '', ts: d.ts || 0 }];
+  if (d.reply) msgs.push({ from: 'admin', text: d.reply, ts: d.ts || 0 });
+  return msgs;
+}
+function previewText(d) {
+  const msgs = getMsgs(d);
+  const lastUser = [...msgs].reverse().find(m => m.from !== 'admin');
+  return ((lastUser ? lastUser.text : msgs[0]?.text) || '').replace(/\s+/g, ' ');
+}
 
 function feedbackItemHtml(d) {
-  const msgs = Array.isArray(d.messages)
-    ? d.messages
-    : [{ from: 'user', text: d.content || '', ts: d.ts || 0 }]; // 옛 단일 필드 구조 호환
-  if (!Array.isArray(d.messages) && d.reply) msgs.push({ from: 'admin', text: d.reply, ts: d.ts || 0 });
+  const expanded = fbExpanded.has(d.id);
+  const newBadge = d.adminUnread ? '<span class="badge warn">NEW</span> ' : '';
+  if (!expanded) {
+    return `
+      <div class="fb-item collapsed ${d.adminUnread ? 'unread' : ''}" data-id="${d.id}">
+        <div class="fb-head">
+          <span>${newBadge}<span class="nick">${escapeHtml(d.nickname || '?')}</span></span>
+          <span class="sub">${fmtDateTime(d.lastTs || d.ts)}</span>
+        </div>
+        <div class="fb-preview">${escapeHtml(previewText(d))}</div>
+      </div>`;
+  }
   return `
     <div class="fb-item ${d.adminUnread ? 'unread' : ''}" data-id="${d.id}">
-      <div class="fb-head">
-        <span><span class="nick">${escapeHtml(d.nickname || '?')}</span>${d.adminUnread ? ' 🔔' : ''}</span>
-        <span class="sub">${fmtDateTime(d.lastTs || d.ts)}</span>
+      <div class="fb-head fb-toggle" style="cursor:pointer;">
+        <span>${newBadge}<span class="nick">${escapeHtml(d.nickname || '?')}</span></span>
+        <span class="sub">${fmtDateTime(d.lastTs || d.ts)} ▲</span>
       </div>
-      ${msgs.map(m => `
+      ${getMsgs(d).map(m => `
         <div class="fb-msg ${m.from === 'admin' ? 'from-admin' : ''}">
           <span class="bubble">${escapeHtml(m.text)}</span>
         </div>`).join('')}
@@ -55,7 +81,7 @@ function renderFeedback() {
       if (!replyText) return;
       try {
         const row = fbRows.find(r => r.id === id);
-        const messages = Array.isArray(row.messages) ? [...row.messages] : [];
+        const messages = [...getMsgs(row)];
         const ts = Date.now();
         messages.push({ from: 'admin', text: replyText, ts });
         await setDoc(doc(db, 'feedback', id), { messages, lastTs: ts, userUnread: true, adminUnread: false }, { merge: true });
@@ -68,12 +94,31 @@ function renderFeedback() {
   });
 }
 
+// 카드 펼치기/접기 — 펼치는 순간에만 읽음 처리 (쓰기 1회, 이미 읽은 글은 쓰기 없음)
+function toggleFeedback(id) {
+  const row = fbRows.find(r => r.id === id);
+  if (!row) return;
+  if (fbExpanded.has(id)) {
+    fbExpanded.delete(id);
+  } else {
+    fbExpanded.add(id);
+    if (row.adminUnread) {
+      row.adminUnread = false; // NEW 즉시 제거
+      setDoc(doc(db, 'feedback', id), { adminUnread: false }, { merge: true })
+        .catch(e => console.warn('읽음 처리 실패:', humanError(e)));
+    }
+  }
+  renderFeedback();
+}
+
 async function loadFeedback({ reset = false } = {}) {
   const el = document.getElementById('feedbackList');
   const moreBtn = document.getElementById('feedbackMoreBtn');
   if (reset || !fbPager) {
-    fbPager = makePager(() => [collection(db, 'feedback'), orderBy('lastTs', 'desc')], PAGE_SIZE);
+    // ts = 작성 시각(createdAt) — 최신 작성글이 항상 맨 위
+    fbPager = makePager(() => [collection(db, 'feedback'), orderBy('ts', 'desc')], PAGE_SIZE);
     fbRows.length = 0;
+    fbExpanded.clear();
   }
   if (!fbRows.length) setLoading(el);
   moreBtn.disabled = true;
@@ -161,6 +206,15 @@ async function loadVersion({ force = false } = {}) {
 export function initOperationsTab() {
   const moreBtn = document.getElementById('feedbackMoreBtn');
   moreBtn.addEventListener('click', () => loadFeedback());
+
+  // 카드 펼치기/접기 위임 — 답글 입력란/버튼 클릭은 토글로 취급하지 않음
+  document.getElementById('feedbackList').addEventListener('click', (e) => {
+    if (e.target.closest('.fb-reply-row')) return;
+    const collapsed = e.target.closest('.fb-item.collapsed');
+    if (collapsed) { toggleFeedback(collapsed.dataset.id); return; }
+    const head = e.target.closest('.fb-toggle');
+    if (head) toggleFeedback(head.closest('.fb-item').dataset.id);
+  });
 
   const saveBtn = document.getElementById('opThanksSaveBtn');
   saveBtn.addEventListener('click', guardBtn(saveBtn, async () => {
