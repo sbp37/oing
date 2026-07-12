@@ -209,13 +209,22 @@ async function pinResetApply(uid, nick, isUid) {
       out.textContent = '재설정 실패: ' + (d.reason || '서버가 ok를 반환하지 않았어요.');
     }
   } catch (e) {
-    const code = String((e && (e.code || e.message)) || e);
+    // 실제 오류 코드를 그대로 노출한다 — "미배포"로 뭉개면 진짜 원인(리전/캐시/권한)을 못 잡는다
+    const rawCode = String((e && e.code) || '');
+    const rawMsg = String((e && e.message) || e || '');
     out.className = 'result-msg err';
-    if (/not-found|internal|functions\/not-found|CORS|does not exist/i.test(code)) {
-      out.innerHTML = '⚠️ 서버 함수 <b>adminResetPin</b>이 아직 배포되지 않았어요.<br><span style="color:var(--muted);font-size:12px;">Functions 프로젝트에 함수를 배포해야 이 버튼이 작동해요 (배포용 코드는 별도 제공).</span>';
-    } else {
-      out.textContent = '재설정 실패: ' + humanError(e);
+    let hint = '';
+    if (/permission-denied/i.test(rawCode + rawMsg)) {
+      hint = '<br><b style="color:#fca5a5;">→ 관리자 이메일 계정으로 로그인했는지 확인하세요.</b> 익명으로 들어오면 서버가 거부해요 (잠금 버튼 → 이메일/비번으로 재로그인).';
+    } else if (/not-found|CORS|does not exist|failed to fetch|load failed/i.test(rawCode + rawMsg)) {
+      hint = '<br><b style="color:#fca5a5;">→ 브라우저가 옛 버전을 캐시했을 가능성이 커요.</b> 강력 새로고침(모바일: 브라우저 캐시 삭제 후 재접속 / PC: Ctrl+Shift+R) 하고 다시 시도하세요.<br>'
+        + '<span style="color:var(--muted);font-size:11.5px;">그래도 안 되면 함수 리전(asia-northeast3) 또는 배포 상태를 확인해주세요.</span>';
+    } else if (/internal/i.test(rawCode)) {
+      hint = '<br><span style="color:var(--muted);font-size:12px;">서버 함수 내부 오류 — Firebase Console → Functions → adminResetPin → 로그를 확인해주세요.</span>';
     }
+    out.innerHTML = `재설정 실패: <b>${escapeHtml(rawCode || rawMsg || '알 수 없는 오류')}</b>`
+      + (rawCode && rawMsg && rawCode !== rawMsg ? `<br><span style="color:var(--muted);font-size:11.5px;">${escapeHtml(rawMsg)}</span>` : '')
+      + hint;
   }
 }
 
