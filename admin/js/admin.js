@@ -76,7 +76,7 @@ function bindTabs() {
 
 // ── 로그인 게이트 ─────────────────────────────────────────────
 // 기존 관리자와 동일한 SHA-256 암호 해시 게이트 유지 + (선택) Firebase 이메일 인증
-const ADMIN_PW_HASH = '465a52b9d22e363d84d6e6cf7c7cb87793160b58fe2dffffce74da2130962ea4';
+const ADMIN_PW_HASH = '60e1f6f159263b555cacf78ed279d0ce722cef74901eeaa786a4b04958242ce2';
 const UNLOCK_KEY = 'oeing_admin_unlocked_v1';
 const EMAIL_KEY = 'oeing_admin_email_v1';
 
