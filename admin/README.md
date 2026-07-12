@@ -67,13 +67,70 @@ admin/
 | 탭 자체를 추가 | `index.html`(섹션+버튼) + `js/admin.js`(TABS 등록) |
 | Firebase 설정·공통 헬퍼 | `js/firebase.js` |
 
-## 인증
+## 인증과 보안 규칙 — 반드시 이해하고 배포할 것
 
-1. 관리자 암호(기존과 동일한 SHA-256 해시 게이트) 입력 후,
-2. 기본은 게임과 동일한 **익명 인증**으로 Firestore에 접근합니다.
-3. Firestore 보안 규칙이 관리자 계정을 요구하는 경우, 로그인 화면의
-   "Firebase 관리자 계정으로 로그인"에 이메일/비밀번호를 입력하세요.
-   권한이 부족한 조회는 해당 카드에만 "권한 없음" 메시지가 표시되고
+### 관리자 암호(SHA-256 게이트)의 실제 역할
+
+관리자 암호는 **프런트엔드 화면 잠금일 뿐, 데이터 보호 장치가 아닙니다.**
+해시가 클라이언트 JS에 그대로 들어 있어(누구나 소스에서 볼 수 있음),
+Firestore 데이터를 실제로 보호하는 것은 **오직 Security Rules**입니다.
+악의적 사용자는 이 페이지 없이도 Firebase SDK로 직접 쿼리할 수 있으므로,
+"관리자만 가능해야 하는 작업"은 전부 규칙에서 막혀 있어야 합니다.
+
+### 게임 코드에서 확인된 규칙의 성격 (규칙 원문은 이 저장소에 없음)
+
+게임 본체 주석 기준으로, 현재 규칙은 이미 다음을 차단하고 있습니다:
+
+- `nickname_skins`의 소유권 필드(cat·ownedSkins·bubblePurchased)와
+  `user_stats.jelly` **증가**는 일반 클라이언트 쓰기 차단 (서버 함수 shopAction만 가능)
+- `feedback` 원문 읽기는 "어드민 또는 글쓴이 본인(uid 일치)"만 가능
+- 옛 관리자 기능이 게임 안에서 "새 보안규칙상 작동 불가"가 되어 분리됨
+
+→ 즉 규칙에 이미 "어드민" 개념이 존재하며, **이 대시보드의 관리자 쓰기
+(스킨 지급/해제, 젤리 지급, 피드백 답글, 랭킹/왕관 초기화, meta 쓰기)는
+익명 인증으로는 거부되고, 규칙이 인정하는 관리자 신원으로 로그인해야
+동작할 가능성이 높습니다.** 로그인 화면의 이메일 로그인을 사용하세요.
+
+### Firebase Console에서 확인할 것 (Firestore → 규칙 탭)
+
+1. **어드민을 무엇으로 판별하는가** — 특정 UID? 이메일? custom claim?
+   (예: `request.auth.uid == '...'` / `request.auth.token.email == '...'`)
+   → 그 신원과 로그인 화면에 입력할 계정이 일치해야 합니다.
+2. `feedback`, `feedback_donate` **read**가 어드민에게 허용되는가
+3. `rankings`, `weekly_rankings/*/scores`, `user_stats`, `champions`의
+   **delete**가 어드민에게 허용되는가 (초기화/기록삭제 기능의 전제)
+4. `nickname_skins` **write**(cat·notifyPending·thanksPending)와
+   `user_stats.jelly` **증가**가 어드민에게 허용되는가
+5. `meta/*` (weeklyThanks·currentChampion·rankSnapshot 등) **write** 허용 여부
+6. `dailyStats` 컬렉션에 대한 match가 없으면 기본 거부 → 아래 규칙 추가
+
+### dailyStats 권장 규칙 — 절대 "로그인한 모든 사용자"에게 열지 말 것
+
+게임 유저도 전부 (익명) 로그인 상태이므로 `request.auth != null` 조건은
+사실상 전체 공개와 같습니다. 반드시 관리자 신원으로 제한하세요:
+
+```
+// 기존 규칙에 이미 isAdmin() 같은 함수가 있으면 그걸 그대로 재사용하는 게 최선
+function isAdminUid() {
+  return request.auth != null
+      && request.auth.uid == '여기에_관리자_계정_UID';
+}
+
+match /dailyStats/{date} {
+  allow read, write: if isAdminUid();   // ❌ if request.auth != null 금지
+}
+```
+
+관리자 계정 UID는 Firebase Console → Authentication → Users에서
+관리자 이메일 계정의 UID를 복사하면 됩니다.
+
+### 동작 방식 요약
+
+1. 관리자 암호(화면 잠금) 입력 후,
+2. **관리자 이메일 계정으로 로그인 권장** (규칙이 요구하는 신원).
+   비워두면 게임과 동일한 익명 인증 — 읽기 일부는 되더라도
+   관리자 쓰기 작업은 규칙에서 거부될 가능성이 높습니다.
+3. 권한이 부족한 작업은 해당 카드에만 "권한 없음"이 표시되고
    나머지 기능은 정상 동작합니다.
 
 ## dailyStats 컬렉션
