@@ -84,30 +84,32 @@ service cloud.firestore {
     }
 
     // rankings — pin/delpin 영구 차단 + uid 소유자 본인 삭제 허용
+    // PR3: 공식 score 변경은 Cloud Function(Admin SDK, 규칙 우회)만.
+    //  클라이언트가 허용되는 것은 (a) score:0 신규 등록 create, (b) score 불변 metadata/uid update,
+    //  (c) owner delete 뿐. 게임 점수 반영은 전부 submitScore CF가 rankings/weekly를 atomic으로 갱신.
     match /rankings/{nick} {
       allow read: if true;
+      // 신규 닉네임 등록만 클라 허용 — 반드시 score == 0 (실제 점수는 CF만 씀)
       allow create: if isAdmin()
-        || (validNick(nick) && validScore() && uidFieldOkCreate() && noPinFields()
+        || (validNick(nick) && uidFieldOkCreate() && noPinFields()
+            && request.resource.data.score == 0
             && request.resource.data.keys().hasOnly(['score','ts','uid']));
+      // 클라 update는 score를 절대 바꿀 수 없음(불변). uid/ts 등 metadata만.
       allow update: if isAdmin()
-        || (validScore() && uidFieldOk() && noPinFields()
-            && request.resource.data.score >= resource.data.get('score', 0)
+        || (uidFieldOk() && noPinFields()
+            && request.resource.data.score == resource.data.get('score', 0)
             && request.resource.data.keys().hasOnly(['score','ts','uid']));
-      // 닉네임 변경 시 "옛 닉네임 문서 정리"를 uid 소유자 본인이 직접 할 수 있음
+      // 옛 닉네임 문서 정리(닉변)는 uid 소유자 본인/서버만
       allow delete: if isAdmin()
         || (signedIn() && ('uid' in resource.data) && resource.data.uid == request.auth.uid);
     }
 
     // weekly rankings — compat과 동일 (uid 관련 없음)
+    // PR3: 주간 점수는 클라이언트가 쓸 정상 경로가 없음(게임종료 W1도 이제 submitScore CF 경유).
+    //  → 클라 create/update 전면 차단, CF(Admin SDK)만 write. read는 공개 유지.
     match /weekly_rankings/{weekId}/scores/{nick} {
       allow read: if true;
-      allow create: if isAdmin()
-        || (validNick(nick) && validScore()
-            && request.resource.data.keys().hasOnly(['score','ts']));
-      allow update: if isAdmin()
-        || (validScore()
-            && request.resource.data.score > resource.data.get('score', -1)
-            && request.resource.data.keys().hasOnly(['score','ts']));
+      allow create, update: if isAdmin();
       allow delete: if isAdmin()
         || !exists(/databases/$(database)/documents/rankings/$(nick));
     }
@@ -392,6 +394,13 @@ service cloud.firestore {
     }
 
     match /account_config/{docId} {
+      allow read, write: if false;
+    }
+
+    // game_sessions — 서버 세션 shadow telemetry (PR2). 클라이언트는 read/write 절대 불가.
+    // 오직 Cloud Function(Admin SDK, 규칙 우회)만 create/update. 아래 catch-all이 이미
+    // 막지만, 의도를 규칙에 명시하고 회귀 테스트로 고정하기 위해 별도 블록으로 둔다.
+    match /game_sessions/{sessionId} {
       allow read, write: if false;
     }
 
