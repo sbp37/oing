@@ -18,7 +18,7 @@ import {
   assertFails,
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 const PROJECT_ID = 'demo-oing-rules';
 let testEnv;
@@ -143,4 +143,26 @@ test('champions: +1 update 허용 / +2 update 거부', async () => {
 test('users_private: 일반 read 거부', async () => {
   await seed((db) => setDoc(doc(db, 'users_private', 'u1'), { pinHash: 'x', pinSalt: 'y' }));
   await assertFails(getDoc(doc(unauth(), 'users_private', 'u1')));
+});
+
+// ─────────────── game_sessions (PR2 shadow — 클라이언트 접근 완전 차단) ───────────────
+// CF(Admin SDK)만 write. 클라이언트는 인증 여부와 무관하게 read/create/update/delete 전부 거부.
+test('game_sessions: 클라 create 거부 (미인증)', async () => {
+  await assertFails(setDoc(doc(unauth(), 'game_sessions', 's1'), { uid: 'x', status: 'active' }));
+});
+test('game_sessions: 클라 create 거부 (인증)', async () => {
+  await assertFails(setDoc(doc(asUser('u1'), 'game_sessions', 's2'), { uid: 'u1', status: 'active' }));
+});
+test('game_sessions: 클라 read 거부', async () => {
+  await seed((db) => setDoc(doc(db, 'game_sessions', 's3'), { uid: 'u1', status: 'active' }));
+  await assertFails(getDoc(doc(unauth(), 'game_sessions', 's3')));
+  await assertFails(getDoc(doc(asUser('u1'), 'game_sessions', 's3')));
+});
+test('game_sessions: 클라 update 거부 (본인 uid여도)', async () => {
+  await seed((db) => setDoc(doc(db, 'game_sessions', 's4'), { uid: 'u1', status: 'active' }));
+  await assertFails(updateDoc(doc(asUser('u1'), 'game_sessions', 's4'), { finalScore: 999 }));
+});
+test('game_sessions: 클라 delete 거부', async () => {
+  await seed((db) => setDoc(doc(db, 'game_sessions', 's5'), { uid: 'u1', status: 'active' }));
+  await assertFails(deleteDoc(doc(asUser('u1'), 'game_sessions', 's5')));
 });
