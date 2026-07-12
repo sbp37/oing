@@ -127,11 +127,19 @@ function bindLogin() {
 
   async function tryLogin() {
     const pw = pwInput.value || '';
-    if (!pw) { errEl.textContent = '암호를 입력하세요.'; return; }
+    const email = (document.getElementById('loginEmail').value || '').trim();
+    const emailPw = document.getElementById('loginEmailPw').value || '';
+    // 이메일/비번을 둘 다 채웠으면 그것만으로 충분 — 위쪽 암호는 요구하지 않는다
+    // (Firebase 인증 자체가 더 강한 검증이라 이중으로 막을 필요가 없음)
+    const useEmail = !!(email && emailPw);
+    if (!useEmail && !pw) { errEl.textContent = '암호를 입력하거나, 아래에 Firebase 계정으로 로그인하세요.'; return; }
     btn.disabled = true;
+    errEl.textContent = '';
     try {
-      const hash = await sha256Hex(pw);
-      if (hash !== ADMIN_PW_HASH) { errEl.textContent = '암호가 틀렸습니다.'; return; }
+      if (!useEmail) {
+        const hash = await sha256Hex(pw);
+        if (hash !== ADMIN_PW_HASH) { errEl.textContent = '암호가 틀렸습니다.'; return; }
+      }
       try { localStorage.setItem(UNLOCK_KEY, '1'); } catch {}
       await enterAdmin();
     } finally {
@@ -140,6 +148,7 @@ function bindLogin() {
   }
   btn.addEventListener('click', tryLogin);
   pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+  document.getElementById('loginEmail').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
   document.getElementById('loginEmailPw').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
 
   document.getElementById('loginEmailToggle').addEventListener('click', () => {
@@ -148,10 +157,7 @@ function bindLogin() {
   });
   try {
     const savedEmail = localStorage.getItem(EMAIL_KEY);
-    if (savedEmail) {
-      document.getElementById('loginEmail').value = savedEmail;
-      document.getElementById('loginEmailBox').style.display = 'block';
-    }
+    if (savedEmail) document.getElementById('loginEmail').value = savedEmail;
   } catch {}
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
