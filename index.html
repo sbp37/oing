@@ -4111,15 +4111,14 @@ async function repairMyAllTimeScore() {
     const rankData = rankSnap.exists() ? rankSnap.data() : null;
     const rankScore = (rankData && typeof rankData.score === 'number') ? rankData.score : 0;
     const weekScore = (weekSnap.exists() && typeof weekSnap.data().score === 'number') ? weekSnap.data().score : 0;
-    if (weekScore > rankScore) {
-      // merge 저장 — 점수만 복원하고 다른 필드(uid 등)는 그대로 둠. PIN은 절대 다루지 않음.
-      await setDoc(doc(db, 'rankings', nick), { score: weekScore, ts: Date.now() }, { merge: true });
-      invalidateRankingsCache();
-      console.log('전체 랭킹 점수 복원:', nick, rankScore, '→', weekScore);
-    }
-  } catch (e) { console.warn('점수 자가 복구 실패(무시):', e); }
+    // PR3: 클라이언트 direct rankings score write 제거(rules로 차단됨). all-time/weekly는 이제
+    //  submitScore CF가 한 트랜잭션에서 함께 max 갱신하므로 divergence가 생기지 않는다.
+    //  (PR3 이전에 이미 벌어진 문서는 서버측 일괄 heal로 처리 — 클라가 점수를 쓰지 않는다.)
+    void rankScore; void weekScore;
+  } catch (e) { console.warn('점수 자가 복구(read-only) 실패(무시):', e); }
 }
-setTimeout(() => repairMyAllTimeScore(), 3000); // 앱 로드 3초 후 백그라운드로
+// PR3: 앱 로드 3초 후 — 기존 자가복구(direct write) 대신, 제출 실패분 재시도 큐를 flush.
+setTimeout(() => { _flushPendingSubmits(); }, 3000);
 
 async function addWeeklyScore(nickname, newScore) {
   if (isLocalOnlyMode(nickname)) { saveWeeklyScoreLocallyOnly(nickname, newScore); return; } // 소유권 미확인 — 서버 쓰기 금지
@@ -5575,20 +5574,51 @@ async function _shadowStartSession() {
     if (res && res.data && res.data.sessionId) _shadowSessionId = res.data.sessionId;
   } catch (e) { /* fail-open: 조용히 무시 */ }
 }
-async function _shadowSubmitSession() {
-  if (_shadowSubmitted || !_shadowSessionId) return; // 한 판당 최대 1회
-  _shadowSubmitted = true; // await 전에 잠금 → 클라 중복 방지(서버도 active→submitted로 재차 방지)
+// PR3: submitScore가 공식 랭킹 write의 유일한 진입점(클라 direct score write는 rules로 차단).
+//  · nickname 전달 → 서버(Admin SDK)가 rankings/weekly를 atomic·max로 갱신(판정: accepted/pending_review/rejected_invalid)
+//  · 실패 시 클라 direct write fallback 금지 → 재시도 큐(localStorage)에 적재, 다음 접속 재제출(서버 idempotent)
+//  · 결과 반환(호출부가 성공/보류 표시). 한 판당 최대 1회(플래그) + 서버 active→submitted 재차 방지.
+async function _shadowSubmitSession(nickname) {
+  if (_shadowSubmitted) return null; // 한 판당 최대 1회
+  _shadowSubmitted = true;           // await 전 잠금
+  const payload = {
+    sessionId: _shadowSessionId || '', // 세션 없으면 서버가 NO_SESSION → pending_review로 보존
+    nickname: nickname || loadNickname() || '',
+    finalScore: score,
+    clearCount: clearCount,
+    resetCount: resetCount,
+    maxCombo: maxCombo,
+    maxSuccessesIn3Sec: _shadowMaxIn3s,
+    failCount: _shadowFailCount,
+  };
   try {
-    await httpsCallable(fns, 'submitScore')({
-      sessionId: _shadowSessionId,
-      finalScore: score,
-      clearCount: clearCount,
-      resetCount: resetCount,
-      maxCombo: maxCombo,
-      maxSuccessesIn3Sec: _shadowMaxIn3s,
-      failCount: _shadowFailCount,
-    });
-  } catch (e) { /* fail-open: 조용히 무시 — 기존 랭킹 저장과 무관 */ }
+    const res = await httpsCallable(fns, 'submitScore')(payload);
+    return (res && res.data) || null;
+  } catch (e) {
+    _enqueuePendingSubmit(payload); // 다음 접속 재시도 — 정상 유저 점수 유실 방지(직접 write 없음)
+    throw e;
+  }
+}
+const PENDING_SUBMIT_KEY = 'oeing_pending_submit_v1';
+function _enqueuePendingSubmit(payload) {
+  try {
+    const arr = JSON.parse(localStorage.getItem(PENDING_SUBMIT_KEY) || '[]');
+    arr.push({ payload: payload, ts: Date.now() });
+    while (arr.length > 20) arr.shift();
+    localStorage.setItem(PENDING_SUBMIT_KEY, JSON.stringify(arr));
+  } catch {}
+}
+async function _flushPendingSubmits() {
+  let arr;
+  try { arr = JSON.parse(localStorage.getItem(PENDING_SUBMIT_KEY) || '[]'); } catch { return; }
+  if (!Array.isArray(arr) || !arr.length) return;
+  try { const uid = await ensureAnonymousAuth(); if (!uid) return; } catch { return; }
+  const remain = [];
+  for (const item of arr) {
+    try { await httpsCallable(fns, 'submitScore')(item.payload); } // 서버 idempotent
+    catch (e) { remain.push(item); }
+  }
+  try { localStorage.setItem(PENDING_SUBMIT_KEY, JSON.stringify(remain)); } catch {}
 }
 let sel1 = null;
 let hintsUsed = 0; // 판당 힌트 사용 횟수
@@ -7335,7 +7365,6 @@ async function endGame() {
 
   const savedNick = loadNickname();
   if (savedNick) {
-    _shadowSubmitSession(); // PR2 shadow: 자동저장 경로 — 관찰 telemetry 제출(fire-and-forget, 랭킹 저장과 무관)
     document.getElementById('nickSection2').style.display = 'none';
     const nickDone = document.getElementById('nickDone');
     nickDone.style.display = 'block';
@@ -7366,16 +7395,13 @@ async function endGame() {
         // ★ 점수 저장을 최우선으로 실행 + 일시적 네트워크 오류는 1회 재시도
         //   (기존엔 loadRankings(최대 150개 문서)가 먼저라, 그게 느리거나 실패하면
         //    점수 저장은 시도조차 못 하고 "저장 실패"가 뜨던 문제 수정)
-        for (let attempt = 0; attempt < 2; attempt++) {
-          try {
-            await addScore(savedNick, score);
-            await addWeeklyScore(savedNick, score);
-            scoreSaved = true;
-            break;
-          } catch (se) {
-            if (attempt === 0) await new Promise(res => setTimeout(res, 1200));
-            else throw se;
-          }
+        // PR3: 공식 랭킹/주간은 submitScore CF(Admin SDK)만 write. 클라 direct write 제거.
+        //  실패 시 재시도 큐에 적재(다음 접속 재제출) — 정상 유저 점수 유실 방지, 직접 write fallback 없음.
+        try {
+          await _shadowSubmitSession(savedNick);
+          scoreSaved = true;
+        } catch (se) {
+          scoreSaved = false;
         }
 
         // 최고 기록 대비 표시 — 값만 계산해두고 DOM 반영은 뒤로 미룸
@@ -7909,7 +7935,6 @@ document.getElementById('submitScore').addEventListener('click', async () => {
   input.style.borderColor = '';
   saveNickname(nick);
   refreshMyCatSkin();
-  _shadowSubmitSession(); // PR2 shadow: 등록버튼 경로 — 관찰 telemetry 제출(fire-and-forget, 랭킹 저장과 무관)
   const playTimeSeconds = Math.round((Date.now() - gameStartTime) / 1000);
   document.getElementById('nickSection2').style.display = 'none';
   const nickDone = document.getElementById('nickDone');
@@ -7917,18 +7942,11 @@ document.getElementById('submitScore').addEventListener('click', async () => {
 
   let statsMsg = '';
   let scoreOk = true;
+  // PR3: 공식 랭킹/주간은 submitScore CF만. 실패 시 재시도 큐(다음 접속 재제출), 직접 write fallback 없음.
   try {
-    await addScore(nick, score);
-    await addWeeklyScore(nick, score);
+    await _shadowSubmitSession(nick);
   } catch (e) {
-    // 첫 시도 실패 → 1회 재시도 (일시적 네트워크 오류 흡수)
-    await new Promise(res => setTimeout(res, 1200));
-    try {
-      await addScore(nick, score);
-      await addWeeklyScore(nick, score);
-    } catch (e2) {
-      scoreOk = false;
-    }
+    scoreOk = false;
   }
   let firstGoalMsg = false;
   try {
@@ -8296,10 +8314,10 @@ async function renderRankingInner() {
               const wSnap = await getDoc(doc(db, 'weekly_rankings', getWeekId(), 'scores', nick));
               const wScore = (wSnap.exists() && typeof wSnap.data().score === 'number') ? wSnap.data().score : 0;
               if (wScore > sc) {
-                sc = wScore;
-                // 열람하는 김에 복구 기록 써주기 (실패해도 표시엔 지장 없음)
-                // merge 저장 — score/ts만 복구, 남의 문서의 다른 필드(uid 등)는 일절 건드리지 않음. PIN은 취급 안 함.
-                setDoc(doc(db, 'rankings', nick), { score: wScore, ts: Date.now() }, { merge: true }).catch(() => {});
+                sc = wScore; // 표시용으로 주간 점수를 사용(더 높은 쪽). 표시만.
+                // PR3: 클라이언트가 '남의' rankings 문서에 score를 쓰던 보정(R5)은 제거.
+                //  (rules로 클라 score write가 차단되고, 소유권상으로도 남의 문서를 쓰면 안 됨.
+                //   해당 유저의 all-time은 그 유저가 다음 플레이 때 submitScore CF로 스스로 갱신된다.)
               }
             } catch {}
           }

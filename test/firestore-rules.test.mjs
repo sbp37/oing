@@ -39,74 +39,64 @@ const asUser = (uid) => testEnv.authenticatedContext(uid).firestore();
 const seed = (fn) =>
   testEnv.withSecurityRulesDisabled((ctx) => fn(ctx.firestore()));
 
-// ─────────────── rankings ───────────────
-test('rankings: 정상 int score(100) uid-less create 허용', async () => {
-  await assertSucceeds(setDoc(doc(unauth(), 'rankings', 'alice'), { score: 100, ts: 1 }));
-});
-test('rankings: score=0 허용', async () => {
+// ─────────────── rankings (PR3: 공식 score 변경 = CF Admin SDK만) ───────────────
+// [의도적 수정] PR3 rules flip으로 클라이언트 직접 score write를 차단. 아래는 새 정책 회귀.
+test('rankings: 신규등록 score:0 create 허용 (uid-less)', async () => {
   await assertSucceeds(setDoc(doc(unauth(), 'rankings', 'zero'), { score: 0, ts: 1 }));
 });
-test('rankings: score=50000(상한) 허용', async () => {
-  await assertSucceeds(setDoc(doc(unauth(), 'rankings', 'cap'), { score: 50000, ts: 1 }));
+test('rankings: 신규등록 score:0 + 본인uid create 허용', async () => {
+  await assertSucceeds(setDoc(doc(asUser('u1'), 'rankings', 'zerouid'), { score: 0, ts: 1, uid: 'u1' }));
 });
-test('rankings: score=50001(상한초과) 거부', async () => {
-  await assertFails(setDoc(doc(unauth(), 'rankings', 'over'), { score: 50001, ts: 1 }));
+test('rankings: 클라 create score>0 거부 (공식 점수는 CF만)', async () => {
+  await assertFails(setDoc(doc(unauth(), 'rankings', 'pos'), { score: 100, ts: 1 }));
 });
-test('rankings: 음수 score 거부', async () => {
-  await assertFails(setDoc(doc(unauth(), 'rankings', 'neg'), { score: -1, ts: 1 }));
+test('rankings: 클라 create score=50000 거부 (score!=0)', async () => {
+  await assertFails(setDoc(doc(unauth(), 'rankings', 'cap'), { score: 50000, ts: 1 }));
 });
-test('rankings: float score 거부', async () => {
-  await assertFails(setDoc(doc(unauth(), 'rankings', 'flt'), { score: 1.5, ts: 1 }));
+test('rankings: create pin/delpin/허용외필드 거부', async () => {
+  await assertFails(setDoc(doc(unauth(), 'rankings', 'p'),  { score: 0, ts: 1, pin: '1234' }));
+  await assertFails(setDoc(doc(unauth(), 'rankings', 'dp'), { score: 0, ts: 1, delpin: '1234' }));
+  await assertFails(setDoc(doc(unauth(), 'rankings', 'ex'), { score: 0, ts: 1, foo: 1 }));
 });
-test('rankings: pin 필드 추가 거부', async () => {
-  await assertFails(setDoc(doc(unauth(), 'rankings', 'p'), { score: 100, ts: 1, pin: '1234' }));
-});
-test('rankings: delpin 필드 추가 거부', async () => {
-  await assertFails(setDoc(doc(unauth(), 'rankings', 'dp'), { score: 100, ts: 1, delpin: '1234' }));
-});
-test('rankings: 허용외 필드 추가 거부', async () => {
-  await assertFails(setDoc(doc(unauth(), 'rankings', 'ex'), { score: 100, ts: 1, foo: 1 }));
-});
-test('rankings: 단조증가 update 허용(100→200)', async () => {
+test('rankings: 클라 score 상향 update 거부 (100→200) — CF만 변경', async () => {
   await seed((db) => setDoc(doc(db, 'rankings', 'm1'), { score: 100, ts: 1 }));
-  await assertSucceeds(setDoc(doc(unauth(), 'rankings', 'm1'), { score: 200, ts: 2 }));
+  await assertFails(setDoc(doc(unauth(), 'rankings', 'm1'), { score: 200, ts: 2 }));
 });
-test('rankings: 점수 감소 update 거부(200→100)', async () => {
+test('rankings: 클라 score 하향 update 거부 (200→100)', async () => {
   await seed((db) => setDoc(doc(db, 'rankings', 'm2'), { score: 200, ts: 1 }));
   await assertFails(setDoc(doc(unauth(), 'rankings', 'm2'), { score: 100, ts: 2 }));
 });
-test('rankings: 남의 uid 문서 수정 거부', async () => {
-  await seed((db) => setDoc(doc(db, 'rankings', 'owned'), { score: 100, ts: 1, uid: 'owner1' }));
-  await assertFails(setDoc(doc(asUser('attacker'), 'rankings', 'owned'), { score: 200, ts: 2, uid: 'owner1' }));
-});
-test('rankings: 본인 uid 문서 수정 허용', async () => {
-  await seed((db) => setDoc(doc(db, 'rankings', 'mine'), { score: 100, ts: 1, uid: 'owner1' }));
-  await assertSucceeds(setDoc(doc(asUser('owner1'), 'rankings', 'mine'), { score: 200, ts: 2, uid: 'owner1' }));
-});
-test('rankings: 레거시(uid-less) 문서 update 허용', async () => {
+test('rankings: 레거시(uid-less) score 상향 update도 거부 (CF만)', async () => {
   await seed((db) => setDoc(doc(db, 'rankings', 'legacy'), { score: 100, ts: 1 }));
-  await assertSucceeds(setDoc(doc(unauth(), 'rankings', 'legacy'), { score: 300, ts: 2 }));
+  await assertFails(setDoc(doc(unauth(), 'rankings', 'legacy'), { score: 300, ts: 2 }));
+});
+test('rankings: score 불변 metadata(ts) update 허용 — 소유 uid 문서 본인', async () => {
+  await seed((db) => setDoc(doc(db, 'rankings', 'mine'), { score: 100, ts: 1, uid: 'owner1' }));
+  await assertSucceeds(setDoc(doc(asUser('owner1'), 'rankings', 'mine'), { score: 100, ts: 2, uid: 'owner1' }));
+});
+test('rankings: 남의 uid 문서 update 거부', async () => {
+  await seed((db) => setDoc(doc(db, 'rankings', 'owned'), { score: 100, ts: 1, uid: 'owner1' }));
+  await assertFails(setDoc(doc(asUser('attacker'), 'rankings', 'owned'), { score: 100, ts: 2, uid: 'owner1' }));
+});
+test('rankings: owner delete 허용 / 타인 delete 거부', async () => {
+  await seed((db) => setDoc(doc(db, 'rankings', 'del1'), { score: 100, ts: 1, uid: 'owner1' }));
+  await assertFails(deleteDoc(doc(asUser('attacker'), 'rankings', 'del1')));
+  await assertSucceeds(deleteDoc(doc(asUser('owner1'), 'rankings', 'del1')));
 });
 
-// ─────────────── weekly_rankings ───────────────
+// ─────────────── weekly_rankings (PR3: 클라 write 전면 차단, CF만) ───────────────
 const WK = ['weekly_rankings', '2026-06-29', 'scores'];
-test('weekly: 정상 create 허용', async () => {
-  await assertSucceeds(setDoc(doc(unauth(), ...WK, 'w1'), { score: 100, ts: 1 }));
+test('weekly: 클라 create 거부 (CF Admin SDK만)', async () => {
+  await assertFails(setDoc(doc(unauth(), ...WK, 'w1'), { score: 100, ts: 1 }));
+  await assertFails(setDoc(doc(asUser('u1'), ...WK, 'w1b'), { score: 0, ts: 1 }));
 });
-test('weekly: score=50000 허용 / 50001 거부', async () => {
-  await assertSucceeds(setDoc(doc(unauth(), ...WK, 'wcap'), { score: 50000, ts: 1 }));
-  await assertFails(setDoc(doc(unauth(), ...WK, 'wover'), { score: 50001, ts: 1 }));
-});
-test('weekly: 엄격 증가 update 허용(100→150)', async () => {
+test('weekly: 클라 update 거부', async () => {
   await seed((db) => setDoc(doc(db, ...WK, 'w3'), { score: 100, ts: 1 }));
-  await assertSucceeds(setDoc(doc(unauth(), ...WK, 'w3'), { score: 150, ts: 2 }));
+  await assertFails(setDoc(doc(unauth(), ...WK, 'w3'), { score: 150, ts: 2 }));
 });
-test('weekly: 동점 update 거부(엄격 > 조건)', async () => {
+test('weekly: read 는 공개 유지', async () => {
   await seed((db) => setDoc(doc(db, ...WK, 'w4'), { score: 100, ts: 1 }));
-  await assertFails(setDoc(doc(unauth(), ...WK, 'w4'), { score: 100, ts: 2 }));
-});
-test('weekly: 허용외 필드(uid) 거부', async () => {
-  await assertFails(setDoc(doc(unauth(), ...WK, 'w5'), { score: 100, ts: 1, uid: 'x' }));
+  await assertSucceeds(getDoc(doc(unauth(), ...WK, 'w4')));
 });
 
 // ─────────────── user_stats ───────────────
