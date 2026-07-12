@@ -47,6 +47,8 @@ const WEEKLY_ROWS = [
   ['wau',        'WAU (7일 방문자)'],
   ['returnRate', '오늘 재방문율'],
 ];
+// 서버 공식 점수 상한 (백엔드 OFFICIAL_SCORE_MAX와 동일) — 이걸 넘는 기록은 거부가 정상
+const OFFICIAL_SCORE_MAX = 50000;
 
 function renderTileGrid() {
   const tile = ([id, label, sub], big) => `
@@ -163,10 +165,29 @@ export async function loadDashboard({ force = false } = {}) {
     for (const [key, v] of rows) {
       const nick = v.nickname || key.replace(/^nick:/, '');
       if (!v.nickname || !(v.plays > 0)) continue; // 익명 방문자·오늘 0판은 점수 표시 안 함
-      cache.get('home:recentStats:' + nick, () => getUserDocByNick('user_stats', nick)).then(({ data }) => {
+      const statsPromise = cache.get('home:recentStats:' + nick, () => getUserDocByNick('user_stats', nick));
+      statsPromise.then(({ data }) => {
         const cell = recentEl.querySelector(`.recent-score[data-nick="${CSS.escape(nick)}"]`);
         if (cell && data && typeof data.lastScore === 'number') {
           cell.innerHTML = `${fmtNum(data.lastScore)}점<span class="unit">마지막판</span>`;
+        }
+      }).catch(() => {});
+
+      // ⚠️ 랭킹 미반영 의심 — user_stats는 매판 클라이언트가 갱신하지만 rankings는 서버 판정을
+      // 통과해야 반영되므로, bestScore > rankings.score면 점수 등록이 누락된 신호
+      // (NO_SESSION 장애·신규 유저 미반영이 이 패턴). 상한 초과(5만+)는 거부가 정상이라 제외.
+      Promise.all([
+        statsPromise,
+        cache.get('home:recentRank:' + nick, () => fetchDoc(doc(db, 'rankings', nick))),
+      ]).then(([{ data: st }, rk]) => {
+        if (!st || typeof st.bestScore !== 'number' || st.bestScore <= 0) return;
+        if (st.bestScore > OFFICIAL_SCORE_MAX) return;
+        const rankScore = (rk && typeof rk.score === 'number') ? rk.score : 0;
+        if (st.bestScore <= rankScore) return;
+        const main = recentEl.querySelector(`.list-row[data-recent-nick="${CSS.escape(nick)}"] .main`);
+        if (main && !main.querySelector('.badge.warn')) {
+          main.insertAdjacentHTML('beforeend',
+            `<span class="badge warn" title="이 유저의 최고점(${fmtNum(st.bestScore)}점)이 랭킹(${fmtNum(rankScore)}점)보다 높아요 — 점수 등록 누락 의심 (NO_SESSION 장애·신규 유저 미반영 등). 보안 탭 판정 목록을 확인해보세요.">⚠️ 랭킹 미반영</span>`);
         }
       }).catch(() => {});
     }
