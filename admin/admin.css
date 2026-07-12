@@ -147,6 +147,20 @@ textarea { width: 100%; resize: vertical; }
 .verdict-row .vr-verdict.pending { color: #f0d8a8; }
 .verdict-row .vr-verdict.unverifiable { color: var(--muted); }
 
+/* 판정 급증 = 장애 의심 배너 (탭바 아래 전역 표시) */
+.incident-banner {
+  margin: 10px 14px 0; padding: 10px 12px; border-radius: 10px;
+  background: rgba(239,68,68,0.12); border: 1px solid var(--danger);
+  color: #fca5a5; font-size: 13px; font-weight: 700;
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.incident-banner .ib-body { flex: 1; min-width: 0; }
+.incident-banner .ib-sub { display: block; margin-top: 3px; color: var(--muted); font-size: 11.5px; font-weight: 400; }
+.incident-banner .ib-close {
+  flex-shrink: 0; background: none; border: none; color: #fca5a5;
+  font-size: 15px; cursor: pointer; padding: 0 2px; line-height: 1;
+}
+
 .tabbar {
   position: sticky; top: 0; z-index: 50;
   display: flex; flex-wrap: wrap; /* 모바일에서 2줄로 전부 보이게 — 가로 잘림 없음 */

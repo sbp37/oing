@@ -34,6 +34,47 @@ function reasonLabel(code) { return REASON_LABELS[code] || code; }
 // 의심 판정 집계·배지에서는 제외하고, 목록에서는 별도 섹션(회색 "검증 불가")으로 분리 표시한다.
 const isUnverifiable = (d) => Array.isArray(d.official?.reasons) && d.official.reasons.includes('NO_SESSION');
 
+// ── 🚨 판정 급증 = 장애 의심 배너 ─────────────────────────────
+// 이미 배지용으로 받아온 50건을 재활용한다 (추가 쿼리 0).
+// 같은 사유가 1시간 안에 INCIDENT_THRESHOLD건 이상이면 인프라 장애 의심으로 판단
+// (치팅은 보통 1~2명이 만들고, 정상 유저가 우르르 걸리면 장애 — 2026-07-12 IAM 사고 패턴).
+const INCIDENT_WINDOW_MS = 60 * 60 * 1000;
+const INCIDENT_THRESHOLD = 5;
+
+export function updateIncidentBanner(rows) {
+  const el = document.getElementById('incidentBanner');
+  if (!el) return;
+  const cutoff = Date.now() - INCIDENT_WINDOW_MS;
+  const counts = new Map(); // reason → 최근 1시간 건수
+  for (const d of rows || []) {
+    const decidedAt = d.official?.decidedAt || 0;
+    if (decidedAt < cutoff) continue;
+    for (const r of (Array.isArray(d.official?.reasons) ? d.official.reasons : [])) {
+      counts.set(r, (counts.get(r) || 0) + 1);
+    }
+  }
+  const bursts = [...counts.entries()].filter(([, n]) => n >= INCIDENT_THRESHOLD)
+    .sort((a, b) => b[1] - a[1]);
+  if (!bursts.length) { el.style.display = 'none'; return; }
+
+  // 같은 상태(사유+건수)를 이미 닫았으면 다시 띄우지 않는다 — 건수가 늘면 재표시
+  const sig = bursts.map(([r, n]) => `${r}:${n}`).join('|');
+  try { if (sessionStorage.getItem('oeing_incident_dismissed') === sig) { el.style.display = 'none'; return; } } catch (e) { /* 무시 */ }
+
+  const parts = bursts.map(([r, n]) => `'${reasonLabel(r)}' ${n}건`).join(' · ');
+  el.innerHTML = `
+    <span>🚨</span>
+    <span class="ib-body">최근 1시간 ${parts} — 동시 다발 발생, 인프라 장애 의심
+      <span class="ib-sub">정상 유저가 한꺼번에 걸리는 패턴이에요. 보안 탭에서 확인하고, startSession/함수 배포 상태를 점검해보세요. (최근 50건 판정 기준)</span>
+    </span>
+    <button class="ib-close" title="닫기 (건수가 늘면 다시 표시)">✕</button>`;
+  el.style.display = '';
+  el.querySelector('.ib-close').onclick = () => {
+    try { sessionStorage.setItem('oeing_incident_dismissed', sig); } catch (e) { /* 무시 */ }
+    el.style.display = 'none';
+  };
+}
+
 // game_sessions에서 보류/거부 세션 최근 50건 (복합 인덱스 필요 — 첫 실행 시 콘솔 링크로 생성)
 function verdictQuery() {
   return query(
@@ -51,6 +92,7 @@ export async function loadVerdictBadge() {
   const countEl = document.getElementById('verdictBadgeCount');
   try {
     const rows = await cache.get('security:verdicts', () => fetchDocs(verdictQuery()));
+    updateIncidentBanner(rows); // 같은 50건으로 장애 의심 배너도 갱신 (추가 쿼리 0)
     const n = rows.filter(d => !isUnverifiable(d)).length; // NO_SESSION 제외 — 실제 의심 건수만
     if (n > 0 && badge && countEl) {
       countEl.textContent = n >= 50 ? '50+' : String(n);
@@ -94,6 +136,7 @@ async function loadVerdicts({ force = false } = {}) {
   setLoading(el);
   try {
     const rows = await cache.get('security:verdicts', () => fetchDocs(verdictQuery()));
+    updateIncidentBanner(rows); // 새로고침 시 배너도 최신화
     const suspects = rows.filter(d => !isUnverifiable(d));
     const unverifiable = rows.filter(isUnverifiable);
 
