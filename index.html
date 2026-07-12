@@ -5616,7 +5616,19 @@ async function _flushPendingSubmits() {
   const remain = [];
   for (const item of arr) {
     try { await httpsCallable(fns, 'submitScore')(item.payload); } // 서버 idempotent
-    catch (e) { remain.push(item); }
+    catch (e) {
+      const code = (e && e.code) || '';
+      if (code === 'functions/permission-denied') {
+        // 계정 복구로 uid가 바뀌기 전(옛 익명 uid)의 sessionId — 재시도해도 영원히 같은 결과.
+        // sessionId 없이 1회 재제출하면 서버가 NO_SESSION → pending_review로 점수를 보존해줌
+        // (랭킹 자동반영은 안 됨 — 관리자 확인 후 승인 가능). 그 후 큐에서 제거.
+        try { await httpsCallable(fns, 'submitScore')({ ...item.payload, sessionId: '' }); } catch {}
+      } else if (code === 'functions/invalid-argument' || code === 'functions/not-found') {
+        // 형식 오류·세션 소멸(30일 TTL) — 재시도 무의미, 큐에서 제거
+      } else {
+        remain.push(item); // 네트워크 등 일시 오류만 다음 접속에 재시도
+      }
+    }
   }
   try { localStorage.setItem(PENDING_SUBMIT_KEY, JSON.stringify(remain)); } catch {}
 }
