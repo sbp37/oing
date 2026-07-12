@@ -22,7 +22,7 @@ import { setError, setEmpty } from './admin.js';
 // 화면에는 내부 컬렉션·필드명을 쓰지 않는다 (사람이 읽는 설명만).
 const CORE_TILES = [
   ['visitors', '오늘 방문자', '고유 방문자 기준'],
-  ['plays',    '오늘 총 플레이 판수', ''],
+  ['plays',    '오늘 플레이', ''],
   ['newUsers', '오늘 신규 유저', '오늘 가입한 계정'],
   ['mvp',      '오늘 MVP', '가장 많이 플레이'],
 ];

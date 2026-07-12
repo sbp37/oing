@@ -35,6 +35,14 @@ const firebaseConfig = {
   appId: "1:974542803508:web:0b01327dd02c9b08b23061"
 };
 
+// ── 기능 플래그 ──────────────────────────────────────────────
+// 게임에서 꺼져 있는 기능은 관리자에서도 숨긴다 (UI 미렌더링 + Firestore 조회 차단).
+// 코드는 삭제하지 않으므로, 게임에서 기능을 다시 켜면 true로만 바꾸면 된다.
+// ※ 단순히 "오늘 사용량 0"인 활성 기능은 숨기지 않는다 — 0회로 그대로 표시.
+export const FEATURES = {
+  skinRequests: false, // 스킨 꾸미기 신청(skin_requests) — 게임에서 현재 OFF
+};
+
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);

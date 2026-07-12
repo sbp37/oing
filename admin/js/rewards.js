@@ -10,7 +10,7 @@
 import {
   db, collection, doc, query, orderBy, limit, where,
   fetchDocs, setDoc, increment, makePager, getUserDocByNick, countQuery,
-  getTodayDateStr, fmtDateTime, fmtNum, escapeHtml, humanError,
+  getTodayDateStr, fmtDateTime, fmtNum, escapeHtml, humanError, FEATURES,
 } from './firebase.js';
 import { setLoading, setError, setEmpty, guardBtn, resultMsg } from './admin.js';
 
@@ -139,6 +139,9 @@ async function fulfillSkinRequest(id, btn) {
   }
 }
 async function loadClickLog(colName, { reset = false } = {}) {
+  // 기능 플래그 OFF인 로그는 어떤 Firestore 조회도 실행하지 않음 (안전망 —
+  // 셀렉트 옵션 자체도 initRewardsTab에서 제거되므로 평소엔 도달하지 않는 경로)
+  if (colName === 'skin_requests' && !FEATURES.skinRequests) return;
   const el = document.getElementById('clickLogList');
   const moreBtn = document.getElementById('clickLogMoreBtn');
   if (reset || !clickState[colName]) {
@@ -195,6 +198,11 @@ async function loadMoreClickLog(colName) {
 
 // ── 바인딩 / 로드 ──
 export function initRewardsTab() {
+  // 게임에서 꺼진 기능은 관리자 UI에서도 숨김 — 옵션 제거로 선택/조회 자체가 불가능
+  if (!FEATURES.skinRequests) {
+    const opt = document.querySelector('#clickLogSel option[value="skin_requests"]');
+    if (opt) opt.remove();
+  }
   const nickOf = () => document.getElementById('rwNick').value.trim();
   const needNick = (fn) => async () => {
     const nick = nickOf();
