@@ -455,3 +455,14 @@ export async function loadRewards({ force = false } = {}) {
     loadClickLog(colName, { reset: force }),
   ]);
 }
+
+// 홈에서 특정 클릭 로그로 바로 이동할 때 호출 — 셀렉트를 그 컬렉션으로 바꾸고 목록을 띄운다
+// (이미 이 세션에 로드된 종류면 캐시 재사용, 처음이면 조회)
+export async function showClickLog(colName) {
+  const sel = document.getElementById('clickLogSel');
+  if (!sel) return;
+  const hasOption = [...sel.options].some(o => o.value === colName);
+  if (hasOption) sel.value = colName;
+  await loadClickLog(sel.value);
+  document.getElementById('clickLogList').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}

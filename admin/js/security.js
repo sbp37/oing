@@ -107,7 +107,7 @@ async function loadVerdicts({ force = false } = {}) {
 
 // ── 의심 기록 탐지 — 버튼 클릭 시에만 실행 ──
 // 상위 랭킹 100명을 읽고, 상위 20명은 user_stats/주간 점수와 교차 검증
-const SUSPECT_SCAN_TOP = 100;
+const SUSPECT_SCAN_TOP = 30;
 const SUSPECT_DEEP_TOP = 20;
 
 async function scanSuspects() {

@@ -12,7 +12,7 @@ import { loadDashboard } from './dashboard.js';
 import { initUsersTab, loadUsers } from './users.js';
 import { initAnalyticsTab, loadAnalytics } from './analytics.js';
 import { initSecurityTab, loadSecurity, loadVerdictBadge } from './security.js';
-import { initRewardsTab, loadRewards } from './rewards.js';
+import { initRewardsTab, loadRewards, showClickLog } from './rewards.js';
 import { initOperationsTab, loadOperations } from './operations.js';
 
 // ── 탭 레지스트리 ─────────────────────────────────────────────
@@ -71,6 +71,14 @@ function bindTabs() {
       try { await openTab(tab, { force: true }); }
       finally { btn.disabled = false; }
     });
+  });
+  // 홈의 "오늘 클릭 현황" 행 클릭 → 후원·리워드 탭의 해당 클릭 기록(누가 눌렀는지 과거목록)으로 이동
+  const clicksList = document.getElementById('homeClicksList');
+  if (clicksList) clicksList.addEventListener('click', async (e) => {
+    const row = e.target.closest('.mini-row.clickable');
+    if (!row || !row.dataset.clicklog) return;
+    await openTab('rewards');
+    await showClickLog(row.dataset.clicklog);
   });
 }
 

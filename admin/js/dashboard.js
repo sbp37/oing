@@ -9,7 +9,7 @@
 //   · 실시간 리스너 없음 — "↻ 홈 새로고침" 버튼으로만 갱신
 // ══════════════════════════════════════════════════════════════
 import {
-  db, collection, countQuery,
+  db, collection, doc, countQuery, fetchDoc,
   getTodayDateStr,
   fmtAgo, fmtDuration, fmtNum, escapeHtml, cache, humanError,
 } from './firebase.js';
@@ -35,12 +35,13 @@ const OPS_TILES = [
   ['bounceRate', '바로 나간 비율', '15초 미만 · 미플레이'],
   ['totalUsers', '전체 유저 수', '점수 등록 닉네임 기준'],
 ];
-const CLICK_ROWS = [   // 990원 응원 / 상단 응원 버튼 / 간식 / 카톡 공유 / 서포터팩 클릭 로그
-  ['donate',  '990원'],
-  ['support', '응원하기'],
-  ['snack',   '간식'],
-  ['share',   '카톡 공유'],
-  ['pack',    '서포터팩'],
+// [id, 라벨, 실제 컬렉션명] — 행을 누르면 후원·리워드 탭의 "누가 눌렀는지" 과거 목록으로 이동
+const CLICK_ROWS = [
+  ['donate',  '990원',    'donate_clicks'],
+  ['support', '응원하기',  'support_topbtn_clicks'],
+  ['snack',   '간식',      'snack_clicks'],
+  ['share',   '카톡 공유', 'share_clicks'],
+  ['pack',    '서포터팩',  'supporterpack_clicks'],
 ];
 const WEEKLY_ROWS = [
   ['wau',        'WAU (7일 방문자)'],
@@ -59,7 +60,11 @@ function renderTileGrid() {
   const miniRow = ([id, label]) => `
     <div class="mini-row"><span class="mini-label">${label}</span>
       <span class="mini-val loading" id="mini-${id}">…</span></div>`;
-  document.getElementById('homeClicksList').innerHTML = CLICK_ROWS.map(miniRow).join('');
+  // 클릭 현황 행은 클릭 가능 — 누가 눌렀는지 과거 목록으로 이동
+  const clickRow = ([id, label, col]) => `
+    <div class="mini-row clickable" data-clicklog="${col}"><span class="mini-label">${label}<span class="mini-go">기록 보기 ›</span></span>
+      <span class="mini-val loading" id="mini-${id}">…</span></div>`;
+  document.getElementById('homeClicksList').innerHTML = CLICK_ROWS.map(clickRow).join('');
   document.getElementById('homeWeeklyList').innerHTML = WEEKLY_ROWS.map(miniRow).join('');
   document.getElementById('homeWeeklyNote').textContent = '';
 }
@@ -142,12 +147,25 @@ export async function loadDashboard({ force = false } = {}) {
     // 조회 상한 도달 = 오늘 지표가 "최근 세션 기준 근사치"임을 명시 (조용한 잘림 방지)
     const capNote = agg.truncated
       ? `<div class="list-error">⚠️ 오늘 세션이 ${SESSION_FETCH_CAP}건을 넘어 최근 ${SESSION_FETCH_CAP}건 기준 근사치입니다</div>` : '';
-    recentEl.innerHTML = capNote + rows.map(([key, v]) => `
-      <div class="list-row">
-        <span class="main"><span class="nick">${escapeHtml(v.nickname || key.replace(/^nick:/, ''))}</span>
-          ${v.started ? '<span class="badge green">플레이</span>' : '<span class="badge">방문만</span>'}</span>
+    recentEl.innerHTML = capNote + rows.map(([key, v]) => {
+      const nick = v.nickname || key.replace(/^nick:/, '');
+      return `
+      <div class="list-row" data-recent-nick="${escapeHtml(nick)}">
+        <span class="main"><span class="nick">${escapeHtml(nick)}</span>
+          ${v.started ? '<span class="badge green">플레이</span>' : '<span class="badge">방문만</span>'}
+          <span class="recent-score" data-nick="${escapeHtml(nick)}"></span></span>
         <span class="sub">${v.plays}판 · ${fmtDuration(v.dur)} · ${fmtAgo(v.lastSeenTs)}</span>
-      </div>`).join('');
+      </div>`;
+    }).join('');
+    // 최근 점수 — 닉네임 있는 행만 rankings에서 조회해 초록색으로 채움 (최대 10건, 실패해도 무해)
+    for (const [key, v] of rows) {
+      const nick = v.nickname || key.replace(/^nick:/, '');
+      if (!v.nickname) continue; // 익명 방문자는 점수 없음
+      fetchDoc(doc(db, 'rankings', nick)).then(r => {
+        const cell = recentEl.querySelector(`.recent-score[data-nick="${CSS.escape(nick)}"]`);
+        if (cell && r && typeof r.score === 'number') cell.textContent = `${fmtNum(r.score)}점`;
+      }).catch(() => {});
+    }
     return agg;
   }).catch(e => {
     ['visitors', 'plays', 'avgDur', 'startRate', 'bounceRate', 'mvp'].forEach(id => tileErr(id, e));

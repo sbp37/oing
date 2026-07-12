@@ -239,6 +239,10 @@ textarea { width: 100%; resize: vertical; }
 .mini-val .unit { font-size: 11.5px; font-weight: 400; color: var(--muted); margin-left: 2px; }
 .mini-val.loading { color: var(--muted); font-weight: 400; font-size: 12.5px; }
 .mini-val.error { color: #fca5a5; font-weight: 400; font-size: 11.5px; max-width: 70%; text-align: right; }
+.mini-row.clickable { cursor: pointer; border-radius: 6px; }
+.mini-row.clickable:hover { background: var(--surface2); }
+.mini-row .mini-go { color: var(--muted); font-size: 11px; margin-left: 4px; }
+.recent-score { color: var(--accent-green-light); font-weight: 700; font-size: 12px; margin-left: 4px; }
 
 /* ── 리스트 ── */
 .list { display: flex; flex-direction: column; gap: 6px; }
@@ -295,11 +299,10 @@ textarea { width: 100%; resize: vertical; }
 .chart .bar-val { font-size: 10px; color: var(--text); margin-bottom: 2px; }
 .chart .bar-label { font-size: 9.5px; color: var(--muted); margin-top: 4px; white-space: nowrap; }
 .chart-note { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
-/* 모바일: 14일 그래프는 숫자 겹침 방지를 위해 "최고값 + 오늘"만 값 표시 (나머지는 터치 툴팁) */
+/* 모바일: 14일 그래프 숫자를 전부 표시하되 겹침을 줄이려 폰트만 축소 (0인 날은 원래 숫자 없음) */
 @media (max-width: 480px) {
-  .chart.day .bar-val { visibility: hidden; }
-  .chart.day .bar-wrap.is-peak .bar-val,
-  .chart.day .bar-wrap.is-today .bar-val { visibility: visible; }
+  .chart.day .bar-val { font-size: 8px; }
+  .chart .bar-label { font-size: 8.5px; }
 }
 
 /* ── 피드백 스레드 ── */

@@ -19,7 +19,7 @@ import {
 import { setLoading, setError, guardBtn } from './admin.js';
 
 const DAYS = 14;
-const REFERRER_FETCH_CAP = 500;
+const REFERRER_FETCH_CAP = 200;
 
 // 14일 막대 — 데이터 14개는 그대로, 모바일 가독성을 위해
 // 날짜 라벨은 오늘 기준 3일 간격만 표시하고, 모바일에서는 값 숫자를
