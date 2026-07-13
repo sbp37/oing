@@ -116,7 +116,10 @@ async function resetPin() {
   const nick = (nickEl.value || '').trim();
   const el = document.getElementById('pinResetResult');
   if (!nick) { resultMsg('pinResetResult', '닉네임을 입력하세요.', false); return; }
-  const newPin = String(Math.floor(1000 + Math.random() * 9000));
+  const customEl = document.getElementById('pinResetCustomInput');
+  const custom = (customEl && customEl.value || '').trim();
+  if (custom && !/^\d{4}$/.test(custom)) { resultMsg('pinResetResult', '직접입력 PIN은 숫자 4자리여야 해요.', false); return; }
+  const newPin = custom || String(Math.floor(1000 + Math.random() * 9000));
   setLoading(el, `${nick}의 새 PIN 발급 중...`);
   try {
     const res = await httpsCallable(fns, 'adminResetPin')({ nickname: nick, newPin });

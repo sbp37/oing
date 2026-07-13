@@ -206,8 +206,10 @@
         <div class="card-note" style="margin-bottom:8px;">닉네임을 잃어버렸거나 다른 기기에서 "계정 연결"이 안 되는 유저를 위해 새 PIN을 발급합니다. 기존 PIN은 조회할 수 없고(서버가 해시만 저장), 완전히 새 PIN으로 교체됩니다. 발급된 PIN은 본인에게 직접 전달해주세요.</div>
         <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
           <input id="pinResetNickInput" type="text" placeholder="닉네임" style="flex:1; min-width:0;">
+          <input id="pinResetCustomInput" type="text" inputmode="numeric" maxlength="4" placeholder="직접입력(선택)" style="flex:0 0 110px; min-width:0;">
           <button id="pinResetBtn" class="btn btn-primary btn-sm" style="flex:0 0 auto;">새 PIN 발급</button>
         </div>
+        <div class="card-note" style="margin-bottom:8px;">직접입력 칸을 비워두면 무작위 4자리가 자동 발급됩니다.</div>
         <div id="pinResetResult"></div>
       </div>
 
