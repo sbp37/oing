@@ -1634,7 +1634,7 @@ body:not(.light) .action-btn:not(.secondary) {
   text-shadow: 0 1px 0 rgba(255,255,255,0.25);
 }
 .mrs-avatar-wrap {
-  position: relative; width: 46px; height: 46px; flex-shrink: 0; margin-left: 6px;
+  position: relative; width: 46px; height: 46px; flex-shrink: 0; margin-left: 12px;
   display: flex; align-items: center; justify-content: center;
 }
 .mrs-avatar-img {
@@ -1656,10 +1656,10 @@ body:not(.light) .action-btn:not(.secondary) {
 .mrs-change.down { color: var(--accent-orange); }
 .mrs-change.same { color: var(--muted); }
 .mrs-change.crown { color: #EAC275; }
-.mrs-divider { align-self: stretch; flex-shrink: 0; width: 3px; border-radius: 2px; background: var(--me-accent-soft, rgba(126,194,240,0.75)); }
+.mrs-divider { align-self: stretch; flex-shrink: 0; width: 3px; border-radius: 2px; background: var(--me-accent-soft, rgba(126,194,240,0.75)); margin-right: 7px; }
 .mrs-next {
   flex-shrink: 0;
-  width: 138px; box-sizing: border-box; text-align: center; padding: 9px 10px;
+  width: 134px; box-sizing: border-box; text-align: center; padding: 9px 10px;
   background: var(--me-accent-dim, rgba(126,194,240,0.14)); border: 1.5px solid var(--me-accent-soft, rgba(126,194,240,0.85));
   border-radius: 12px; overflow: hidden;
 }
@@ -8560,7 +8560,7 @@ function renderMyRankSummary(list, myIdx, prevRank, periodLabel) {
   } else {
     const need = list[myIdx - 1].score - score;
     nextLabelEl.textContent = isFriends ? '다음 친구까지' : '다음 순위까지';
-    nextBigEl.innerHTML = `<b style="font-size:25px; letter-spacing:-0.5px;">${need}</b><span style="font-size:12px; font-weight:800;">pt 남았다냥!</span>`;
+    nextBigEl.innerHTML = `<b style="font-size:25px; letter-spacing:-0.5px;">${need}</b><span style="font-size:16px; font-weight:800;">pt</span> <span style="font-size:14px; font-weight:800;">남았다냥!</span>`;
   }
 
   // 친구 탭은 등수변동 대신 "친구 N명 중 M위"를, 그 외에는 상승/하락/동일을 모두 작게 표시
