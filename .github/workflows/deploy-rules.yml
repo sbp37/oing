@@ -16,6 +16,10 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # if: 조건문에서는 secrets 컨텍스트를 직접 못 씀(GitHub Actions 제약,
+    # "Unrecognized named-value: 'secrets'") — env를 거쳐서 넣어야 if:에서 쓸 수 있다.
+    env:
+      HAS_SMOKE_SECRETS: ${{ secrets.SMOKE_TEST_EMAIL != '' }}
     steps:
       # workflow_dispatch는 UI에서 임의 브랜치를 골라 실행할 수 있어, 아래에서 브랜치를
       # 무조건 main 으로 고정 + 실제로 최신 main HEAD인지 한 번 더 검증한다.
@@ -53,7 +57,7 @@ jobs:
       # 스모크 시크릿(SMOKE_TEST_EMAIL 등)을 아직 등록 안 했으면 이 단계는 조용히 건너뜀 —
       # 필수 아님, 나중에 시크릿 추가하면 자동으로 켜짐.
       - name: Post-deploy smoke check (test/smoke-postdeploy.mjs 재사용)
-        if: ${{ secrets.SMOKE_TEST_EMAIL != '' }}
+        if: ${{ env.HAS_SMOKE_SECRETS == 'true' }}
         env:
           PROJECT_ID: oing-game
           REGION: asia-northeast3
