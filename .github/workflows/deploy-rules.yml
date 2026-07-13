@@ -18,8 +18,14 @@ jobs:
     runs-on: ubuntu-latest
     # if: 조건문에서는 secrets 컨텍스트를 직접 못 씀(GitHub Actions 제약,
     # "Unrecognized named-value: 'secrets'") — env를 거쳐서 넣어야 if:에서 쓸 수 있다.
+    #
+    # GOOGLE_CLOUD_QUOTA_PROJECT: 서비스 계정 키 기반 인증(google-github-actions/auth)은
+    # 사람이 gcloud로 직접 로그인할 때와 달리 "quota project"가 자동으로 안 잡힌다.
+    # firebase-tools의 "ensuring required API ... is enabled" 사전점검이 이 quota project를
+    # 요구하는데 없으면 IAM 역할을 아무리 줘도(Editor로도 확인함) 403 Permission denied가 남.
     env:
       HAS_SMOKE_SECRETS: ${{ secrets.SMOKE_TEST_EMAIL != '' }}
+      GOOGLE_CLOUD_QUOTA_PROJECT: oing-game
     steps:
       # workflow_dispatch는 UI에서 임의 브랜치를 골라 실행할 수 있어, 아래에서 브랜치를
       # 무조건 main 으로 고정 + 실제로 최신 main HEAD인지 한 번 더 검증한다.
