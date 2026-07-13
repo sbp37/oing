@@ -9183,8 +9183,15 @@ const FAIRPLAY_LINES = [
 ];
 function setFairplayNotice() {
   const el = document.getElementById('rankFairplayNotice');
-  if (!el) return;
-  el.textContent = FAIRPLAY_LINES[Math.floor(Math.random() * FAIRPLAY_LINES.length)];
+  if (el) el.textContent = FAIRPLAY_LINES[Math.floor(Math.random() * FAIRPLAY_LINES.length)];
+  // 기본 "이번주" 화면은 applyRankModeChrome('week')를 안 거칠 수 있어(정적 HTML 그대로),
+  // 여기서도 D-day를 직접 갱신 — 안 그러면 "이번 시즌 진행 중"이 그대로 남는다.
+  try {
+    if (currentRankMode === 'week') {
+      const s = document.getElementById('rankSubtitleSub');
+      if (s) s.textContent = weeklyResetDdayText();
+    }
+  } catch {}
 }
 // 이번 주 랭킹 리셋(월요일 0시 KST)까지 남은 D-day 문구
 function weeklyResetDdayText() {
