@@ -5408,7 +5408,7 @@ function playFanfare() {
     if (!ctx || ctx.state === 'closed') return;
     const now = ctx.currentTime;
     const master = ctx.createGain();
-    master.gain.value = 0.15; // 전체 음량 (너무 크지 않게)
+    master.gain.value = 0.28; // 다른 합성 효과음(클리어 아르페지오·냥 소리)과 비슷한 음량대
     master.connect(ctx.destination);
     // C5 → E5 → G5 상승 후 C6 강조 (브라스풍 triangle)
     const seq = [[523.25, 0.0], [659.25, 0.09], [783.99, 0.18], [1046.5, 0.30]];
