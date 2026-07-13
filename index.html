@@ -8017,6 +8017,13 @@ function askPinVerification(nickname) {
 document.getElementById('submitScore').addEventListener('click', async () => {
   const nick = document.getElementById('nickInput').value.trim();
   if (!nick) { document.getElementById('nickInput').focus(); return; }
+  // '/' 가 든 닉네임은 서버(submitScore)가 invalid-argument로 거부하고, 재시도 큐도 이를
+  // 버려서 점수가 조용히 사라진다. 입력 단계에서 막아 무증상 유실을 원천 차단한다.
+  if (nick.includes('/')) {
+    alert("닉네임에 '/' 는 넣을 수 없다냥! 다른 이름으로 등록해달라냥 🐾");
+    document.getElementById('nickInput').focus();
+    return;
+  }
 
   const btn = document.getElementById('submitScore');
   const input = document.getElementById('nickInput');
