@@ -3471,6 +3471,19 @@ async function getMyDoc(colName) {
     }
     return { ref, data: null };
   }
+  // 자가치유 — UID는 있는데 로컬 연결 표시(isUidLinked)만 끊긴 경우(세션 리셋 등),
+  // 이미 이 UID 소유의 문서가 있고 닉네임까지 일치하면 그게 진짜 내 문서다.
+  // 여길 안 거치면 아래 닉네임 문서로 새로 쓰기 시작해 스트릭·젤리·스킨이 갈라진다.
+  if (MY_UID && nick) {
+    try {
+      const uidRef = doc(db, colName, MY_UID);
+      const uidSnap = await getDoc(uidRef);
+      if (uidSnap.exists() && normalizeNickname(uidSnap.data().nickname || '') === normalizeNickname(nick)) {
+        markUidLinked(MY_UID);
+        return { ref: uidRef, data: uidSnap.data() };
+      }
+    } catch (e) {}
+  }
   if (!nick) return { ref: null, data: null };
   const ref = doc(db, colName, nick);
   const snap = await getDoc(ref);
@@ -3842,7 +3855,7 @@ async function initAccountSystem() {
       //   "무조건" 최종 반영한다. self-heal이 실제 수정을 했든 no-op이든 항상 실행되며,
       //   await로 순서를 보장해 600ms 타이머의 이른 결과가 최종 UI를 덮어쓰지 못한다.
       try { await refreshMyCatSkin(); } catch {}
-      try { renderStartScreenGoal(); } catch {}
+      try { await refreshStartScreenFromServer(); } catch { try { renderStartScreenGoal(); } catch {} }
       return;
     }
     const wasLinked = isUidLinked();
@@ -3851,6 +3864,11 @@ async function initAccountSystem() {
       // 방금 연결 완료 — 화면의 젤리/고양이 스킨을 UID 기준으로 새로고침
       try { refreshMyCatSkin(); } catch {}
       try { loadJellyBalance(); } catch {}
+    }
+    if (isUidLinked()) {
+      // 방금 연결됐거나, 이미 연결돼 있었는데 로컬 캐시(오늘의 목표 화면용)가 예전 값으로
+      // 남아있던 경우까지 — 서버 진짜 값으로 화면을 맞춘다(다시 플레이 안 해도 즉시 반영).
+      try { await refreshStartScreenFromServer(); } catch {}
     }
   } catch (e) { console.warn('계정 시스템 초기화 실패(레거시 모드로 계속):', e); }
 }
@@ -4297,6 +4315,20 @@ function computeCloverChance() {
     }
   }
   return probs[probs.length - 1];
+}
+
+// 서버(user_stats) 진짜 값으로 오늘의목표/스트릭 로컬 캐시를 맞추고 다시 그린다.
+// 초기화(initAccountSystem)에서만 호출 — 매 프레임/매 탭전환마다 불필요한 읽기 발생 안 함.
+async function refreshStartScreenFromServer() {
+  // nick은 항상 여기서 새로 읽는다 — 호출 직전 닉네임 교정(self-heal)이 있었다면
+  // 옛 닉네임 키로 캐시를 써서 화면과 어긋나는 걸 방지.
+  const nick = loadNickname();
+  if (!nick) { try { renderStartScreenGoal(); } catch {} return; }
+  try {
+    const { data } = await getMyDoc('user_stats');
+    if (data) { try { localStorage.setItem('oeing_local_stats_' + nick, JSON.stringify(data)); } catch {} }
+  } catch (e) {}
+  try { renderStartScreenGoal(); } catch {}
 }
 
 // ══════════════════════════════
