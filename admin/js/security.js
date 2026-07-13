@@ -108,6 +108,25 @@ async function recoverOne(nick, btn) {
   }
 }
 
+// ── 🔑 핀번호 재설정 (분실/기기 이어하기 실패 지원) ──
+// 실제 재설정(어드민 확인·해시 교체·감사 기록)은 전부 서버(adminResetPin). 여기서는
+// 새 PIN을 클라이언트에서 무작위로 뽑아 넘기고 결과만 표시한다 — 서버는 원문을 저장/반환하지 않음.
+async function resetPin() {
+  const nickEl = document.getElementById('pinResetNickInput');
+  const nick = (nickEl.value || '').trim();
+  const el = document.getElementById('pinResetResult');
+  if (!nick) { resultMsg('pinResetResult', '닉네임을 입력하세요.', false); return; }
+  const newPin = String(Math.floor(1000 + Math.random() * 9000));
+  setLoading(el, `${nick}의 새 PIN 발급 중...`);
+  try {
+    const res = await httpsCallable(fns, 'adminResetPin')({ nickname: nick, newPin });
+    const d = (res && res.data) || {};
+    el.innerHTML = `<div class="list-empty">✅ 새 PIN 발급 완료 (${d.mode === 'legacy' ? '레거시 닉네임' : 'UID 계정'}) — <b style="font-size:1.3em; letter-spacing:2px;">${escapeHtml(newPin)}</b><br><span class="sub">이 PIN을 "${escapeHtml(nick)}" 본인에게 직접 전달해주세요. 랭킹탭 "계정 연결"에서 바로 쓸 수 있어요.</span></div>`;
+  } catch (e) {
+    setError(el, humanError(e));
+  }
+}
+
 // ── 🚨 서버 자동 판정 알림 (game_sessions, 읽기 전용) ──
 // 대시보드는 이 컬렉션을 절대 수정/삭제하지 않는다 (규칙상 write도 Cloud Function만 가능).
 // 문서는 30일 TTL(expireAt)로 서버가 알아서 지우므로 별도 보관 로직 없음.
@@ -432,6 +451,9 @@ export function initSecurityTab() {
 
   const recoverBtn = document.getElementById('recoverScanBtn');
   if (recoverBtn) recoverBtn.addEventListener('click', guardBtn(recoverBtn, scanRecoverCandidates));
+
+  const pinResetBtn = document.getElementById('pinResetBtn');
+  if (pinResetBtn) pinResetBtn.addEventListener('click', guardBtn(pinResetBtn, resetPin));
 
   const delBtn = document.getElementById('secDeleteBtn');
   delBtn.addEventListener('click', guardBtn(delBtn, async () => {
