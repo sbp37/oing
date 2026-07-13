@@ -1,0 +1,63 @@
+name: Deploy Firestore Rules (manual)
+
+# 취미 규모 배포 자동화 — Cloud Shell 없이 이 버튼 하나로 Firestore Rules 배포.
+# 자동 배포 아님: PR 머지와 무관하게, 사람이 "Run workflow"를 눌러야만 실행된다.
+on:
+  workflow_dispatch: {}
+
+# 같은 배포가 겹쳐 돌지 않게 (더블클릭 방지)
+concurrency:
+  group: deploy-rules
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # workflow_dispatch는 UI에서 임의 브랜치를 골라 실행할 수 있어, 아래에서 브랜치를
+      # 무조건 main 으로 고정 + 실제로 최신 main HEAD인지 한 번 더 검증한다.
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Verify this is the latest main HEAD
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+            echo "::error::체크아웃된 커밋이 origin/main 최신 HEAD와 다릅니다. 배포를 중단합니다."
+            exit 1
+          fi
+          echo "배포 대상 커밋: $(git rev-parse --short HEAD) ($(git log -1 --pretty=%s))"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install firebase-tools
+        run: npm install -g firebase-tools
+
+      - name: Deploy Firestore rules
+        run: firebase deploy --only firestore:rules --project oing-game --non-interactive
+
+      # 스모크 시크릿(SMOKE_TEST_EMAIL 등)을 아직 등록 안 했으면 이 단계는 조용히 건너뜀 —
+      # 필수 아님, 나중에 시크릿 추가하면 자동으로 켜짐.
+      - name: Post-deploy smoke check (test/smoke-postdeploy.mjs 재사용)
+        if: ${{ secrets.SMOKE_TEST_EMAIL != '' }}
+        env:
+          PROJECT_ID: oing-game
+          REGION: asia-northeast3
+          WEB_API_KEY: ${{ secrets.SMOKE_WEB_API_KEY }}
+          TEST_EMAIL: ${{ secrets.SMOKE_TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.SMOKE_TEST_PASSWORD }}
+        run: node test/smoke-postdeploy.mjs
