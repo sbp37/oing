@@ -9,7 +9,7 @@
 //   · 실시간 리스너 없음 — "↻ 홈 새로고침" 버튼으로만 갱신
 // ══════════════════════════════════════════════════════════════
 import {
-  db, collection, countQuery,
+  db, collection, countQuery, getUserDocByNick,
   getTodayDateStr,
   fmtAgo, fmtDuration, fmtNum, escapeHtml, cache, humanError,
 } from './firebase.js';
@@ -113,7 +113,7 @@ export async function loadDashboard({ force = false } = {}) {
   const today = getTodayDateStr();
 
   // ── ① 오늘 세션 1쿼리 → 현재 접속 중 + 타일 + 최근 접속 리스트 ──
-  const sessionsPromise = getTodaySessions({ force }).then(sessions => {
+  const sessionsPromise = getTodaySessions({ force }).then(async sessions => {
     const agg = aggregateSessions(today, sessions);
     renderOnlineCard(agg);
     setTile('visitors', `${fmtNum(agg.uniqueVisitors)}<span class="unit">명</span>`);
@@ -142,10 +142,28 @@ export async function loadDashboard({ force = false } = {}) {
     // 조회 상한 도달 = 오늘 지표가 "최근 세션 기준 근사치"임을 명시 (조용한 잘림 방지)
     const capNote = agg.truncated
       ? `<div class="list-error">⚠️ 오늘 세션이 ${SESSION_FETCH_CAP}건을 넘어 최근 ${SESSION_FETCH_CAP}건 기준 근사치입니다</div>` : '';
-    recentEl.innerHTML = capNote + rows.map(([key, v]) => `
+    // 닉 옆에 "가장 최근 플레이 점수"(user_stats.lastScore)를 표시 — 플레이한 사람만.
+    // 방문만 한 사람은 비워둔다. 목록에 보이는 ≤10명만 조회(읽기 최대 10건/새로고침).
+    // 네트워크 불안정 등으로 조회 실패 시 조용히 비워둔다(행은 그대로 표시).
+    const scored = await Promise.all(rows.map(async ([key, v]) => {
+      let lastScore = null;
+      if (v.plays > 0) {
+        const nick = v.nickname || key.replace(/^nick:/, '');
+        if (nick) {
+          try {
+            const { data } = await getUserDocByNick('user_stats', nick);
+            if (data && typeof data.lastScore === 'number') lastScore = data.lastScore;
+          } catch (e) { /* 조회 실패 → 점수 비워둠 */ }
+        }
+      }
+      return { key, v, lastScore };
+    }));
+    recentEl.innerHTML = capNote + scored.map(({ key, v, lastScore }) => `
       <div class="list-row">
         <span class="main"><span class="nick">${escapeHtml(v.nickname || key.replace(/^nick:/, ''))}</span>
-          ${v.started ? '<span class="badge green">플레이</span>' : '<span class="badge">방문만</span>'}</span>
+          ${lastScore != null
+            ? `<span class="badge green">${fmtNum(lastScore)}점</span>`
+            : (v.plays > 0 ? '<span class="badge green">플레이</span>' : '')}</span>
         <span class="sub">${v.plays}판 · ${fmtDuration(v.dur)} · ${fmtAgo(v.lastSeenTs)}</span>
       </div>`).join('');
     return agg;

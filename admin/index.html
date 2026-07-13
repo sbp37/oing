@@ -179,10 +179,15 @@
       <div class="card">
         <div class="card-head">
           <h3>🚨 의심 판정 알림</h3>
-          <button id="verdictRefreshBtn" class="btn btn-ghost btn-sm">↻ 새로고침</button>
+          <div style="display:flex; gap:6px;">
+            <button id="verdictAckBtn" class="btn btn-ghost btn-sm" style="display:none;">✓ 모두 확인</button>
+            <button id="verdictRefreshBtn" class="btn btn-ghost btn-sm">↻ 새로고침</button>
+          </div>
         </div>
-        <div class="card-note" style="margin-bottom:8px;">서버가 자동으로 판정한 보류/거부 세션 (game_sessions · 최근 50건). 읽기 전용입니다.</div>
+        <div class="card-note" style="margin-bottom:8px;">서버가 자동으로 판정한 보류/거부 세션 (game_sessions · 최근 50건). 읽기 전용입니다. 새(안 본) 의심만 표시하고, "모두 확인"을 누르면 상단 알림이 사라집니다.</div>
         <div id="verdictList" class="list"></div>
+        <button id="verdictSeenToggle" class="btn btn-ghost btn-sm" style="display:none; margin-top:8px;">이미 확인한 항목 보기</button>
+        <div id="verdictSeenList" class="list" style="display:none; margin-top:6px;"></div>
       </div>
 
       <div class="card">
