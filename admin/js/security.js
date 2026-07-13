@@ -128,6 +128,27 @@ function reasonLabel(code) { return REASON_LABELS[code] || code; }
 // 의심 판정 집계·배지에서는 제외하고, 목록에서는 별도 섹션(회색 "검증 불가")으로 분리 표시한다.
 const isUnverifiable = (d) => Array.isArray(d.official?.reasons) && d.official.reasons.includes('NO_SESSION');
 
+// "확인함" 상태는 어드민 브라우저(localStorage)에만 저장한다 — 백엔드/규칙 무변경.
+// 목록이 길어 정신없다는 피드백 → 아직 안 본 의심만 기본 표시하고, 이미 본 것/검증불가는
+// 토글로 접어둔다. game_sessions 문서 id 기준(30일 TTL로 문서가 사라지므로 무한증가 없음).
+const SEEN_KEY = 'oeing_admin_seen_verdicts';
+function loadSeenIds() {
+  try { const a = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'); return new Set(Array.isArray(a) ? a : []); }
+  catch { return new Set(); }
+}
+function markSeen(ids) {
+  const cur = loadSeenIds();
+  ids.forEach(id => cur.add(id));
+  try { localStorage.setItem(SEEN_KEY, JSON.stringify([...cur].slice(-500))); } catch {}
+}
+function syncBadge(unseenCount) {
+  const badge = document.getElementById('verdictBadge');
+  const countEl = document.getElementById('verdictBadgeCount');
+  if (!badge || !countEl) return;
+  if (unseenCount > 0) { countEl.textContent = unseenCount >= 50 ? '50+' : String(unseenCount); badge.style.display = ''; }
+  else badge.style.display = 'none';
+}
+
 // game_sessions에서 보류/거부 세션 최근 50건 (복합 인덱스 필요 — 첫 실행 시 콘솔 링크로 생성)
 function verdictQuery() {
   return query(
@@ -145,7 +166,8 @@ export async function loadVerdictBadge() {
   const countEl = document.getElementById('verdictBadgeCount');
   try {
     const rows = await cache.get('security:verdicts', () => fetchDocs(verdictQuery()));
-    const n = rows.filter(d => !isUnverifiable(d)).length; // NO_SESSION 제외 — 실제 의심 건수만
+    const seen = loadSeenIds();
+    const n = rows.filter(d => !isUnverifiable(d) && !seen.has(d.id)).length; // 안 본 의심만
     if (n > 0 && badge && countEl) {
       countEl.textContent = n >= 50 ? '50+' : String(n);
       badge.style.display = '';
@@ -184,31 +206,48 @@ function verdictRowHtml(d) {
 
 async function loadVerdicts({ force = false } = {}) {
   const el = document.getElementById('verdictList');
+  const seenListEl = document.getElementById('verdictSeenList');
+  const seenToggle = document.getElementById('verdictSeenToggle');
+  const ackBtn = document.getElementById('verdictAckBtn');
   if (force) cache.bust('security:verdicts');
   setLoading(el);
   try {
     const rows = await cache.get('security:verdicts', () => fetchDocs(verdictQuery()));
+    const seen = loadSeenIds();
     const suspects = rows.filter(d => !isUnverifiable(d));
     const unverifiable = rows.filter(isUnverifiable);
+    const newSuspects = suspects.filter(d => !seen.has(d.id));  // 아직 안 본 의심 → 메인
+    const seenSuspects = suspects.filter(d => seen.has(d.id));  // 이미 본 의심 → 토글로
+    const folded = [...seenSuspects, ...unverifiable];          // 접어둘 것(본 의심 + 검증불가)
 
-    // 배지도 최신 상태로 동기화 — NO_SESSION 제외한 실제 의심 건수만
-    const badge = document.getElementById('verdictBadge');
-    const countEl = document.getElementById('verdictBadgeCount');
-    if (badge && countEl) {
-      if (suspects.length) { countEl.textContent = suspects.length >= 50 ? '50+' : String(suspects.length); badge.style.display = ''; }
-      else badge.style.display = 'none';
+    syncBadge(newSuspects.length);
+    if (ackBtn) ackBtn.style.display = newSuspects.length ? '' : 'none';
+
+    // 메인: 새(안 본) 의심만. 없으면 칸을 비운다(정신없지 않게).
+    el.innerHTML = newSuspects.length
+      ? newSuspects.map(verdictRowHtml).join('')
+      : `<div class="list-empty">✅ 새 의심 판정 없음</div>`;
+
+    // 토글: 이미 확인한 의심 + 검증불가 — 기본 접힘
+    if (seenToggle && seenListEl) {
+      if (folded.length) {
+        seenToggle.style.display = '';
+        seenToggle.dataset.count = String(folded.length);
+        seenToggle.dataset.open = '0';
+        seenToggle.textContent = `이미 확인한 항목 보기 (${folded.length})`;
+        seenListEl.style.display = 'none';
+        seenListEl.innerHTML =
+          (seenSuspects.length ? seenSuspects.map(verdictRowHtml).join('') : '') +
+          (unverifiable.length
+            ? `<div class="card-note" style="margin:10px 0 6px;">❔ 검증 불가 (서버세션 없음) — 치팅 의심이 아니라 서버세션이 생성되지 않아 판정을 확정할 수 없는 기록입니다.</div>
+               ${unverifiable.map(verdictRowHtml).join('')}`
+            : '');
+      } else {
+        seenToggle.style.display = 'none';
+        seenListEl.style.display = 'none';
+        seenListEl.innerHTML = '';
+      }
     }
-
-    if (!rows.length) { setEmpty(el, '✅ 보류/거부된 의심 세션이 없어요'); return; }
-
-    const suspectHtml = suspects.length
-      ? suspects.map(verdictRowHtml).join('')
-      : `<div class="list-empty">✅ 의심 판정 없음</div>`;
-    const unverifiableHtml = unverifiable.length
-      ? `<div class="card-note" style="margin:12px 0 8px;">❔ 검증 불가 (서버세션 없음) — 치팅 의심이 아니라 서버세션이 생성되지 않아 판정을 확정할 수 없는 기록입니다.</div>
-         ${unverifiable.map(verdictRowHtml).join('')}`
-      : '';
-    el.innerHTML = suspectHtml + unverifiableHtml;
   } catch (e) {
     const msg = humanError(e);
     // 인덱스 미생성 시 Firestore가 주는 콘솔 에러 안내
@@ -216,6 +255,15 @@ async function loadVerdicts({ force = false } = {}) {
       ? '<br><span style="color:var(--muted);font-size:11.5px;">※ 처음 실행이면 브라우저 콘솔(F12)에 뜬 "인덱스 생성" 링크를 한 번 클릭해 인덱스를 만들어주세요.</span>' : '';
     setError(el, msg + extra);
   }
+}
+
+// "모두 확인" — 현재 안 본 의심을 전부 확인 처리 → 배지 사라지고 목록은 접힘으로 이동.
+async function ackAllVerdicts() {
+  const rows = cache.peek('security:verdicts') || [];
+  const seen = loadSeenIds();
+  const newIds = rows.filter(d => !isUnverifiable(d) && !seen.has(d.id)).map(d => d.id);
+  markSeen(newIds);
+  await loadVerdicts();
 }
 
 // ── 의심 기록 탐지 — 버튼 클릭 시에만 실행 ──
@@ -414,6 +462,21 @@ export function initSecurityTab() {
 
   const verdictBtn = document.getElementById('verdictRefreshBtn');
   verdictBtn.addEventListener('click', guardBtn(verdictBtn, () => loadVerdicts({ force: true })));
+
+  const ackBtn = document.getElementById('verdictAckBtn');
+  if (ackBtn) ackBtn.addEventListener('click', guardBtn(ackBtn, ackAllVerdicts));
+
+  const seenToggle = document.getElementById('verdictSeenToggle');
+  if (seenToggle) seenToggle.addEventListener('click', () => {
+    const listEl = document.getElementById('verdictSeenList');
+    if (!listEl) return;
+    const open = seenToggle.dataset.open === '1';
+    seenToggle.dataset.open = open ? '0' : '1';
+    listEl.style.display = open ? 'none' : 'block';
+    seenToggle.textContent = open
+      ? `이미 확인한 항목 보기 (${seenToggle.dataset.count || ''})`
+      : '이미 확인한 항목 숨기기';
+  });
 }
 
 // 보안 탭을 열면 의심 판정 목록만 표시한다 (진입 시 이미 배지용으로 받아둔 캐시 재사용 → 추가 조회 0).
