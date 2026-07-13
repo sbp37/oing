@@ -8052,7 +8052,15 @@ async function registerNicknameWithPinCheck(nick, statusEl) {
     // 이미 내가 쓰던 닉네임이고 내 핀으로 서버 확인 통과하면 그대로 사용
     if (myNick === nick && myPin) {
       const recheck = await verifyPinQuiet(nick, myPin);
-      if (recheck.ok) return true;
+      if (recheck.ok) {
+        // 검증은 통과했는데 이 기기가 아직 UID 미연결이면(세션 리셋 등으로 로컬 연결 표시만
+        // 끊긴 경우) 그냥 통과만 시키면 이후 기록이 레거시 닉네임 문서로 갈라져 스트릭·젤리·
+        // 스킨이 안 보이게 된다 — PIN을 이미 검증했으니 조용히 완전 복구까지 마저 한다.
+        if (!isUidLinked()) {
+          try { await restoreAccountOnNewDevice(nick, myPin); } catch (e) { console.warn('조용한 계정 재연결 실패(다음에 재시도):', e); }
+        }
+        return true;
+      }
       // 게이트/이전 준비 기간: 같은 기기 + 저장된 닉네임·PIN의 연속성만 인정하고 레거시 모드로 계속.
       // 계정 연결(UID)이나 어떤 권한도 부여하지 않는다 — 서버 검증 가능 시점에 정상 절차로 연결됨.
       if (recheck.notReady) return true;
