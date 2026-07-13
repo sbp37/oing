@@ -2517,6 +2517,7 @@ if ('serviceWorker' in navigator) {
           </div>
           <div class="rank-subtitle-main" id="rankSubtitleMain">🔥 이번 주 기록은 월요일 0시에 초기화된다냥!</div>
           <div class="rank-subtitle-sub" id="rankSubtitleSub">⏱️ 이번 시즌 진행 중</div>
+          <div id="rankFairplayNotice" style="font-size:11.5px; color:#96acc9; margin-top:8px; opacity:0.92; line-height:1.4; padding:0 8px;"></div>
         </div>
 
         <!-- 내 순위 요약 바 -->
@@ -9167,9 +9168,23 @@ function switchTab(tab) {
     const panel = document.getElementById('panelRank');
     panel.classList.add('active');
     document.getElementById('tabRank').classList.add('active');
+    try { setFairplayNotice(); } catch {}
     renderRanking();
 
   }
+}
+// 랭킹 상단 페어플레이 안내 — 접속(탭 진입)할 때마다 랜덤 1줄. "정정당당·함께 즐기기·위로"를
+// 섞어, 핵/편법은 은근히 뜨끔하되 일반 유저는 위축되지 않게. 특정인 저격 문구는 넣지 않음.
+const FAIRPLAY_LINES = [
+  '✨ 정정당당한 한 판이 제일 값지다냥!',
+  '🐾 다같이 즐기는 랭킹이라 더 재밌다냥, 서로 응원해달라냥',
+  '🔥 점수는 매주 리셋이다냥! 이번 주 아쉬워도 다음 주 주인공은 너다냥',
+  '😺 랭킹은 다같이 노는 놀이터다냥~ 사이좋게 나눠 즐기자냥',
+];
+function setFairplayNotice() {
+  const el = document.getElementById('rankFairplayNotice');
+  if (!el) return;
+  el.textContent = FAIRPLAY_LINES[Math.floor(Math.random() * FAIRPLAY_LINES.length)];
 }
 // 랭킹/메인으로 나가면 진행 중이던 게임을 '종료'시킴 — 타이머·배경음악 멈춤(뒤에서 계속 흐르지 않게)
 function stopRunningGame() {
