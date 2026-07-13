@@ -4491,6 +4491,7 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
   }
   if (docRef) await setDoc(docRef, statsOut); // local-only 모드에서는 서버 쓰기 생략
   try { localStorage.setItem('oeing_local_stats_' + nickname, JSON.stringify(statsOut)); } catch {}
+  try { syncReactBest(statsOut.bestScore); } catch (e) {} // 리액션용 로컬 최고기록을 서버 값과 동기화 (기기 바꿔도 신기록 오판 방지)
   return { stats: statsOut, prev: prevData || null };
 }
 
@@ -4706,6 +4707,111 @@ const SCORE_COMMENT_TIERS = [
 function getScoreComment(finalScoreVal) {
   const tier = SCORE_COMMENT_TIERS.find(t => finalScoreVal >= t.min) || SCORE_COMMENT_TIERS[SCORE_COMMENT_TIERS.length - 1];
   return tier.lines[Math.floor(Math.random() * tier.lines.length)];
+}
+
+// ══════════════════════════════
+//  개인화 리액션 — "절대 점수 구간"이 아니라 "이 사람의 평소"와 비교해서 멘트를 고른다.
+//  이 기기에 최근 10판 점수·최고기록을 저장해두고(표시 전용 — 랭킹/저장과 무관),
+//  신기록 > 신기록코앞 > 평소보다잘함 > 상승세 > 평소보다아쉬움 > 오늘첫판 순으로 판정.
+//  아무것도 해당 안 되면 기존 구간 멘트(getScoreComment)로 폴백.
+//  "아쉬움"은 부정 표현 금지 원칙을 지키되 가짜 칭찬 대신 살짝 알아봐주는 공감 톤.
+// ══════════════════════════════
+const REACT_HIST_KEY = 'oeing_react_hist_v1';
+function loadReactHist() {
+  try {
+    const d = JSON.parse(localStorage.getItem(REACT_HIST_KEY) || 'null');
+    if (d && Array.isArray(d.scores)) return d;
+  } catch (e) {}
+  return { scores: [], best: 0, lastDate: '' };
+}
+function saveReactHist(h) { try { localStorage.setItem(REACT_HIST_KEY, JSON.stringify(h)); } catch (e) {} }
+// 서버 통계(bestScore)와 로컬 최고기록 동기화 — 기기를 바꿔온 유저에게 엉뚱한 "신기록!" 오판 방지
+function syncReactBest(serverBest) {
+  if (typeof serverBest !== 'number' || serverBest <= 0) return;
+  const h = loadReactHist();
+  if (serverBest > (h.best || 0)) { h.best = serverBest; saveReactHist(h); }
+}
+
+const SMART_REACT_LINES = {
+  record: [
+    '🏆 새 기록이다냥!! 이 순간을 기억하라냥 🎉',
+    '🏆 최고기록 갱신이다냥! 오늘의 너는 어제의 너를 이겼다냥 👑',
+    '🏆 신기록이다냥!! 손끝이 반짝인다냥 ✨',
+  ],
+  near: [
+    '😼 최고기록까지 딱 {diff}점이었다냥... 다음 판이다냥!',
+    '👀 최고기록 코앞이었다냥! {diff}점 차이다냥',
+    '🔥 조금만 더! 최고기록이 바로 앞이다냥 ({diff}점 남았다냥)',
+  ],
+  above: [
+    '📈 오늘 평소보다 확실히 좋다냥! 감각 살아있다냥 ✨',
+    '😳 요즘 판들 중에 제일 매서웠다냥, 무슨 일 있었냥?',
+    '📈 평소 페이스를 훌쩍 넘었다냥! 이 흐름 아깝다냥, 한 판 더냥',
+    '✨ 오늘따라 손이 다르다냥, 컨디션 최고다냥',
+  ],
+  rising: [
+    '📊 판마다 점수가 오르고 있다냥! 지금 물올랐다냥 🔥',
+    '📈 3판 연속 상승세다냥, 여기서 멈추기 아깝다냥',
+  ],
+  below: [
+    '🐾 이런 판도 있는 거다냥~ 손은 풀렸으니 다음 판 가보자냥',
+    '😽 평소 실력 어디 안 갔다냥, 잠깐 숨 고르는 판이었다냥',
+    '🍵 아쉬운 판이었냥? 원래 그 다음 판이 진짜다냥',
+    '🐱 오늘 숫자들이 좀 얄미웠다냥, 다시 가보자냥',
+  ],
+  firstOfDay: [
+    '☀️ 오늘 첫 판, 몸풀기 완료다냥!',
+    '🐾 오늘의 시작이다냥~ 이제 슬슬 발동 걸린다냥',
+  ],
+};
+let _lastReactLine = null; // 직전 멘트 기억 — 같은 말 연속 반복 방지
+function pickReactLine(arr) {
+  if (!arr || !arr.length) return null;
+  let line = arr[Math.floor(Math.random() * arr.length)];
+  if (arr.length > 1 && line === _lastReactLine) line = arr[(arr.indexOf(line) + 1) % arr.length];
+  return line;
+}
+function getSmartScoreComment(finalScoreVal) {
+  let line = null;
+  try {
+    const h = loadReactHist();
+    const n = h.scores.length;
+    const today = getLocalDateStr();
+    // 판정엔 과거 3판 이상 필요 — 그 전까진 기존 구간 멘트로 (신규 유저에게 매판 "신기록!" 도배 방지)
+    if (n >= 3) {
+      const avg = h.scores.reduce((a, b) => a + b, 0) / n;
+      const last = h.scores[n - 1];
+      const prev2 = h.scores[n - 2];
+      if (finalScoreVal > (h.best || 0) && h.best >= 500) {
+        line = pickReactLine(SMART_REACT_LINES.record);
+      } else if (h.best >= 1000 && finalScoreVal < h.best && finalScoreVal >= h.best * 0.9) {
+        line = pickReactLine(SMART_REACT_LINES.near);
+        if (line) line = line.replace('{diff}', (h.best - finalScoreVal).toLocaleString());
+      } else if (avg >= 200 && finalScoreVal >= avg * 1.3) {
+        line = pickReactLine(SMART_REACT_LINES.above);
+      } else if (prev2 > 0 && last > prev2 && finalScoreVal > last) {
+        line = pickReactLine(SMART_REACT_LINES.rising);
+      } else if (avg >= 800 && finalScoreVal <= avg * 0.6) {
+        line = pickReactLine(SMART_REACT_LINES.below);
+      } else if (h.lastDate && h.lastDate !== today) {
+        line = pickReactLine(SMART_REACT_LINES.firstOfDay);
+      }
+    }
+  } catch (e) { /* 판정 실패 시 폴백 — 표시 전용이라 게임엔 영향 없음 */ }
+  if (!line) {
+    line = getScoreComment(finalScoreVal);
+    if (line === _lastReactLine) line = getScoreComment(finalScoreVal); // 연속 반복이면 1회 재추첨
+  }
+  // 이번 판을 히스토리에 기록 (판정이 끝난 뒤에)
+  try {
+    const h2 = loadReactHist();
+    h2.scores = [...h2.scores, finalScoreVal].slice(-10);
+    h2.best = Math.max(h2.best || 0, finalScoreVal);
+    h2.lastDate = getLocalDateStr();
+    saveReactHist(h2);
+  } catch (e) {}
+  _lastReactLine = line;
+  return line;
 }
 // 다음 목표 한 줄 (하이브리드)
 //  - 다음 구간에 75% 이상 근접 → "○○점 코앞이다냥" 계산형
@@ -7429,7 +7535,7 @@ async function endGame() {
   document.getElementById('finalScore').textContent = score;
   document.getElementById('resClear2').textContent = `클리어 ${clearCount}회`;
   document.getElementById('resCombo2').textContent = `최고 콤보 ×${maxCombo}`;
-  document.getElementById('scoreComment').textContent = getScoreComment(score);
+  document.getElementById('scoreComment').textContent = getSmartScoreComment(score); // 개인화 리액션 (신기록/평소대비/상승세…) — 해당 없으면 기존 구간 멘트 폴백
   // 다음 목표 줄: 이제 "쉬는 멘트" 전용 — 기본 다음목표 문구는 결과창이 복잡해져서 노출 안 함
   const nextGoalEl0 = document.getElementById('nextGoal');
   if (nextGoalEl0) { nextGoalEl0.textContent = ''; nextGoalEl0.style.display = 'none'; nextGoalEl0.style.color = 'var(--blue-light)'; }
