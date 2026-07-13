@@ -55,8 +55,9 @@ async function callCallable(name, data, idToken) {
 }
 
 function testPayload(tag) {
+  // nickname은 서버에서 40자 상한 — 짧게 유지
   return {
-    nickname: `__verify_sessionfix_${tag}_${Date.now()}`,
+    nickname: `_vsf_${tag}_${Date.now()}`.slice(0, 40),
     finalScore: 1, clearCount: 1, resetCount: 0, maxCombo: 1, maxSuccessesIn3Sec: 1, failCount: 0,
   };
 }
