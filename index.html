@@ -4217,31 +4217,54 @@ function medianOf(arr) {
   const mid = Math.floor(s.length / 2);
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 }
-const DAILY_GOAL_TYPES = [
-  { label: '가볍냥', mult: 0.95 },
-  { label: '보통냥', mult: 1.00 },
-  { label: '도전냥', mult: 1.05 },
-];
-// recentScores: 일반 랭킹 점수만 최근 10개 저장된 배열, bestScore: 개인 최고기록
-// nickname+날짜 seed로 목표타입을 정해 하루 동안 고정, 계산식(배율/median)은 화면에 노출 안 함
-function computeDailyGoal(recentScores, bestScore, nickname, dateStr) {
-  const seed = hashSeed(nickname + '_' + dateStr);
-  const type = DAILY_GOAL_TYPES[seed % 3];
-  let base;
-  if (recentScores && recentScores.length >= 3) {
-    base = medianOf(recentScores.slice(-7));
+// ── 오늘의 목표: "계단(ladder)" 방식 ──
+//  예전엔 매일 최근 7판 중간값으로 새로 계산해서, 0점·즉시종료 판이 끼면 목표가
+//  1600→600처럼 널뛰고("내 목표"가 아니라 "최근 운의 반영"), 중간값 근처라 노력 없이
+//  절반은 그냥 깨져 재미가 없었다. 이제 어제 목표를 기준으로 계단처럼 오르내린다:
+//   · 어제 달성 → 한 계단 위(+7%, 최소 +100)  [도전냥]
+//   · 어제 플레이했는데 실패 → 유지, 이틀 연속 실패 → 반 계단 아래(-8%)  [가볍냥]
+//   · 어제 안 했으면 → 그대로 유지 (안 한 날 때문에 내려가지 않음)  [보통냥]
+//  가드: 0/즉시종료 판 제외한 실측 중간값의 0.5~1.6배 범위 밖으로 못 벗어남(현실과
+//  동떨어진 계단 방지), 최고기록의 85% 상한, 500점 하한. 랜덤 없음(하루 동안 결정적).
+function computeDailyGoal(prevStats, nickname, dateStr) {
+  const d = prevStats || {};
+  const best = d.bestScore || 0;
+  // 0점·즉시종료 판은 계산에서 제외 — 예전 널뛰기의 주범
+  const recent = (Array.isArray(d.recentScores) ? d.recentScores : []).filter(s => typeof s === 'number' && s >= 100);
+  const m = recent.length >= 3 ? medianOf(recent.slice(-7)) : 0;
+  const prevGoal = (typeof d.dailyGoalScore === 'number' && d.dailyGoalScore >= 500) ? d.dailyGoalScore : 0;
+  let goal, label, missStreak = d.goalMissStreak || 0;
+
+  if (prevGoal > 0) {
+    const achieved = !!d.dailyGoalAchievedToday;
+    const playedGoalDay = d.dailyDate === d.dailyGoalDate && (d.dailyPlayCount || 0) > 0;
+    if (achieved) {
+      goal = Math.max(prevGoal + 100, Math.round(prevGoal * 1.07 / 50) * 50); // 달성 → 한 계단 위
+      label = '도전냥'; missStreak = 0;
+    } else if (playedGoalDay) {
+      missStreak += 1;
+      if (missStreak >= 2) { // 이틀 연속 도전 실패 → 반 계단 아래 (부담 완화)
+        goal = Math.min(prevGoal - 100, Math.round(prevGoal * 0.92 / 50) * 50);
+        label = '가볍냥'; missStreak = 0;
+      } else { goal = prevGoal; label = '보통냥'; }
+    } else { goal = prevGoal; label = '보통냥'; }
   } else {
-    const pct = 0.70 + ((seed >> 3) % 6) / 100; // 70~75%
-    base = (bestScore || 0) * pct;
+    // 첫 계단 — 실측 기반 시작점 (기존 방식과 동일한 결정적 계산)
+    const seed = hashSeed(nickname + '_' + dateStr);
+    let base;
+    if (recent.length >= 3) base = m;
+    else { const pct = 0.70 + ((seed >> 3) % 6) / 100; base = best * pct; } // 70~75%
+    goal = Math.floor(base / 100) * 100;
+    label = '보통냥';
   }
-  let goal = base * type.mult;
-  goal = Math.floor(goal / 100) * 100;
-  if (bestScore > 0) {
-    const cap = Math.floor((bestScore * 0.85) / 100) * 100;
-    goal = Math.min(goal, cap);
+  // 실측 능력 범위 가드 — 계단이 현실과 동떨어지지 않게
+  if (m > 0) {
+    goal = Math.min(goal, Math.round(m * 1.6 / 50) * 50);
+    goal = Math.max(goal, Math.round(m * 0.5 / 50) * 50);
   }
+  if (best > 0) goal = Math.min(goal, Math.floor((best * 0.85) / 100) * 100);
   goal = Math.max(goal, 500);
-  return { score: goal, label: type.label };
+  return { score: goal, label, missStreak };
 }
 
 // ══════════════════════════════
@@ -4302,7 +4325,7 @@ function renderStartScreenGoal() {
   if (d.dailyGoalDate === todayStr && d.dailyGoalScore) {
     goalScore = d.dailyGoalScore; goalType = d.dailyGoalType;
   } else {
-    const g = computeDailyGoal(d.recentScores || [], d.bestScore || 0, nick, todayStr);
+    const g = computeDailyGoal(d, nick, todayStr);
     goalScore = g.score; goalType = g.label;
   }
   const phrase = DAILY_GOAL_SHORT_PHRASE[goalType] || '해보라냥 🐾';
@@ -4396,9 +4419,8 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
       streak = 1;
     }
 
-    // ── 오늘의 목표 (컨디션 기반) — 날짜 바뀌면 어제까지의 기록으로 새로 계산, 하루 동안 고정 ──
+    // ── 오늘의 목표 (계단식) — 날짜 바뀌면 어제 목표+달성여부 기준으로 다음 계단 결정, 하루 동안 고정 ──
     const prevRecentScores = d.recentScores || [];
-    const prevBestScore = d.bestScore || 0;
     let dailyGoalDate = d.dailyGoalDate || '';
     let dailyGoalScore = d.dailyGoalScore || 0;
     let dailyGoalType = d.dailyGoalType || '';
@@ -4406,11 +4428,13 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
     let goalStreakLastDate = d.goalStreakLastDate || '';
     let goalTotalCount = d.goalTotalCount || 0;
     let dailyGoalAchievedToday = !!d.dailyGoalAchievedToday;
+    let goalMissStreak = d.goalMissStreak || 0;
 
     if (dailyGoalDate !== todayStr) {
-      const newGoal = computeDailyGoal(prevRecentScores, prevBestScore, nickname, todayStr);
+      const newGoal = computeDailyGoal(d, nickname, todayStr);
       dailyGoalScore = newGoal.score;
       dailyGoalType = newGoal.label;
+      goalMissStreak = newGoal.missStreak;
       dailyGoalDate = todayStr;
       dailyGoalAchievedToday = false;
       // 스트릭 연속성: 마지막 성공일이 어제가 아니면(끊겼거나 미접속) 조용히 초기화
@@ -4447,10 +4471,10 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
       jellyLastClaim: d.jellyLastClaim || '',
       recentScores: newRecentScores,
       dailyGoalDate, dailyGoalScore, dailyGoalType, dailyGoalAchievedToday,
-      goalStreak, goalStreakLastDate, goalTotalCount,
+      goalStreak, goalStreakLastDate, goalTotalCount, goalMissStreak,
     };
   } else {
-    const newGoal = computeDailyGoal([], 0, nickname, todayStr);
+    const newGoal = computeDailyGoal(null, nickname, todayStr);
     const goalAchievedNow = score >= newGoal.score;
     statsOut = {
       playCount: 1,
@@ -4478,6 +4502,7 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
       goalStreak: goalAchievedNow ? 1 : 0,
       goalStreakLastDate: goalAchievedNow ? todayStr : '',
       goalTotalCount: goalAchievedNow ? 1 : 0,
+      goalMissStreak: 0,
     };
   }
   if (isUidLinked()) {
