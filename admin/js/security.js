@@ -9,10 +9,104 @@ import {
   db, collection, doc, query, where, orderBy, limit,
   fetchDocs, fetchDoc, deleteDoc, getUserDocByNick,
   getWeekId, fmtNum, fmtDateTime, escapeHtml, downloadJSON, humanError,
-  getTodayDateStr, cache,
+  getTodayDateStr, cache, fns, httpsCallable,
 } from './firebase.js';
 import { setLoading, setError, setEmpty, guardBtn, resultMsg } from './admin.js';
 import { deleteRankingRecord } from './users.js';
+
+// ── 🛟 점수 누락 복구 ──
+// 오늘 실제 플레이했지만 랭킹에 반영 안 된 후보를 찾아, 관리자 버튼으로 서버 복구 함수를 호출.
+// 실제 복구 판정(관리자 확인·5만 미만·현재보다 높을 때만·감사 로그)은 전부 서버(adminRecoverScore).
+// 여기서는 후보 표시와 서버 호출만 한다. user_stats.bestScore(전체 최고점)가 아니라
+// "오늘 실제 점수"만 대상 — recentScores 뒤 dailyPlayCount개의 최댓값(서버 로직과 동일).
+const RECOVER_SCORE_MAX = 50000;
+function todaysBestScoreClient(s, today) {
+  if (!s) return 0;
+  if (s.lastPlayDate !== today && s.dailyDate !== today) return 0;
+  const recent = Array.isArray(s.recentScores) ? s.recentScores.filter(x => Number.isInteger(x) && x >= 0) : [];
+  if (!recent.length) return (Number.isInteger(s.lastScore) && s.lastScore > 0) ? s.lastScore : 0;
+  const dpc = (Number.isInteger(s.dailyPlayCount) && s.dailyPlayCount > 0) ? s.dailyPlayCount : recent.length;
+  const n = Math.max(1, Math.min(dpc, recent.length));
+  return Math.max(...recent.slice(-n));
+}
+
+async function scanRecoverCandidates() {
+  const el = document.getElementById('recoverResult');
+  setLoading(el, '오늘 플레이한 유저를 확인하는 중...');
+  try {
+    const today = getTodayDateStr();
+    const weekId = getWeekId();
+    // 오늘 플레이한 user_stats만 (단일 필드 equality — 자동 인덱스)
+    const players = await fetchDocs(query(collection(db, 'user_stats'), where('lastPlayDate', '==', today)));
+    if (!players.length) { setEmpty(el, '오늘 플레이한 유저가 없어요'); return; }
+
+    // 이번주 주간 랭킹 점수 맵 (한 번에)
+    const weekRows = await fetchDocs(query(collection(db, 'weekly_rankings', weekId, 'scores')));
+    const weekMap = new Map(weekRows.map(r => [r.id, r.score || 0]));
+
+    // 후보: 오늘 실제 점수가 있고(0<score<5만), 현재 주간 점수보다 높은 유저
+    const cands = [];
+    for (const p of players) {
+      const nick = p.nickname || p.id;
+      if (!nick) continue;
+      const todaysBest = todaysBestScoreClient(p, today);
+      if (!Number.isInteger(todaysBest) || todaysBest <= 0) continue;
+      if (todaysBest >= RECOVER_SCORE_MAX) continue; // 5만 이상은 복구 대상 아님
+      const curWeek = weekMap.get(nick) || 0;
+      if (todaysBest <= curWeek) continue;           // 이미 주간에 반영됨
+      cands.push({ nick, todaysBest, curWeek });
+    }
+    if (!cands.length) {
+      el.innerHTML = `<div class="list-empty">✅ 오늘 플레이한 ${players.length}명 확인 — 누락 후보가 없어요</div>`;
+      return;
+    }
+
+    // 각 후보의 현재 전체 랭킹 점수 (표시용)
+    await Promise.all(cands.map(async c => {
+      const rk = await fetchDoc(doc(db, 'rankings', c.nick)).catch(() => null);
+      c.curRank = (rk && typeof rk.score === 'number') ? rk.score : 0;
+    }));
+    cands.sort((a, b) => b.todaysBest - a.todaysBest);
+
+    el.innerHTML = `
+      <div class="card-note" style="margin-bottom:8px;">${cands.length}명 발견 — 자동 복구는 없어요. 확인 후 "복구하기"를 눌러주세요. (복구 점수 = 오늘 실제 최고점)</div>
+      <div class="list">${cands.map(c => `
+        <div class="list-row" data-nick="${escapeHtml(c.nick)}">
+          <span class="main">
+            <span class="nick">${escapeHtml(c.nick)}</span> <span class="badge warn">복구 ${fmtNum(c.todaysBest)}pt</span><br>
+            <span class="sub">현재 전체 ${fmtNum(c.curRank)} · 현재 주간 ${fmtNum(c.curWeek)}</span>
+          </span>
+          <button class="btn btn-primary btn-sm recover-btn" data-nick="${escapeHtml(c.nick)}">복구하기</button>
+        </div>`).join('')}
+      </div>`;
+    el.querySelectorAll('.recover-btn').forEach(btn => {
+      btn.addEventListener('click', guardBtn(btn, () => recoverOne(btn.dataset.nick, btn)));
+    });
+  } catch (e) {
+    setError(el, humanError(e));
+  }
+}
+
+async function recoverOne(nick, btn) {
+  const row = btn.closest('.list-row');
+  const sub = row ? row.querySelector('.sub') : null;
+  try {
+    const res = await httpsCallable(fns, 'adminRecoverScore')({ nickname: nick });
+    const d = (res && res.data) || {};
+    const parts = [];
+    if (d.rankingUpdated) parts.push(`전체 ${fmtNum(d.prevRank)}→${fmtNum(d.recoverScore)}`);
+    if (d.weeklyUpdated) parts.push(`주간 ${fmtNum(d.prevWeek)}→${fmtNum(d.recoverScore)}`);
+    const summary = parts.length ? parts.join(' · ') : '이미 현재 점수가 더 높아 변경 없음';
+    if (sub) sub.innerHTML = `✅ 복구됨 — ${escapeHtml(summary)}`;
+    btn.textContent = '완료';
+    btn.disabled = true;
+    btn.classList.remove('btn-primary'); btn.classList.add('btn-ghost');
+  } catch (e) {
+    const msg = humanError(e);
+    if (sub) sub.innerHTML = `<span style="color:var(--danger,#e33);">복구 실패 — ${escapeHtml(msg)}</span>`;
+    // 버튼은 다시 누를 수 있게 유지
+  }
+}
 
 // ── 🚨 서버 자동 판정 알림 (game_sessions, 읽기 전용) ──
 // 대시보드는 이 컬렉션을 절대 수정/삭제하지 않는다 (규칙상 write도 Cloud Function만 가능).
@@ -287,6 +381,9 @@ async function resetCrown() {
 export function initSecurityTab() {
   const scanBtn = document.getElementById('suspectScanBtn');
   scanBtn.addEventListener('click', guardBtn(scanBtn, scanSuspects));
+
+  const recoverBtn = document.getElementById('recoverScanBtn');
+  if (recoverBtn) recoverBtn.addEventListener('click', guardBtn(recoverBtn, scanRecoverCandidates));
 
   const delBtn = document.getElementById('secDeleteBtn');
   delBtn.addEventListener('click', guardBtn(delBtn, async () => {
