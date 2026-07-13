@@ -4880,6 +4880,16 @@ const SMART_REACT_LINES = {
     '☀️ 오늘 첫 판, 몸풀기 완료다냥!',
     '🐾 오늘의 시작이다냥~ 이제 슬슬 발동 걸린다냥',
   ],
+  // 딱 평소 수준 — 제일 흔한 판. 여기가 비어서 밋밋한 옛 멘트로 떨어지던 걸 채움.
+  around: [
+    '🐾 딱 평소 페이스다냥, 안정적이다냥',
+    '😸 오늘도 꾸준하다냥! 이 페이스 나쁘지 않다냥',
+    '🐱 늘 하던 만큼은 해줬다냥, 다음 판이 진짜 승부다냥',
+    '👌 무난하게 한 판 뽑았다냥~ 슬슬 한 방 노려보자냥',
+    '🎯 평소 실력 그대로다냥, 살짝만 더 밀면 신기록이다냥',
+    '😺 흔들림 없다냥! 이런 판이 쌓여서 실력이 된다냥',
+    '🍀 안정적인 한 판이었다냥, 리듬 탔다냥',
+  ],
 };
 let _lastReactLine = null; // 직전 멘트 기억 — 같은 말 연속 반복 방지
 function pickReactLine(arr) {
@@ -4904,7 +4914,7 @@ function getSmartScoreComment(finalScoreVal) {
       } else if (h.best >= 1000 && finalScoreVal < h.best && finalScoreVal >= h.best * 0.9) {
         line = pickReactLine(SMART_REACT_LINES.near);
         if (line) line = line.replace('{diff}', (h.best - finalScoreVal).toLocaleString());
-      } else if (avg >= 200 && finalScoreVal >= avg * 1.3) {
+      } else if (avg >= 200 && finalScoreVal >= avg * 1.2) {
         line = pickReactLine(SMART_REACT_LINES.above);
       } else if (prev2 > 0 && last > prev2 && finalScoreVal > last) {
         line = pickReactLine(SMART_REACT_LINES.rising);
@@ -4912,6 +4922,9 @@ function getSmartScoreComment(finalScoreVal) {
         line = pickReactLine(SMART_REACT_LINES.below);
       } else if (h.lastDate && h.lastDate !== today) {
         line = pickReactLine(SMART_REACT_LINES.firstOfDay);
+      } else {
+        // 위 특별 케이스 어디에도 안 걸린 "딱 평소 수준" 판 — 밋밋한 옛 멘트 대신 개인화 멘트
+        line = pickReactLine(SMART_REACT_LINES.around);
       }
     }
   } catch (e) { /* 판정 실패 시 폴백 — 표시 전용이라 게임엔 영향 없음 */ }
