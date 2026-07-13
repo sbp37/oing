@@ -1552,14 +1552,35 @@ body:not(.light) .action-btn:not(.secondary) {
   border-radius: 12px; padding: 8px 12px 8px 10px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
-/* 내 행 — 탭 컬러(골드/블루/그린) 배경 틴트 + 라인이 은은하게 반짝이는 glow */
+/* 내 행 — 배경 틴트는 은은하게 유지, 외곽선을 따라 도는 하늘색 하이라이트는 ::after에서 */
 .rank-row.me {
+  position: relative; isolation: isolate; animation: none;
   border-color: var(--me-accent, var(--blue-bright));
   background: var(--me-accent-dim, var(--blue-dim));
-  box-shadow: 0 0 0 1px var(--me-accent-soft, rgba(47,126,201,0.4)), 0 2px 5px rgba(0,0,0,0.2);
-  --frame-color: var(--me-accent-glow, #7ec2f0);
-  animation: frameGlow 2.4s ease-in-out infinite;
+  box-shadow: inset 0 0 0 1px rgba(126,205,240,0.16), 0 0 6px rgba(126,205,240,0.10);
 }
+/* 내용은 항상 애니메이션 링 위에 */
+.rank-row.me > * { position: relative; z-index: 2; }
+/* 외곽선을 따라 도는 하늘색 하이라이트 (테두리만 남기는 mask 기법, 각도만 애니메이션) */
+@property --me-ang { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+.rank-row.me::after {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit;
+  padding: 1.6px; box-sizing: border-box; pointer-events: none; z-index: 1;
+  --me-ang: 0deg;
+  background: conic-gradient(from var(--me-ang),
+    rgba(126,205,240,0.10) 0deg,
+    rgba(126,205,240,0.10) 250deg,
+    rgba(126,205,240,0.45) 300deg,
+    rgba(220,247,255,0.90) 326deg,
+    rgba(126,205,240,0.45) 344deg,
+    rgba(126,205,240,0.10) 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  animation: meBorderSpin 3.6s linear infinite;
+}
+@keyframes meBorderSpin { to { --me-ang: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .rank-row.me::after { animation: none; } }
 .rank-num { font-size: 15.5px; font-weight: 700; color: #c3d2ea; min-width: 26px; max-width: 26px; text-align: right; flex-shrink: 0; }
 .rank-change { font-size: 13px; font-weight: 800; min-width: 34px; max-width: 34px; text-align: center; flex-shrink: 0; }
 .rank-change.up { color: var(--accent-green-light); text-shadow: none; }
@@ -1685,51 +1706,51 @@ body:not(.light) .action-btn:not(.secondary) {
   font-weight: 900;
 }
 /* ── Top10 / Top30 행 — 등급 배경 + 왼쪽 포인트 라인(::before), 살짝만 둥글게 ── */
+/* overflow는 visible: 내 행의 도는 하이라이트 링(::after)이 잘리지 않게 */
 .rank-row.top10, .rank-row.top30 {
-  position: relative; overflow: hidden; border-radius: 16px;
+  position: relative; overflow: visible; border-radius: 16px;
 }
 .rank-row.top10::before, .rank-row.top30::before {
   content: ""; position: absolute; left: 0; top: 10px; bottom: 10px;
   width: 5px; border-radius: 999px; pointer-events: none;
 }
-/* Top10 — 밝은 샴페인 골드 (네이비 바탕 위에 은은하게) */
+/* Top10 — 밝은 샴페인 골드 (글로우는 줄여서 배너 면적이 뿌예지지 않게) */
 .rank-row.top10 {
   background:
-    linear-gradient(90deg, rgba(244,215,126,0.12) 0%, rgba(244,215,126,0.05) 20%, rgba(244,215,126,0.015) 45%, rgba(0,0,0,0) 70%),
+    linear-gradient(90deg, rgba(244,215,126,0.10) 0%, rgba(244,215,126,0.04) 20%, rgba(244,215,126,0.012) 45%, rgba(0,0,0,0) 70%),
     linear-gradient(180deg, #1C2F4E 0%, #11223B 100%);
   border: 1px solid rgba(244,215,126,0.48);
-  box-shadow: 0 0 16px rgba(255,213,103,0.12), inset 0 1px 0 rgba(255,255,255,0.06);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
 }
 .rank-row.top10::before {
   background: linear-gradient(180deg, #FFE9A8 0%, #F4D77E 48%, #C99B35 100%);
-  box-shadow: 0 0 10px rgba(255,213,103,0.44);
+  box-shadow: 0 0 4px rgba(255,213,103,0.28);
 }
 .rank-row.top10 .rank-num, .rank-row.top10 .rank-pts { color: #FFF7DF; }
 .rank-row.top10 .rank-num { font-weight: 800; }
-/* Top30 — 푸른기 도는 블루퍼플/페리윙클 */
+/* Top30 — 푸른기 도는 블루퍼플/페리윙클 (글로우 축소) */
 .rank-row.top30 {
   background:
-    linear-gradient(90deg, rgba(142,151,255,0.12) 0%, rgba(142,151,255,0.05) 20%, rgba(142,151,255,0.015) 45%, rgba(0,0,0,0) 70%),
+    linear-gradient(90deg, rgba(142,151,255,0.10) 0%, rgba(142,151,255,0.04) 20%, rgba(142,151,255,0.012) 45%, rgba(0,0,0,0) 70%),
     linear-gradient(180deg, #1A2D4B 0%, #11213A 100%);
   border: 1px solid rgba(183,191,255,0.42);
-  box-shadow: 0 0 14px rgba(142,151,255,0.10), inset 0 1px 0 rgba(255,255,255,0.05);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
 }
 .rank-row.top30::before {
   background: linear-gradient(180deg, #B7BFFF 0%, #8E97FF 50%, #5D63B8 100%);
-  box-shadow: 0 0 9px rgba(142,151,255,0.38);
+  box-shadow: 0 0 4px rgba(142,151,255,0.26);
 }
 .rank-row.top30 .rank-num, .rank-row.top30 .rank-pts { color: #F5F6FF; }
 .rank-row.top30 .rank-num { font-weight: 800; }
-/* Top10/Top30 + 내 행 — 등급 배경/왼쪽 라인은 그대로, 하늘색 외곽 링(글로우)만 얹음
-   (모드 accent 펄스 애니메이션은 끄고 정적 하늘색 링으로 통일 — 등급색은 유지) */
-.rank-row.top10.me, .rank-row.top30.me { animation: none; }
+/* Top10/Top30 + 내 행 — 등급 배경/왼쪽 라인은 그대로, 도는 하이라이트(::after)만 얹힘.
+   등급 테두리만 살짝 밝게, 안쪽 하늘색 헤어라인은 약하게(뿌옇지 않게) */
 .rank-row.top10.me {
-  border-color: rgba(244,215,126,0.48);
-  box-shadow: 0 0 0 1.7px rgba(126,205,240,0.8), 0 0 12px rgba(126,205,240,0.42), 0 0 22px rgba(126,205,240,0.18), 0 0 16px rgba(255,213,103,0.10), inset 0 1px 0 rgba(255,255,255,0.06);
+  border-color: rgba(244,215,126,0.55);
+  box-shadow: inset 0 0 0 1px rgba(126,205,240,0.14), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 .rank-row.top30.me {
-  border-color: rgba(183,191,255,0.42);
-  box-shadow: 0 0 0 1.7px rgba(126,205,240,0.8), 0 0 12px rgba(126,205,240,0.42), 0 0 22px rgba(126,205,240,0.18), 0 0 14px rgba(142,151,255,0.10), inset 0 1px 0 rgba(255,255,255,0.05);
+  border-color: rgba(183,191,255,0.52);
+  box-shadow: inset 0 0 0 1px rgba(126,205,240,0.14), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
 .my-rank-info strong { color: var(--blue-light); }
@@ -5377,6 +5398,45 @@ function playSfx(key, vol = 1, rate = 1) {
   } catch {}
 }
 
+// 🎉 최고점수 팡파레 — WebAudio 합성(브라스풍 상승 아르페지오 + 축포 반짝).
+// 기존 'record' mp3(디디딩~)보다 축하답게, 전체 음량은 낮게 균형 잡음.
+function playFanfare() {
+  if (!sfxOn) return;
+  try {
+    resumeAC();
+    const ctx = AC;
+    if (!ctx || ctx.state === 'closed') return;
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.value = 0.28; // 다른 합성 효과음(클리어 아르페지오·냥 소리)과 비슷한 음량대
+    master.connect(ctx.destination);
+    // C5 → E5 → G5 상승 후 C6 강조 (브라스풍 triangle)
+    const seq = [[523.25, 0.0], [659.25, 0.09], [783.99, 0.18], [1046.5, 0.30]];
+    seq.forEach(([f, t], i) => {
+      const isLast = i === seq.length - 1;
+      const o = ctx.createOscillator(); o.type = 'triangle';
+      const g = ctx.createGain();
+      const st = now + t;
+      o.frequency.setValueAtTime(f, st);
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.linearRampToValueAtTime(isLast ? 1.0 : 0.62, st + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0008, st + (isLast ? 0.6 : 0.17));
+      o.connect(g); g.connect(master);
+      o.start(st); o.stop(st + (isLast ? 0.66 : 0.2));
+    });
+    // 끝에 고역 반짝(축포 느낌) 살짝
+    const sp = now + 0.30;
+    const spO = ctx.createOscillator(); spO.type = 'sine';
+    const spG = ctx.createGain();
+    spO.frequency.setValueAtTime(1567.98, sp); // G6
+    spG.gain.setValueAtTime(0.0001, sp);
+    spG.gain.linearRampToValueAtTime(0.35, sp + 0.02);
+    spG.gain.exponentialRampToValueAtTime(0.0008, sp + 0.5);
+    spO.connect(spG); spG.connect(master);
+    spO.start(sp); spO.stop(sp + 0.55);
+  } catch {}
+}
+
 // 진동 피드백 — 정답/아이템 발동 시 짧게. 지원 안 하는 환경(iOS Safari 등)은 조용히 무시
 function vibrateFeedback(pattern) {
   try { if (navigator.vibrate) navigator.vibrate(pattern); } catch {}
@@ -7749,14 +7809,27 @@ async function endGame() {
         if (bestCompareEl && bestCompareText) {
           bestCompareEl.textContent = bestCompareText;
           bestCompareEl.style.color = bestCompareColor;
-          if (playRecordSfx) { try { playSfx('record', 0.4); } catch {} } // 신기록 빰빠밤 (음량 낮춤)
+          if (playRecordSfx) { try { playFanfare(); } catch {} } // 신기록 팡파레 (WebAudio 합성, 음량 균형)
         }
 
         if (isNewRecord && score > 0) {
+          const prevIdx = prevList.findIndex(e => e.nickname === savedNick);
           try {
             sessionStorage.setItem('oeing_just_updated', savedNick);
-            const prevIdx = prevList.findIndex(e => e.nickname === savedNick);
             sessionStorage.setItem('oeing_just_updated_prevrank', prevIdx === -1 ? '' : String(prevIdx + 1));
+          } catch {}
+          // ── 순위 추월 알림 — "○○님을 이겼어요! (N계단 ↑)" 복원 ──
+          //  이전에 나보다 위였는데 내 새 점수보다 낮아진 사람들 = 내가 제친 사람들.
+          try {
+            const aboveMe = prevIdx === -1 ? prevList : prevList.slice(0, prevIdx);
+            const overtaken = aboveMe.filter(e => e.nickname !== savedNick && (e.score || 0) < score);
+            const beatEl = document.getElementById('beatMsg');
+            if (beatEl && overtaken.length > 0) {
+              const passed = overtaken[0].nickname; // 방금 막 제친(내 새 위치 바로 아래) 사람
+              const climbed = overtaken.length;
+              beatEl.innerHTML = `🏆 <b>${escapeHtml(passed)}</b>님을 이겼다냥! <span style="color:#7fe895;">${climbed}계단 ↑</span>`;
+              beatEl.style.display = 'block';
+            }
           } catch {}
           renderRanking();
           nickDone.style.fontSize = '12px';
@@ -7813,24 +7886,70 @@ function isResultScreenVisible() {
   return !!(rp && rp.style.display !== 'none' && gamePanel && gamePanel.classList.contains('active'));
 }
 
+// 🎆 축포 파티클 버스트 — 화면 상단 중앙에서 색색 조각이 터져 퍼지고 중력으로 떨어짐.
+//  캔버스 1장, ~1.5초 후 자동 제거. 움직임 최소 선호 시 생략. 콘텐츠는 안 덮음(pointer 무시).
+function burstConfetti() {
+  try {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const cv = document.createElement('canvas');
+    const W = window.innerWidth, H = window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = W * dpr; cv.height = H * dpr;
+    cv.style.cssText = `position:fixed; inset:0; width:${W}px; height:${H}px; pointer-events:none; z-index:299;`;
+    document.body.appendChild(cv);
+    const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+    const colors = ['#FFD36B', '#FFE9A8', '#7ecdf0', '#B7BFFF', '#f9a8d4', '#86efac', '#fca5a5'];
+    const cx = W / 2, cy = H * 0.34;
+    const N = W < 480 ? 70 : 100;
+    const parts = [];
+    for (let i = 0; i < N; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = 3 + Math.random() * 7;
+      parts.push({
+        x: cx, y: cy,
+        vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - (3 + Math.random() * 3),
+        w: 5 + Math.random() * 5, h: 8 + Math.random() * 6,
+        rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.4,
+        col: colors[(Math.random() * colors.length) | 0], life: 0,
+      });
+    }
+    const T0 = performance.now(); const DUR = 1500;
+    (function frame(t) {
+      const el = t - T0; if (el > DUR) { cv.remove(); return; }
+      ctx.clearRect(0, 0, W, H);
+      const fade = el > DUR * 0.7 ? 1 - (el - DUR * 0.7) / (DUR * 0.3) : 1;
+      ctx.globalAlpha = Math.max(0, fade);
+      for (const p of parts) {
+        p.vy += 0.18; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.fillStyle = p.col; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      }
+      requestAnimationFrame(frame);
+    })(T0);
+  } catch {}
+}
+
 function showNewRecordPop() {
+  burstConfetti();
   const pop = document.createElement('div');
   pop.style.cssText = `
-    position:fixed; top:38%; left:50%;
+    position:fixed; top:34%; left:50%;
     transform:translate(-50%,-50%);
-    font-size:22px; font-weight:900;
-    color:#fff;
-    background:linear-gradient(135deg,#2563a8,#3b82f6);
-    padding:16px 24px; border-radius:18px;
-    box-shadow:0 0 30px rgba(59,130,246,0.7);
+    font-size:23px; font-weight:900;
+    color:#3a2606;
+    background:linear-gradient(135deg,#F6C453 0%,#FFE9A8 50%,#E0992B 100%);
+    padding:18px 26px; border-radius:20px;
+    border:1.5px solid rgba(255,244,214,0.9);
+    box-shadow:0 6px 26px rgba(224,153,43,0.5), 0 0 40px rgba(255,213,103,0.45), inset 0 1px 0 rgba(255,255,255,0.6);
     text-align:center; line-height:1.5;
     pointer-events:none; z-index:300;
-    animation:recordpop 2.2s ease forwards;
+    animation:recordpop 2.4s ease forwards;
     white-space:nowrap;
   `;
-  pop.innerHTML = `🏆 최고점수 등극!<br><span style="font-size:16px">대단하다냥 🐱</span>`;
+  pop.innerHTML = `🎉 최고점수 등극! 🎉<br><span style="font-size:15px; font-weight:800; color:#6b4a12;">역대 최고 기록 경신이다냥 🐱🔥</span>`;
   document.body.appendChild(pop);
-  setTimeout(() => pop.remove(), 2200);
+  setTimeout(() => pop.remove(), 2400);
 }
 
 // 정답 표시
