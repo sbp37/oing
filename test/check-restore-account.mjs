@@ -65,6 +65,32 @@ async function main() {
     process.exit(1);
   }
   console.log('OK — restoreAccount(status) reachable and responding correctly.');
+
+  // adminResetPin 배포 여부 확인 — 어드민 UID가 아니므로 permission-denied가 나오면
+  // "함수는 배포돼 있고 정상 작동 중"이라는 뜻(권한 검사까지 통과해서 도달했다는 증거).
+  // 404/연결 실패면 배포가 안 됐거나 함수명이 다른 것.
+  console.log(`\nTarget: ${CF_BASE}/adminResetPin`);
+  let res2, text2;
+  try {
+    res2 = await fetch(`${CF_BASE}/adminResetPin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ data: { nickname: '__diag_probe__', newPin: '1234' } }),
+    });
+    text2 = await res2.text();
+  } catch (e) {
+    console.error(`adminResetPin: network-level error: ${e && e.message}`);
+    return;
+  }
+  console.log(`adminResetPin: HTTP ${res2.status}`);
+  console.log(`Body: ${text2}`);
+  if (res2.status === 403 || (text2 || '').includes('permission-denied')) {
+    console.log('OK — adminResetPin is deployed and reachable (rejected non-admin caller as expected).');
+  } else if (res2.status === 404) {
+    console.log('NOTE — adminResetPin appears NOT deployed (404).');
+  } else {
+    console.log('NOTE — adminResetPin responded, but not with the expected permission-denied shape.');
+  }
 }
 
 main().catch((e) => { console.error('FAIL — unexpected error:', e); process.exit(1); });

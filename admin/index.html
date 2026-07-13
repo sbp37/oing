@@ -201,6 +201,18 @@
 
       <div class="card">
         <div class="card-head">
+          <h3>🔑 핀번호 재설정</h3>
+        </div>
+        <div class="card-note" style="margin-bottom:8px;">닉네임을 잃어버렸거나 다른 기기에서 "계정 연결"이 안 되는 유저를 위해 새 PIN을 발급합니다. 기존 PIN은 조회할 수 없고(서버가 해시만 저장), 완전히 새 PIN으로 교체됩니다. 발급된 PIN은 본인에게 직접 전달해주세요.</div>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+          <input id="pinResetNickInput" type="text" placeholder="닉네임" style="flex:1; min-width:0;">
+          <button id="pinResetBtn" class="btn btn-primary btn-sm" style="flex:0 0 auto;">새 PIN 발급</button>
+        </div>
+        <div id="pinResetResult"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
           <h3>🕵️ 의심 기록 탐지 (수동 스캔)</h3>
           <button id="suspectScanBtn" class="btn btn-primary btn-sm">스캔 실행</button>
         </div>
