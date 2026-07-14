@@ -2315,7 +2315,7 @@ body.light .rv-item { border-color: rgba(90,70,40,0.14); box-shadow: 0 2px 6px r
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--surface); border: 1.5px solid var(--border2); padding: 2px; box-sizing: border-box;
 }
-.rv-face img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.rv-face img { width: 84%; height: 84%; object-fit: cover; border-radius: 50%; display: block; }
 .rv-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .rv-nick-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .rv-nick { min-width: 0; font-size: 13.5px; font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -10684,6 +10684,28 @@ function reviewDateText(ts) {
   return `${d.getMonth() + 1}.${d.getDate()}`;
 }
 
+// ── 리뷰 프사 랜덤화 ──
+// 원본 고양이 한 장(MY_CAT_IMG)에 ① 은은한 파스텔 배경 12색 ② 자연색 고양이 6종을
+// 유저별로 입혀 "다 똑같은 봇" 느낌을 없앤다. 이미지·용량 추가 0.
+// 닉네임(없으면 uid) 해시로 결정적 배정 — 같은 사람은 폰을 바꿔도·수정해도 항상 같은 프사.
+const RV_BG_HUES = [265, 158, 25, 205, 335, 48, 95, 185, 350, 220, 12, 288]; // 라벤더·민트·피치·스카이·로즈·레몬·세이지·아쿠아·블러시·슬레이트·코랄·라일락
+const RV_CAT_FILTERS = [
+  'none',                                                // 치즈
+  'saturate(0.28) brightness(1.06)',                     // 회색
+  'saturate(0.5) brightness(1.24) hue-rotate(-8deg)',    // 크림
+  'saturate(0.16) brightness(1.42)',                     // 하양
+  'saturate(1.2) hue-rotate(-24deg) brightness(1.05)',   // 삼색
+  'saturate(0.45) brightness(1.05) hue-rotate(150deg)',  // 블루
+];
+function rvHash(s, seed) { let h = seed >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h; }
+function reviewAvatarHtml(key) {
+  const k = String(key || '·');
+  const hue = RV_BG_HUES[rvHash(k, 2166136261) % RV_BG_HUES.length];
+  const filt = RV_CAT_FILTERS[rvHash(k, 791234567) % RV_CAT_FILTERS.length];
+  const bg = `radial-gradient(circle at 50% 34%, hsl(${hue},27%,44%), hsl(${hue},30%,29%))`;
+  const bd = `hsl(${hue},28%,33%)`;
+  return `<span class="rv-face" style="background:${bg};border-color:${bd}"><img src="${MY_CAT_IMG}" style="filter:${filt}" alt=""></span>`;
+}
 async function openReviewBoard(forceReload) {
   document.getElementById('reviewBoardOverlay').style.display = 'flex';
   // 브이냥 — 캡처 기능과 같은 이미지 재활용 (용량 추가 없음)
@@ -10729,7 +10751,7 @@ async function openReviewBoard(forceReload) {
       // 카드 구조: (프사·닉·날짜) 한 그룹 + 별점 우상단 / 본문 전체폭 좌측 / 하단줄 = 수정·삭제(내 것) + 하트(우측)
       return `<div class="rv-item${isMine ? ' mine' : ''}" data-uid="${escapeHtml(r.uid)}">
         <div class="rv-top">
-          <span class="rv-face"><img src="${MY_CAT_IMG}" alt=""></span>
+          ${reviewAvatarHtml(r.nickname || r.uid)}
           <div class="rv-id">
             <div class="rv-nick-row">
               <span class="rv-nick">${escapeHtml(r.nickname || '')}</span>
