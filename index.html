@@ -3794,7 +3794,12 @@ function parseAccountFnError(e) {
   }
   if (code === 'functions/not-found') return { reason: 'not-found', msg: '이 닉네임을 못 찾겠다냥. 오타가 없는지 봐달라냥!' };
   if (code === 'functions/invalid-argument') return { reason: 'invalid', msg: e.message || '입력이 좀 이상하다냥. 다시 확인해달라냥!' };
-  if (code === 'functions/failed-precondition') return { reason: details.reason || 'not-ready', msg: e.message || '아직 준비가 안 됐다냥. 잠시 후 다시 해달라냥!' };
+  if (code === 'functions/failed-precondition') {
+    // not-ready = 서버에 이 계정의 핀 정보가 아예 없음(레거시) — "다시 시도"로는 절대 안 풀리므로
+    // 서버 원문 대신, 실제 해결 경로(문의하기 → 운영자 핀 재설정)를 알려준다.
+    if (details.reason === 'not-ready') return { reason: 'not-ready', msg: '이 닉네임은 서버에 이어하기 정보가 아직 없다냥.\n문의하기로 닉네임을 알려주면 금방 열어준다냥 🙏' };
+    return { reason: details.reason || 'not-ready', msg: e.message || '아직 준비가 안 됐다냥. 잠시 후 다시 해달라냥!' };
+  }
   // 함수 미배포/네트워크 장애 등 — fail-open 금지: 여기서 통과시키지 않음
   return { reason: 'unavailable', msg: '서버랑 연결이 잘 안 된다냥. 인터넷 확인하고 다시 해달라냥 🙏' };
 }
