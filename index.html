@@ -564,8 +564,8 @@ body.light #panelGame .cell.cat.in-range {
 
 /* PC에서 셀 크기 제한 */
 @media (min-width: 500px) {
-  .cell { font-size: clamp(16px, 2.7vw, 24px); }
-  .cell.cat { font-size: clamp(16px, 3vw, 24px); }
+  .cell { font-size: clamp(17.5px, 2.9vw, 26px); }
+  .cell.cat { font-size: clamp(17.5px, 3.2vw, 26px); }
 }
 
 /* 갤럭시 폴드 펼침 등 가로 넓은 화면 대응 */
@@ -582,8 +582,8 @@ body.light #panelGame .cell.cat.in-range {
     max-height: calc(100vh - 220px);
     aspect-ratio: 9 / var(--grid-rows, 13);
   }
-  .cell { font-size: clamp(15px, 2.4vw, 24px); }
-  .cell.cat { font-size: clamp(14px, 2.4vw, 24px); }
+  .cell { font-size: clamp(16.5px, 2.6vw, 26px); }
+  .cell.cat { font-size: clamp(15.5px, 2.6vw, 26px); }
   .bottom-bar {
     max-width: 100%;
   }
@@ -596,8 +596,8 @@ body.light #panelGame .cell.cat.in-range {
   }
 }
 @media (min-width: 650px) and (max-width: 1100px) {
-  .cell { font-size: clamp(20px, 3.4vw, 32px); }
-  .cell.cat { font-size: clamp(20px, 3.5vw, 32px); }
+  .cell { font-size: clamp(22px, 3.6vw, 34px); }
+  .cell.cat { font-size: clamp(22px, 3.7vw, 34px); }
 }
 
 .cell.sel {
@@ -1996,14 +1996,14 @@ body.light #panelGame .hint-btn.pregame { background: #f5f5f5; border-color: #d0
   100% { opacity:0; transform: scale(1.1); }
 }
 @media (max-width: 500px) {
-  .cell { font-size: clamp(15.5px, 4.2vw, 21px); }
-  .cell.cat { font-size: clamp(15px, 4.5vw, 20px); }
+  .cell { font-size: clamp(17px, 4.6vw, 23px); }
+  .cell.cat { font-size: clamp(16.5px, 4.9vw, 22px); }
 }
 
 /* PC에서 셀 크기 제한 */
 @media (min-width: 500px) {
-  .cell { font-size: clamp(16px, 2.7vw, 24px); }
-  .cell.cat { font-size: clamp(16px, 3vw, 24px); }
+  .cell { font-size: clamp(17.5px, 2.9vw, 26px); }
+  .cell.cat { font-size: clamp(17.5px, 3.2vw, 26px); }
 }
 
 /* 최고점 갱신 팝업 */
@@ -2300,10 +2300,10 @@ body.game-active #kakaoInstallHint {
   border-radius: 999px; cursor: pointer; font-family: inherit;
   background: rgba(24,34,51,0.55);
   border: 1px solid rgba(246,196,83,0.13);
-  font-size: 11.5px; font-weight: 700; color: rgba(217,193,132,0.85);
+  font-size: 13px; font-weight: 700; color: rgba(217,193,132,0.85);
 }
 .review-entry-chip .rv-chip-avg { font-weight: 800; color: rgba(234,194,117,0.9); }
-.review-entry-chip .cnt { font-weight: 600; color: var(--muted); font-size: 11px; }
+.review-entry-chip .cnt { font-weight: 600; color: var(--muted); font-size: 12px; }
 body.light .review-entry-chip { background: rgba(246,196,83,0.10); color: #8a6a2a; border-color: rgba(200,150,40,0.30); }
 
 /* 보드 — 모바일 네이티브 앱 스타일(좌측 정렬 중심, 정돈된 여백) */
@@ -2578,8 +2578,8 @@ if ('serviceWorker' in navigator) {
 
               <button class="action-btn" id="startBtn">게임 시작</button>
               <div id="dailyGoalStartLine" style="display:none; text-align:center; margin:9px 0 0; line-height:1.5;">
-                <div id="dailyGoalStartLine1" style="font-size:12px; font-weight:600; color:var(--muted); letter-spacing:-0.2px;"></div>
-                <div id="dailyGoalStartLine2" style="font-size:10px; font-weight:500; color:rgba(122,139,163,0.72); letter-spacing:-0.2px; margin-top:1px;"></div>
+                <div id="dailyGoalStartLine1" style="font-size:13.5px; font-weight:600; color:var(--muted); letter-spacing:-0.2px;"></div>
+                <div id="dailyGoalStartLine2" style="font-size:11.5px; font-weight:500; color:rgba(122,139,163,0.72); letter-spacing:-0.2px; margin-top:1px;"></div>
               </div>
               <button class="action-btn" id="startRankBtn" style="
                 width: 88%;
@@ -2604,18 +2604,18 @@ if ('serviceWorker' in navigator) {
                 font-weight: 700;
                 border-radius: 20px;
               ">연습모드</button>
-              <div style="margin-top:14px; font-size:11.5px; color:rgba(122,139,163,0.75);">
+              <div style="margin-top:14px; font-size:13px; color:rgba(122,139,163,0.82);">
                 <button id="updateLogBtn" style="
-                  background:none; border:none; color:rgba(122,139,163,0.75);
-                  font-size:11.5px; font-family:inherit; cursor:pointer;
+                  background:none; border:none; color:rgba(122,139,163,0.82);
+                  font-size:13px; font-family:inherit; cursor:pointer;
                 ">업데이트 내역 <span id="updateLogBtnNew" style="display:none;background:rgba(200,84,44,0.88);color:rgba(255,255,255,0.92);font-size:8.5px;font-weight:800;padding:0.5px 4px;border-radius:6px;letter-spacing:0.2px;vertical-align:1px;">NEW</span></button>
                 <span style="color:var(--border); margin:0 4px;">·</span>
                 <button id="contactBtnGame" style="
-                  background:none; border:none; color:rgba(122,139,163,0.75);
-                  font-size:11.5px; font-family:inherit; cursor:pointer;
+                  background:none; border:none; color:rgba(122,139,163,0.82);
+                  font-size:13px; font-family:inherit; cursor:pointer;
                 ">문의하기 <span id="contactBtnNew" style="display:none;background:rgba(200,84,44,0.88);color:rgba(255,255,255,0.92);font-size:8.5px;font-weight:800;padding:0.5px 4px;border-radius:6px;letter-spacing:0.2px;vertical-align:1px;">NEW</span></button>
               </div>
-              <div id="buildTag" style="margin-top:5px; font-size:10px; color:rgba(44,74,104,0.85);">build #1783602069</div>
+              <div id="buildTag" style="margin-top:5px; font-size:11px; color:rgba(44,74,104,0.9);">build #1783602069</div>
             </div>
           </div>
         </div>
@@ -7689,6 +7689,7 @@ function startGame() {
   if (_dfxReset) _dfxReset.classList.remove('on');
   document.getElementById('startOverlay').style.display = 'none';
   document.getElementById('resultPanel').style.display = 'none';
+  _resultPending = false; // 새 게임 시작 — 이전 결과 복원 대기 상태 해제
   const bestCompareEl0 = document.getElementById('bestCompare');
   if (bestCompareEl0) bestCompareEl0.textContent = '';
   const beatMsgEl0 = document.getElementById('beatMsg');
@@ -7776,6 +7777,9 @@ function startGame() {
 }
 
 let gameEnding = false; // endGame 중복 방지
+// 결과 화면이 떠 있는 상태에서 랭킹으로 이동한 경우 표시(탭 이동 동안만 결과 패널을 잠시 숨김).
+// 게임 탭으로 돌아오면 새 게임을 바로 시작하지 않고 결과 화면을 그대로 복원한다.
+let _resultPending = false;
 
 function showComboMilestonePop(n) {
   const pop = document.createElement('div');
@@ -9501,16 +9505,20 @@ document.getElementById('tabGame').addEventListener('click', () => {
     return;
   }
   const rp = document.getElementById('resultPanel');
-  if (rp && rp.style.display !== 'none') {
-    // 결과 패널 열려있으면 닫고 새 게임 시작
-    rp.style.display = 'none';
-    gameEnding = false;
-    startGame();
-  } else {
-    // 그 외(중단 후 복귀 포함) — 홈(시작) 화면 표시
-    gameEnding = false;
-    document.getElementById('startOverlay').style.display = 'flex';
+  if (_resultPending && rp) {
+    // 랭킹 갔다가 게임 탭으로 복귀 — 예전처럼 결과 화면을 그대로 다시 보여준다(새 게임 시작 X)
+    _resultPending = false;
+    rp.style.display = 'block';
+    try { updateEndedLayout(); } catch {}
+    return;
   }
+  if (rp && rp.style.display !== 'none') {
+    // 결과 패널이 아직 떠 있으면 그대로 유지 (새 게임 자동 시작하지 않음)
+    return;
+  }
+  // 그 외(중단 후 복귀 포함) — 홈(시작) 화면 표시
+  gameEnding = false;
+  document.getElementById('startOverlay').style.display = 'flex';
 });
 // 🪧 메인 탭 — 진행 중이던 게임은 종료하고 홈(타이틀+시작버튼)으로
 document.getElementById('tabMain').addEventListener('click', () => {
@@ -9519,12 +9527,16 @@ document.getElementById('tabMain').addEventListener('click', () => {
   clearAnswerHighlights();
   const rp = document.getElementById('resultPanel');
   if (rp) rp.style.display = 'none';
+  _resultPending = false; // 메인(홈)으로 명시적으로 나가면 결과 화면은 버린다
   gameEnding = false;
   document.getElementById('startOverlay').style.display = 'flex';
   checkForNewVersion();
 });
 // 🏆 랭킹 탭 — 진행 중이던 게임은 종료하고 랭킹으로
 document.getElementById('tabRank').addEventListener('click', () => {
+  // 게임이 끝나 결과 화면이 떠 있는 상태로 랭킹을 보러 가면, 게임 탭 복귀 시 결과를 복원한다
+  const rp = document.getElementById('resultPanel');
+  if (!gameRunning && rp && rp.style.display !== 'none') { _resultPending = true; rp.style.display = 'none'; }
   stopRunningGame();
   switchTab('rank');
   checkForNewVersion();
@@ -9855,14 +9867,11 @@ document.getElementById('deleteRankConfirmBtn').addEventListener('click', async 
   }
 });
 document.getElementById('resultRankBtn').addEventListener('click', () => {
+  // 결과 패널은 fixed라 랭킹 위에 겹치므로 이동 동안만 숨기고, 게임 탭 복귀 시 그대로 복원한다
+  // (예전처럼 결과 화면 유지 — 새 게임을 자동으로 시작하지 않는다).
   document.getElementById('resultPanel').style.display = 'none';
+  _resultPending = true;
   switchTab('rank');
-  // 게임탭 클릭 시 바로 시작하도록
-  document.getElementById('tabGame').addEventListener('click', function onceStart() {
-    clearAnswerHighlights();
-    startGame();
-    document.getElementById('tabGame').removeEventListener('click', onceStart);
-  }, { once: true });
 });
 
 // ══════════════════════════════
