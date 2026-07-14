@@ -10780,28 +10780,27 @@ async function openReviewWrite(existing) {
     alert('게임을 한 판 하면 닉네임을 만들 수 있다냥! 🐱\n닉네임을 만든 뒤에 리뷰를 남겨달라냥~');
     return;
   }
-  // ② 닉은 있는데 이 기기가 아직 계정 연결 안 됨 — 조용히 자동연결 시도 후, 안 되면 핀으로 1회 연결
-  if (!isUidLinked()) {
-    // 저장된 핀이 있으면 조용히 연결 시도(성공하면 유저는 아무것도 안 하고 바로 씀)
-    const storedPin = loadMyPin();
-    if (storedPin && MY_UID) {
-      try { await restoreAccountOnNewDevice(myNick, storedPin); } catch {}
-    }
-    // 아직도 미연결이면, 리뷰가 계정에 저장되는 이득을 안내하고 핀으로 1회 연결
-    if (!isUidLinked()) {
-      alert('리뷰는 네 계정에 저장돼서 폰을 바꿔도 남고, 너만 고치거나 지울 수 있다냥 🐾\n핀번호로 딱 한 번만 연결하면 된다냥!');
-      let pin = await askPinVerification(myNick); // 성공 시 내부에서 계정 연결(markUidLinked)까지 마침
-      if (!pin) return;                            // 취소/실패 — 아무 변경 없음
-      pin = null;                                  // 입력값 즉시 폐기
-      try { saveNickname(myNick); } catch {}
-      try { updateAccountLinkBtn(); } catch {}
-    }
-    if (!isUidLinked()) {
-      alert('아직 연결이 안 됐다냥. 잠시 후 다시 시도해달라냥 🙏');
-      return;
-    }
+  // ② 닉은 있는데 이 기기가 아직 계정 연결 안 됨 — 팝업 없이 조용히 자동 연결.
+  //    (내 것이거나 비어 있는 닉네임이면 성공 → 아무 조작 없이 바로 리뷰가 저장된다.
+  //     남의 닉네임이면 lookup 선점이 조용히 실패하고 서버가 최종 판단한다 — 도용 방지 유지.)
+  if (!isUidLinked() && MY_UID) {
+    try {
+      const storedPin = loadMyPin();
+      // 저장된 핀이 있으면 기존 계정 이어쓰기(복구)부터 시도
+      if (storedPin) { try { await restoreAccountOnNewDevice(myNick, storedPin); } catch {} }
+      // 아직도 미연결이면 내 UID에 조용히 연결(핀 자동 발급·저장, 팝업 없음)
+      if (!isUidLinked()) {
+        const pin = storedPin || generatePin();
+        const ok = await linkNewNicknameToUid(myNick, pin);
+        if (ok) {
+          saveMyPin(pin);
+          try { saveNickname(myNick); } catch {}
+          try { updateAccountLinkBtn(); } catch {}
+        }
+      }
+    } catch {}
   }
-  // ③ 연결됨 — 리뷰 쓰기 진행
+  // ③ 리뷰 쓰기 진행 — 저장은 서버가 최종 판단(미연결이면 제출 시 안내)
   _rvwRating = existing ? (existing.rating || 0) : 0;
   const ta = document.getElementById('rvwText');
   ta.value = existing ? (existing.text || '') : '';
@@ -10838,7 +10837,7 @@ document.getElementById('rvwSubmitBtn').addEventListener('click', async () => {
     const reason = e && e.details && e.details.reason;
     const code = (e && e.code) || '';
     if (reason === 'bad-words') alert('고운 말로 부탁한다냥 🙏');
-    else if (reason === 'not-linked') alert('리뷰 계정 연결이 아직 마무리 안 됐다냥. 잠시 후 다시 눌러달라냥 🙏');
+    else if (reason === 'not-linked') alert('앗, 이 닉네임은 다른 기기에서 만든 계정이라 바로 저장이 안 된다냥.\n게임 화면의 \'계정 연결\'에서 핀번호로 한 번만 이어주면 리뷰가 저장된다냥 🐾');
     else if (/unauthenticated/.test(code)) alert('접속 상태가 고르지 않다냥. 잠시 후 다시 해달라냥 🙏');
     else alert('리뷰 남기기에 실패했다냥. 잠시 후 다시 해달라냥 🙏');
   } finally {
