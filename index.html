@@ -3483,7 +3483,7 @@ if ('serviceWorker' in navigator) {
   <div class="overlay-card">
     <div class="overlay-title">🔑 내 핀번호</div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6;">
-      다른 기기(폰, PC, 태블릿)에서<br>같은 닉네임으로 이어서 플레이하려면<br>이 핀번호가 필요해요!
+      새 폰·PC·태블릿에서 같은 닉네임으로<br>이어하려면 이 숫자 4개만 알면 된다냥!<br>📸 캡처해두면 편하다냥~
     </div>
     <div id="pinDisplayValue" style="
       font-size:36px; font-weight:900; letter-spacing:8px;
@@ -3499,7 +3499,7 @@ if ('serviceWorker' in navigator) {
   <div class="overlay-card">
     <div class="overlay-title" style="font-size:18px;">🗑️ 랭킹 기록 삭제</div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6;">
-      삭제할 닉네임과 핀번호를 입력하세요.<br>본인 확인 후 삭제되며, 되돌릴 수 없어요.
+      삭제할 닉네임과 핀번호를 확인해달라냥.<br>한 번 지우면 되돌릴 수 없다냥!
     </div>
     <input class="nick-input" id="deleteRankNickInput" type="text" maxlength="6" placeholder="삭제할 닉네임 입력">
     <input class="nick-input" id="deleteRankPinInput" type="tel" maxlength="4" placeholder="핀번호 4자리" style="text-align:center; letter-spacing:8px; font-size:20px; margin-top:8px;">
@@ -3514,10 +3514,10 @@ if ('serviceWorker' in navigator) {
   <div class="overlay-card">
     <div class="overlay-title">🔑 본인 확인</div>
     <div id="pinVerifyDesc" style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6;">
-      이미 사용 중인 닉네임이에요.<br>본인이라면 다른 기기에서 확인한<br>핀번호 4자리를 입력해주세요.
+      이미 주인이 있는 닉네임이다냥!<br>본인 계정이 맞다면, 쓰던 기기의<br>🔑 내 핀번호 4자리를 입력해달라냥.
     </div>
     <input class="nick-input" id="pinVerifyInput" type="tel" maxlength="4" placeholder="핀번호 4자리" style="text-align:center; letter-spacing:8px; font-size:20px;">
-    <div id="pinVerifyError" style="font-size:13px;color:#f87171;margin:4px 0 8px;display:none;">핀번호가 일치하지 않아요</div>
+    <div id="pinVerifyError" style="font-size:13px;color:#f87171;margin:4px 0 8px;display:none;">핀번호가 다르다냥!</div>
     <button class="action-btn" id="pinVerifyConfirmBtn">확인</button>
     <button class="action-btn secondary" id="pinVerifyCancelBtn">취소</button>
   </div>
@@ -3787,16 +3787,16 @@ function parseAccountFnError(e) {
   if (code === 'functions/permission-denied') {
     if (details.reason === 'locked') {
       const min = Math.max(1, Math.ceil((details.retryAfterSec || 900) / 60));
-      return { reason: 'locked', msg: `PIN을 여러 번 잘못 입력했어요. ${min}분 후 다시 시도해주세요.` };
+      return { reason: 'locked', msg: `핀번호를 여러 번 틀려서 잠깐 쉬는 중이다냥. ${min}분 뒤에 다시 해달라냥 🙏` };
     }
-    const remain = (typeof details.remain === 'number') ? ` (남은 시도 ${details.remain}회)` : '';
-    return { reason: 'wrong-pin', msg: '핀번호가 일치하지 않아요' + remain };
+    const remain = (typeof details.remain === 'number') ? ` (${details.remain}번 더 해볼 수 있다냥)` : '';
+    return { reason: 'wrong-pin', msg: '핀번호가 다르다냥!' + remain };
   }
-  if (code === 'functions/not-found') return { reason: 'not-found', msg: '해당 닉네임을 찾을 수 없어요.' };
-  if (code === 'functions/invalid-argument') return { reason: 'invalid', msg: e.message || '입력이 올바르지 않아요.' };
-  if (code === 'functions/failed-precondition') return { reason: details.reason || 'not-ready', msg: e.message || '이 닉네임의 복구 정보가 아직 준비되지 않았어요. 잠시 후 다시 시도해주세요.' };
+  if (code === 'functions/not-found') return { reason: 'not-found', msg: '이 닉네임을 못 찾겠다냥. 오타가 없는지 봐달라냥!' };
+  if (code === 'functions/invalid-argument') return { reason: 'invalid', msg: e.message || '입력이 좀 이상하다냥. 다시 확인해달라냥!' };
+  if (code === 'functions/failed-precondition') return { reason: details.reason || 'not-ready', msg: e.message || '아직 준비가 안 됐다냥. 잠시 후 다시 해달라냥!' };
   // 함수 미배포/네트워크 장애 등 — fail-open 금지: 여기서 통과시키지 않음
-  return { reason: 'unavailable', msg: '서버 확인에 실패했어요. 네트워크 확인 후 다시 시도해주세요.' };
+  return { reason: 'unavailable', msg: '서버랑 연결이 잘 안 된다냥. 인터넷 확인하고 다시 해달라냥 🙏' };
 }
 
 // ── 다른 기기 이어하기 (기존 UID 계정 자체로 로그인) ──
@@ -8433,7 +8433,7 @@ function askPinVerification(nickname) {
     const cancelBtn = document.getElementById('pinVerifyCancelBtn');
     const descEl = document.getElementById('pinVerifyDesc');
 
-    descEl.innerHTML = `'<b style="color:var(--blue-light)">${escapeHtml(nickname)}</b>'은 이미 사용 중인 닉네임이에요.<br>본인이라면 다른 기기에서 확인한<br>핀번호 4자리를 입력해주세요.`;
+    descEl.innerHTML = `'<b style="color:var(--blue-light)">${escapeHtml(nickname)}</b>'은 이미 주인이 있는 닉네임이다냥!<br>본인 계정이 맞다면 — 쓰던 기기의 <b>랭킹 탭 맨 아래<br>🔑 내 핀번호</b>에서 4자리를 보고 입력해달라냥.<br><span style="font-size:12px; color:var(--muted);">다른 사람 닉네임이라면 취소하고 새 이름을 골라달라냥 🐾</span>`;
     input.value = '';
     errorEl.style.display = 'none';
     overlay.style.display = 'flex';
@@ -8448,7 +8448,7 @@ function askPinVerification(nickname) {
     confirmBtn.onclick = async () => {
       const pin = input.value.trim();
       if (pin.length !== 4) {
-        errorEl.textContent = '4자리 숫자를 입력해주세요';
+        errorEl.textContent = '숫자 4자리를 입력해달라냥!';
         errorEl.style.display = 'block';
         return;
       }
@@ -8463,7 +8463,7 @@ function askPinVerification(nickname) {
         cleanup();
         resolve(pin);
       } else {
-        errorEl.textContent = result.msg || '핀번호가 일치하지 않아요';
+        errorEl.textContent = result.msg || '핀번호가 다르다냥!';
         errorEl.style.display = 'block';
       }
     };
@@ -9665,25 +9665,34 @@ async function verifyPromotion() {
   return out;
 }
 
+// 핀은 뒤에서만: ① 저장된 핀으로 조용히 복구 → ② 내 UID로 조용히 새 연결(핀 자동 발급)
+// → ③ 그래도 안 되면(= 이 닉네임이 다른 기기 계정) 그때만 핀 1번 입력.
 async function linkAccountWithPin() {
   const myNick = loadNickname();
-  if (!myNick) { alert('먼저 닉네임이 필요해요.'); return; }
-  if (isUidLinked()) { alert('이미 이 기기에 계정이 연결돼 있어요.'); updateAccountLinkBtn(); return; }
-  // 기존 PIN 팝업 재사용 — 성공 시 restoreAccountOnNewDevice가 markUidLinked·saveNickname·saveMyPin까지 수행.
-  let pin = await askPinVerification(myNick); // 사용자가 v3 화면에서 직접 입력
-  if (!pin) return;                            // 취소/실패 — 데이터 변경 없음
-  pin = null;                                  // 입력값 즉시 폐기(메모리에서 제거)
+  if (!myNick) { alert('먼저 게임을 한 판 하면 닉네임이 생긴다냥 🐾'); return; }
+  if (isUidLinked()) { alert('이미 연결돼 있다냥! 그대로 쓰면 된다냥 😸'); updateAccountLinkBtn(); return; }
+  const storedPin = loadMyPin();
+  try {
+    if (storedPin) { try { await restoreAccountOnNewDevice(myNick, storedPin); } catch {} }
+    if (!isUidLinked() && MY_UID) {
+      const autoPin = storedPin || generatePin();
+      const ok = await linkNewNicknameToUid(myNick, autoPin);
+      if (ok) saveMyPin(autoPin);
+    }
+  } catch {}
+  if (!isUidLinked()) {
+    // 여기 도달 = 닉네임 주인이 따로 있음(진짜 기기 이동) — 이때만 핀을 물어본다
+    let pin = await askPinVerification(myNick); // 성공 시 내부에서 계정 복구까지 완료
+    if (!pin) return;                            // 취소/실패 — 데이터 변경 없음
+    pin = null;                                  // 입력값 즉시 폐기(메모리에서 제거)
+  }
   try { saveNickname(myNick); } catch {}
   try { refreshMyCatSkin(); } catch {}
   try { loadJellyBalance(); } catch {}
   updateAccountLinkBtn();
-  // 읽기 전용 검증 요약 표시
-  try {
-    const v = await verifyPromotion();
-    alert('계정 연결 완료! 🐾 기존 기록이 유지됩니다.\n'
-      + `점수 ${v.rankScore ?? '?'} · 젤리 ${v.jelly ?? '?'} · 고양이 ${v.cat ? 'O' : '-'}\n`
-      + `UID연결 ${v.linked ? 'O' : 'X'} · PIN준비 ${v.pinReady ? 'O' : 'X'}`);
-  } catch { alert('계정 연결 완료! 🐾 기존 기록이 유지됩니다.'); }
+  // 읽기 전용 검증은 콘솔로만 — 사용자에겐 간단한 완료 인사만
+  try { verifyPromotion(); } catch {}
+  alert('계정 연결 완료다냥! 🐾 점수·젤리·스킨 다 그대로다냥');
 }
 document.getElementById('accountLinkBtn').addEventListener('click', linkAccountWithPin);
 document.getElementById('resultRestartBtn').addEventListener('click', () => {
@@ -9703,7 +9712,7 @@ document.getElementById('deleteRankConfirmBtn').addEventListener('click', async 
   const pin = document.getElementById('deleteRankPinInput').value.trim();
   const statusEl = document.getElementById('deleteRankStatus');
   if (!nick) { statusEl.textContent = '닉네임을 입력해주세요.'; return; }
-  if (!/^\d{4}$/.test(pin)) { statusEl.textContent = '핀번호 4자리를 입력해주세요.'; return; }
+  if (!/^\d{4}$/.test(pin)) { statusEl.textContent = '핀번호 숫자 4자리를 입력해달라냥!'; return; }
   if (!confirm(`"${nick}" 님의 랭킹 기록을 정말 삭제할까요?\n되돌릴 수 없어요.`)) return;
   const btn = document.getElementById('deleteRankConfirmBtn');
   btn.disabled = true;
@@ -9718,7 +9727,7 @@ document.getElementById('deleteRankConfirmBtn').addEventListener('click', async 
       return;
     }
     if (!result.ok) {
-      statusEl.textContent = result.msg || '핀번호가 일치하지 않아요.';
+      statusEl.textContent = result.msg || '핀번호가 다르다냥!';
       return;
     }
     // 로컬 폴백 목록에서도 정리
@@ -9825,7 +9834,18 @@ document.getElementById('nickChangeBtn').addEventListener('click', async () => {
   // 소유권은 서버가 auth.uid로 판정 — 미연결(레거시) 사용자는 먼저 '계정 연결'로 승격해야 한다.
   if (RENAME_V2_ENABLED) {
     if (!isUidLinked()) {
-      alert("먼저 '계정 연결'로 로그인한 뒤 닉네임을 바꿀 수 있어요 🐾");
+      // 팝업으로 미루지 말고 여기서 조용히 자동 연결부터 시도 (내 닉이면 그냥 성공한다)
+      try {
+        const sp = loadMyPin();
+        if (sp) { try { await restoreAccountOnNewDevice(oldNick, sp); } catch {} }
+        if (!isUidLinked() && MY_UID) {
+          const ap = sp || generatePin();
+          if (await linkNewNicknameToUid(oldNick, ap)) saveMyPin(ap);
+        }
+      } catch {}
+    }
+    if (!isUidLinked()) {
+      alert("이 닉네임은 다른 기기에서 쓰던 계정이라냥.\n랭킹 탭 아래 '🔗 계정 연결'에서 핀번호 한 번만 넣으면 바로 바꿀 수 있다냥 🐾");
       btn.disabled = false; btn.textContent = '변경하기';
       return;
     }
@@ -10837,7 +10857,7 @@ document.getElementById('rvwSubmitBtn').addEventListener('click', async () => {
     const reason = e && e.details && e.details.reason;
     const code = (e && e.code) || '';
     if (reason === 'bad-words') alert('고운 말로 부탁한다냥 🙏');
-    else if (reason === 'not-linked') alert('앗, 이 닉네임은 다른 기기에서 만든 계정이라 바로 저장이 안 된다냥.\n게임 화면의 \'계정 연결\'에서 핀번호로 한 번만 이어주면 리뷰가 저장된다냥 🐾');
+    else if (reason === 'not-linked') alert('앗, 이 닉네임은 다른 기기에서 만든 계정이라 바로 저장이 안 된다냥.\n랭킹 탭 아래 \'🔗 계정 연결\'에서 핀번호 한 번만 넣으면 리뷰도 저장된다냥 🐾');
     else if (/unauthenticated/.test(code)) alert('접속 상태가 고르지 않다냥. 잠시 후 다시 해달라냥 🙏');
     else alert('리뷰 남기기에 실패했다냥. 잠시 후 다시 해달라냥 🙏');
   } finally {
