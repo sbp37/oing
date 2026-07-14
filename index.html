@@ -8784,10 +8784,15 @@ document.addEventListener('click', async (e) => {
   } catch (err) { console.warn('말풍선 수정 실패:', err); }
 });
 
+// 랭킹 렌더 세대 — 탭/모드 전환이 겹치면 async 렌더가 여러 개 떠서, 늦게 끝난 stale 렌더가
+// DOM(시상대/목록)을 덮어써 "이번주인데 전체가 보이는" 뒤섞임이 생긴다. 렌더마다 세대를 발급하고
+// await 지점·DOM 커밋 직전에 최신 세대인지 확인해, 뒤처진 렌더는 아무것도 그리지 않고 즉시 중단.
+let _rankRenderGen = 0;
 async function renderRanking() {
+  const gen = ++_rankRenderGen;
   try { refreshReviewEntryChip(); } catch (e) {} // ⭐ 리뷰 입구 뱃지 (meta 1문서, 10분 캐시)
   try {
-    await renderRankingInner();
+    await renderRankingInner(gen);
   } catch (e) {
     console.warn('전체 랭킹 렌더 실패:', e);
     const rankEmptyEl = document.getElementById('rankEmpty');
@@ -8802,12 +8807,14 @@ async function renderRanking() {
   }
 }
 
-async function renderRankingInner() {
+async function renderRankingInner(gen = ++_rankRenderGen) {
   try { updateAccountLinkBtn(); } catch {}
   await loadSkinsCache();
-  if (currentRankMode === 'week') { await renderWeeklyRanking(); return; }
+  if (gen !== _rankRenderGen) return; // 더 최신 렌더가 시작됨 → 이 렌더는 중단(탭 뒤섞임 방지)
+  if (currentRankMode === 'week') { await renderWeeklyRanking(gen); return; }
   renderWeeklyThanks();
   let list = await loadRankings();
+  if (gen !== _rankRenderGen) return;
   const myNick = loadNickname();
   // 왕관은 실시간이 아니라 "주가 넘어갔을 때 그 시점 1등"한테만 지급 (친구 탭에서는 실행 안 함)
   if (currentRankMode !== 'friends' && list.length > 0) {
@@ -8818,6 +8825,7 @@ async function renderRankingInner() {
     // 친구 0명 → 전체 랭킹을 친구 탭에 그대로 보여주는 fallback 절대 금지.
     // 빈 상태 UI만 보여주고 즉시 종료 (시상대/목록/내순위 요약바 모두 비움).
     if (!Array.isArray(friends) || friends.length === 0) {
+      if (gen !== _rankRenderGen) return;
       try { document.getElementById('podiumWrap').innerHTML = ''; } catch {}
       try { document.getElementById('podiumFloor').innerHTML = ''; } catch {}
       try { document.getElementById('rankList').innerHTML = ''; } catch {}
@@ -8957,6 +8965,7 @@ async function renderRankingInner() {
   }
 
   // ── 시상대 렌더 ──
+  if (gen !== _rankRenderGen) return; // 이 시점 이후는 동기 DOM 커밋 — 뒤처진 렌더면 여기서 멈춘다
   const podium = document.getElementById('podiumWrap');
   const podiumFloor = document.getElementById('podiumFloor');
   const plaqueLeafSrc = currentRankMode === 'all' ? LEAF_GOLD_SRC : LEAF_MINT_SRC;
@@ -9060,6 +9069,7 @@ async function renderRankingInner() {
     } else {
       // 상위 150명 밖이라도 등록된 점수가 있으면 카드를 숨기지 않고 실제 점수로 표시
       const shown = await showMyRankCardIfBelowCut(myNick, false);
+      if (gen !== _rankRenderGen) return;
       if (shown) {
         myRankInfo.innerHTML = `닉네임: <strong>${escapeHtml(myNick)}</strong>`;
       } else {
@@ -9094,9 +9104,9 @@ async function mergeWeeklyRankSnapshot(partialRanksDotted) {
   } catch (e) { console.warn('주간 순위 스냅샷 병합 실패:', e); }
 }
 
-async function renderWeeklyRanking() {
+async function renderWeeklyRanking(gen = ++_rankRenderGen) {
   try {
-    await renderWeeklyRankingInner();
+    await renderWeeklyRankingInner(gen);
   } catch (e) {
     console.warn('이번주 랭킹 렌더 실패:', e);
     const rankEmptyEl = document.getElementById('rankEmpty');
@@ -9111,8 +9121,9 @@ async function renderWeeklyRanking() {
   }
 }
 
-async function renderWeeklyRankingInner() {
+async function renderWeeklyRankingInner(gen = ++_rankRenderGen) {
   const list = await loadWeeklyRankings();
+  if (gen !== _rankRenderGen) return;
   const myNick = loadNickname();
   const justUpdated = sessionStorage.getItem('oeing_just_updated');
   renderWeeklyThanks();
@@ -9135,6 +9146,7 @@ async function renderWeeklyRankingInner() {
     if (Object.keys(missingW).length > 0) mergeWeeklyRankSnapshot(missingW);
   }
 
+  if (gen !== _rankRenderGen) return; // 동기 DOM 커밋 직전 — 뒤처진 렌더면 멈춘다
   const podium = document.getElementById('podiumWrap');
   const podiumFloor = document.getElementById('podiumFloor');
   const plaqueLeafSrc = LEAF_BLUE_SRC;
@@ -9212,6 +9224,7 @@ async function renderWeeklyRankingInner() {
     } else {
       // 이번 주 상위 150명 밖이라도 이번 주 기록이 있으면 카드를 실제 점수로 표시
       const shown = await showMyRankCardIfBelowCut(myNick, true);
+      if (gen !== _rankRenderGen) return;
       if (shown) {
         myRankInfo.innerHTML = `<span style="font-size:13px; color:var(--muted);">🗓️ ${resetLabel} (매주 월요일)</span>`;
       } else {
@@ -9262,7 +9275,17 @@ const FAIRPLAY_LINES = [
 ];
 function setFairplayNotice() {
   const el = document.getElementById('rankFairplayNotice');
-  if (el) el.textContent = FAIRPLAY_LINES[Math.floor(Math.random() * FAIRPLAY_LINES.length)];
+  // 랜덤 페어플레이 멘트는 '이번주' 전용 — 전체/친구 탭엔 안내문이 이미 많아 정신없어 보여서 숨긴다.
+  // (주간을 제일 자주 보고, 페어플레이 취지도 매주 리셋되는 주간 경쟁과 가장 잘 맞음)
+  if (el) {
+    if (currentRankMode === 'week') {
+      el.textContent = FAIRPLAY_LINES[Math.floor(Math.random() * FAIRPLAY_LINES.length)];
+      el.style.display = '';
+    } else {
+      el.textContent = '';
+      el.style.display = 'none';
+    }
+  }
   // 기본 "이번주" 화면은 applyRankModeChrome('week')를 안 거칠 수 있어(정적 HTML 그대로),
   // 여기서도 D-day를 직접 갱신 — 안 그러면 "이번 시즌 진행 중"이 그대로 남는다.
   try {
@@ -9384,6 +9407,8 @@ function applyRankModeChrome(mode) {
     if (subMain) subMain.textContent = '🐾 친구끼리 이번 주 점수로 겨뤄보자냥';
     if (subSub) subSub.textContent = '역대 최고기록은 점수 아래 작게 표시된다냥!';
   }
+  // 페어플레이 랜덤멘트 노출 여부는 모드에 따라 setFairplayNotice가 판단('이번주'만 표시)
+  try { setFairplayNotice(); } catch {}
 }
 document.getElementById('rankModeAll').addEventListener('click', () => {
   if (currentRankMode === 'all') return;
@@ -9392,6 +9417,10 @@ document.getElementById('rankModeAll').addEventListener('click', () => {
   document.getElementById('panelRank').classList.remove('week-mode', 'friends-mode');
   document.getElementById('panelRank').classList.add('all-mode');
   applyRankModeChrome('all');
+  // 비동기 renderRanking이 끝나기 전까지 이전 탭 목록이 남아 "다른 탭이 보이는" 것을 막기 위해 즉시 비움
+  try { document.getElementById('podiumWrap').innerHTML = ''; } catch {}
+  try { document.getElementById('podiumFloor').innerHTML = ''; } catch {}
+  try { document.getElementById('rankList').innerHTML = ''; } catch {}
   renderRanking();
 });
 document.getElementById('rankModeWeek').addEventListener('click', () => {
@@ -9401,6 +9430,10 @@ document.getElementById('rankModeWeek').addEventListener('click', () => {
   document.getElementById('panelRank').classList.add('week-mode');
   document.getElementById('panelRank').classList.remove('friends-mode', 'all-mode');
   applyRankModeChrome('week');
+  // 비동기 renderRanking이 끝나기 전까지 이전 탭 목록이 남아 "다른 탭이 보이는" 것을 막기 위해 즉시 비움
+  try { document.getElementById('podiumWrap').innerHTML = ''; } catch {}
+  try { document.getElementById('podiumFloor').innerHTML = ''; } catch {}
+  try { document.getElementById('rankList').innerHTML = ''; } catch {}
   renderRanking();
 });
 document.getElementById('rankModeFriends').addEventListener('click', () => {
