@@ -447,6 +447,89 @@ async function resetCrown() {
   }
 }
 
+// ── ⭐ 리뷰 관리 ──
+// 목록 조회는 어드민이 버튼을 눌렀을 때만(자동 조회 없음). 모든 변경(승인/거부/삭제/답글/확인)은
+// reviewAction 서버 함수를 호출한다 — 클라이언트는 game_reviews* 에 직접 쓸 수 없음(rules).
+function rvStars(r) { const n = Math.max(1, Math.min(5, r | 0)); return '★'.repeat(n) + '☆'.repeat(5 - n); }
+
+async function callReviewAdmin(payload) {
+  const res = await httpsCallable(fns, 'reviewAction')(payload);
+  return (res && res.data) || {};
+}
+
+async function scanReviews() {
+  const el = document.getElementById('reviewAdminResult');
+  setLoading(el, '리뷰를 불러오는 중...');
+  try {
+    const [live, pending] = await Promise.all([
+      fetchDocs(query(collection(db, 'game_reviews'), orderBy('updatedAt', 'desc'), limit(200))),
+      fetchDocs(collection(db, 'game_reviews_pending')),
+    ]);
+
+    const pendingHtml = pending.length ? `
+      <div style="margin-bottom:10px;">
+        <b style="color:#e5a33c;">⏳ 보류 중 (승인해야 공개) — ${pending.length}건</b>
+        ${pending.map(p => `
+          <div style="border:1px solid #4a3a1a; border-radius:8px; padding:8px 10px; margin-top:6px;">
+            <b>${escapeHtml(p.nickname || '')}</b> ${rvStars(p.rating)}
+            <span style="opacity:.6; font-size:11px;">(걸린 단어: ${escapeHtml(p.holdMatch || '?')})</span>
+            <div style="margin:4px 0;">${escapeHtml(p.text || '(별점만)')}</div>
+            <button class="btn btn-primary btn-sm" data-rv-approve="${escapeHtml(p.id)}">✅ 승인(공개)</button>
+            <button class="btn btn-danger btn-sm" data-rv-reject="${escapeHtml(p.id)}">거부(삭제)</button>
+          </div>`).join('')}
+      </div>` : '';
+
+    const unchecked = live.filter(r => !r.checked);
+    const checked = live.filter(r => r.checked);
+    const row = (r) => `
+      <div style="border:1px solid ${r.checked ? '#223347' : '#5a2323'}; border-radius:8px; padding:8px 10px; margin-top:6px;">
+        ${r.checked ? '' : `<b style="color:#ff8a8a;">${(r.editCount || 0) > 0 ? '✏️ 수정됨' : '🔴 새 리뷰'}</b> `}
+        <b>${escapeHtml(r.nickname || '')}</b> ${rvStars(r.rating)}
+        <span style="opacity:.6; font-size:11px;">${fmtDateTime(r.updatedAt || r.createdAt)} · ❤️${r.hearts || 0}${(r.editCount || 0) > 0 ? ` · 수정 ${r.editCount}회` : ''}</span>
+        <div style="margin:4px 0;">${escapeHtml(r.text || '(별점만)')}</div>
+        ${r.reply && r.reply.text ? `<div style="font-size:12px; color:#e5c36a; margin:4px 0;">😺 답글: ${escapeHtml(r.reply.text)}</div>` : ''}
+        ${Array.isArray(r.history) && r.history.length ? `
+          <details style="font-size:11.5px; opacity:.75; margin:4px 0;"><summary>📜 이전 내용 ${r.history.length}개</summary>
+            ${r.history.map(h => `<div style="margin-top:3px;">${rvStars(h.rating)} ${escapeHtml(h.text || '(별점만)')} <span style="opacity:.6;">(${fmtDateTime(h.ts)})</span></div>`).join('')}
+          </details>` : ''}
+        ${r.checked ? '' : `<button class="btn btn-primary btn-sm" data-rv-check="${escapeHtml(r.id)}">👌 확인</button>`}
+        <button class="btn btn-sm" data-rv-reply="${escapeHtml(r.id)}" data-rv-reply-cur="${escapeHtml((r.reply && r.reply.text) || '')}">💬 답글${r.reply && r.reply.text ? ' 수정' : ''}</button>
+        <button class="btn btn-danger btn-sm" data-rv-del="${escapeHtml(r.id)}">삭제</button>
+      </div>`;
+
+    el.innerHTML = `
+      ${pendingHtml}
+      ${unchecked.length ? `<b>미확인 ${unchecked.length}건</b>${unchecked.map(row).join('')}` : '<div style="opacity:.7;">미확인 리뷰 없음 ✅</div>'}
+      ${checked.length ? `<details style="margin-top:10px;"><summary>확인 완료 ${checked.length}건 보기</summary>${checked.map(row).join('')}</details>` : ''}
+    `;
+
+    // 액션 바인딩 — 처리 후 재스캔
+    const rescan = () => scanReviews();
+    el.querySelectorAll('[data-rv-approve]').forEach(b => b.addEventListener('click', guardBtn(b, async () => {
+      await callReviewAdmin({ action: 'adminApprove', targetUid: b.dataset.rvApprove }); rescan();
+    })));
+    el.querySelectorAll('[data-rv-reject]').forEach(b => b.addEventListener('click', guardBtn(b, async () => {
+      if (!confirm('이 보류 리뷰를 거부(삭제)할까요?')) return;
+      await callReviewAdmin({ action: 'adminReject', targetUid: b.dataset.rvReject }); rescan();
+    })));
+    el.querySelectorAll('[data-rv-check]').forEach(b => b.addEventListener('click', guardBtn(b, async () => {
+      await callReviewAdmin({ action: 'adminCheck', targetUid: b.dataset.rvCheck }); rescan();
+    })));
+    el.querySelectorAll('[data-rv-del]').forEach(b => b.addEventListener('click', guardBtn(b, async () => {
+      if (!confirm('이 리뷰를 삭제할까요? 평균 별점에서도 빠집니다.')) return;
+      await callReviewAdmin({ action: 'adminDelete', targetUid: b.dataset.rvDel }); rescan();
+    })));
+    el.querySelectorAll('[data-rv-reply]').forEach(b => b.addEventListener('click', guardBtn(b, async () => {
+      const cur = b.dataset.rvReplyCur || '';
+      const text = prompt('😺 오잉냥이 답글 (비우고 확인하면 답글 삭제, 200자까지)', cur);
+      if (text === null) return; // 취소
+      await callReviewAdmin({ action: 'adminReply', targetUid: b.dataset.rvReply, text: text.trim() }); rescan();
+    })));
+  } catch (e) {
+    setError(el, humanError(e));
+  }
+}
+
 // ── 바인딩 / 로드 ──
 export function initSecurityTab() {
   const scanBtn = document.getElementById('suspectScanBtn');
@@ -457,6 +540,9 @@ export function initSecurityTab() {
 
   const pinResetBtn = document.getElementById('pinResetBtn');
   if (pinResetBtn) pinResetBtn.addEventListener('click', guardBtn(pinResetBtn, resetPin));
+
+  const reviewScanBtn = document.getElementById('reviewScanBtn');
+  if (reviewScanBtn) reviewScanBtn.addEventListener('click', guardBtn(reviewScanBtn, scanReviews));
 
   const delBtn = document.getElementById('secDeleteBtn');
   delBtn.addEventListener('click', guardBtn(delBtn, async () => {
