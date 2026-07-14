@@ -4204,7 +4204,7 @@ const NICK_KEY = 'oeing_nickname_v1';
 const MAX_RANKS = 500; // 랭킹 화면에서 한 번에 불러오는 최대 인원. 유저가 아직 많지 않아 전부 보이게
                        // 넉넉히 잡음(전체는 100 + '더보기'로 펼침, 주간·친구는 전부 표시).
                        // 유저가 크게 늘면 읽기 비용을 보고 다시 조정할 것.
-const ALL_RANK_PREVIEW = 100; // 전체 랭킹에서 처음에 보여줄 인원(나머지는 '더보기'로 펼침)
+const RANK_PREVIEW_COUNT = 100; // 랭킹에서 처음에 그려줄 인원(전체·주간·친구 공통, 나머지는 '더보기'로 펼침)
 
 // ══════════════════════════════
 //  방문 세션 로그 (저비용) — visit_sessions
@@ -9241,13 +9241,13 @@ async function renderRankingInner(gen = ++_rankRenderGen) {
         ${isNew ? '<span class="rank-new-badge">NEW</span>' : ''}
         <span class="rank-pts">${entry.score}pt${bestSubR}</span>
       `;
-      // 전체 랭킹은 100등까지만 먼저 보이고 나머지는 '더보기'로 펼침(친구는 전부 표시)
-      if (currentRankMode === 'all' && rank > ALL_RANK_PREVIEW) row.classList.add('rank-extra-hidden');
+      // 100등까지만 먼저 보이고 나머지는 '더보기'로 펼침(전체·친구 공통)
+      if (rank > RANK_PREVIEW_COUNT) row.classList.add('rank-extra-hidden');
       rankList.appendChild(row);
     });
-    // 전체 랭킹에서 접어둔 하위 순위가 있으면 '더보기' 버튼
-    if (currentRankMode === 'all' && list.length > ALL_RANK_PREVIEW) {
-      const hiddenCount = list.length - ALL_RANK_PREVIEW;
+    // 접어둔 하위 순위가 있으면 '더보기' 버튼
+    if (list.length > RANK_PREVIEW_COUNT) {
+      const hiddenCount = list.length - RANK_PREVIEW_COUNT;
       const moreBtn = document.createElement('button');
       moreBtn.className = 'rank-more-btn';
       moreBtn.textContent = `더보기 (${hiddenCount}명 더) ▾`;
@@ -9410,8 +9410,21 @@ async function renderWeeklyRankingInner(gen = ++_rankRenderGen) {
         ${isNew ? '<span class="rank-new-badge">NEW</span>' : ''}
         <span class="rank-pts">${entry.score}pt</span>
       `;
+      // 주간도 100등까지만 먼저 보이고 나머지는 '더보기'로 펼침
+      if (rank > RANK_PREVIEW_COUNT) row.classList.add('rank-extra-hidden');
       rankList.appendChild(row);
     });
+    if (list.length > RANK_PREVIEW_COUNT) {
+      const hiddenCount = list.length - RANK_PREVIEW_COUNT;
+      const moreBtn = document.createElement('button');
+      moreBtn.className = 'rank-more-btn';
+      moreBtn.textContent = `더보기 (${hiddenCount}명 더) ▾`;
+      moreBtn.addEventListener('click', () => {
+        rankList.querySelectorAll('.rank-extra-hidden').forEach(el => el.classList.remove('rank-extra-hidden'));
+        moreBtn.remove();
+      });
+      rankList.appendChild(moreBtn);
+    }
   }
 
   const myRankInfo = document.getElementById('myRankInfo');
