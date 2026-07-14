@@ -2524,7 +2524,7 @@ if ('serviceWorker' in navigator) {
                 margin-top: 6px;
               ">랭킹 확인</button>
               <!-- ⭐ 게임 리뷰 입구 (메인) — 신규 유저 신뢰 뱃지. 랭킹탭 칩과 같은 meta 캐시 공유(추가 읽기 0) -->
-              <button class="review-entry-chip">⭐ <span class="rv-chip-avg"></span> <span class="cnt rv-chip-cnt"></span></button>
+              <button class="review-entry-chip" data-source="main">⭐ <span class="rv-chip-avg"></span> <span class="cnt rv-chip-cnt"></span></button>
               <button class="action-btn" id="freeModeBtn" style="
                 display: none;
                 width: auto;
@@ -2592,7 +2592,7 @@ if ('serviceWorker' in navigator) {
           <div id="rankFairplayNotice" style="font-size:11.5px; color:#96acc9; margin-top:8px; opacity:0.92; line-height:1.4; padding:0 8px;"></div>
           <div class="rank-subtitle-sub" id="rankSubtitleSub" style="margin-top:6px;">⏱️ 이번 시즌 진행 중</div>
           <!-- ⭐ 게임 리뷰 입구 — meta 1문서만 읽어 평균/개수 표시 (메인 화면 칩과 캐시 공유) -->
-          <button class="review-entry-chip">⭐ <span class="rv-chip-avg"></span> <span class="cnt rv-chip-cnt"></span></button>
+          <button class="review-entry-chip" data-source="rank">⭐ <span class="rv-chip-avg"></span> <span class="cnt rv-chip-cnt"></span></button>
         </div>
 
         <!-- 내 순위 요약 바 -->
@@ -10218,15 +10218,17 @@ async function logShareClick(nickname) {
     });
   } catch (e) { console.warn('공유 클릭 로그 실패:', e); }
 }
-async function logTutorialStart() {
+// ⭐ 게임 리뷰 입구 클릭 — 랭킹탭/메인 어디서 눌렀는지(source)까지 기록해 admin에서 구분 표시
+async function logReviewEntryClick(source) {
   try {
     const nickname = loadNickname() || '익명';
-    await addDoc(collection(db, 'tutorial_starts'), {
+    await addDoc(collection(db, 'review_entry_clicks'), {
       nickname,
+      source: (source === 'rank' || source === 'main') ? source : 'unknown',
       ts: Date.now(),
       date: getTodayDateStr(),
     });
-  } catch (e) { console.warn('튜토리얼 클릭 로그 실패:', e); }
+  } catch (e) { console.warn('리뷰 버튼 클릭 로그 실패:', e); }
 }
 
 // ══════════════════════════════
@@ -10249,19 +10251,9 @@ async function loadJellyBalance() {
   } catch (e) { console.warn('젤리 잔액 로드 실패:', e); }
 }
 
-async function logJellyShopOpen() {
-  try {
-    const nickname = loadNickname() || '익명';
-    await addDoc(collection(db, 'jellyshop_clicks'), {
-      nickname, ts: Date.now(), date: getTodayDateStr(),
-    });
-  } catch (e) { console.warn('젤리상점 클릭 로그 실패:', e); }
-}
-
 async function openJellyShop() {
   await loadJellyBalance();
   updateClaimBtnState();
-  logJellyShopOpen();
   const nick = loadNickname();
   const bubbleInput = document.getElementById('jshopBubbleInput');
   const bubbleCount = document.getElementById('jshopBubbleCount');
@@ -10333,13 +10325,7 @@ document.getElementById('jshopContactBtn').addEventListener('click', () => {
   document.getElementById('jellyShopOverlay').style.display = 'none';
   openContactOverlay();
 });
-document.getElementById('jshopSupportBtn').addEventListener('click', async () => {
-  try {
-    const nickname = loadNickname() || '익명';
-    await addDoc(collection(db, 'supporterpack_clicks'), {
-      nickname, ts: Date.now(), date: getTodayDateStr(),
-    });
-  } catch (e) { console.warn('서포터팩 클릭 로그 실패:', e); }
+document.getElementById('jshopSupportBtn').addEventListener('click', () => {
   openDonateOverlay();
 });
 document.getElementById('jshopClaimBtn').addEventListener('click', async () => {
@@ -10753,7 +10739,10 @@ document.getElementById('rvwSubmitBtn').addEventListener('click', async () => {
   }
 });
 document.querySelectorAll('.review-entry-chip').forEach(chip => {
-  chip.addEventListener('click', () => { openReviewBoard(); });
+  chip.addEventListener('click', () => {
+    try { logReviewEntryClick(chip.dataset.source || 'unknown'); } catch {}
+    openReviewBoard();
+  });
 });
 // 메인 화면 칩 — 앱 시작 직후 1회 갱신 (10분 캐시라 추가 읽기 부담 없음)
 setTimeout(() => { try { refreshReviewEntryChip(); } catch (e) {} }, 2500);
@@ -12206,7 +12195,6 @@ if (document.readyState === 'loading') {
 
   function openTutorial() {
     try { playHint(); } catch {}
-    try { logTutorialStart(); } catch {}
     clearTimeout(bannerTimer); clearTimeout(advanceTimer);
     phase = 'steps';
     buildBoard();

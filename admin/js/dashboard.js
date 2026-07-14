@@ -35,12 +35,12 @@ const OPS_TILES = [
   ['bounceRate', '바로 나간 비율', '15초 미만 · 미플레이'],
   ['totalUsers', '전체 유저 수', '점수 등록 닉네임 기준'],
 ];
-const CLICK_ROWS = [   // 990원 응원 / 상단 응원 버튼 / 간식 / 카톡 공유 / 서포터팩 클릭 로그
+const CLICK_ROWS = [   // 990원 응원 / 스킨샵 버튼(옛 응원하기 버튼) / 간식 / 카톡 공유 / ⭐리뷰 버튼 클릭 로그
   ['donate',  '990원'],
-  ['support', '응원하기'],
+  ['support', '스킨샵'],
   ['snack',   '간식'],
   ['share',   '카톡 공유'],
-  ['pack',    '서포터팩'],
+  ['review',  '⭐ 리뷰'],
 ];
 const WEEKLY_ROWS = [
   ['wau',        'WAU (7일 방문자)'],
@@ -180,7 +180,7 @@ export async function loadDashboard({ force = false } = {}) {
     ['support', () => countTodayCached('support_topbtn_clicks')],
     ['snack',   () => countTodayCached('snack_clicks')],
     ['share',   () => countTodayCached('share_clicks')],
-    ['pack',    () => countTodayCached('supporterpack_clicks')],
+    ['review',  () => countTodayCached('review_entry_clicks')],
   ];
   const userJobs = [
     // 전체 유저 수 = rankings(점수 등록 닉네임) count — users 컬렉션은 "계정 연동 유저만" 있어서
