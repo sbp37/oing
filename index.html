@@ -7810,6 +7810,8 @@ async function endGame() {
 
         // 이전 순위 목록은 병렬로 — 느려도 점수 저장을 막지 않게
         const prevListPromise = loadRankings().catch(() => []);
+        // 주간 '내 순위 바'의 "방금 대비"용 — 이 게임 직전의 주간 순위를 같이 캡처(전체와 스케일이 달라 따로 저장)
+        const prevWeekListPromise = loadWeeklyRankings().catch(() => []);
 
         // ★ 점수 저장을 최우선으로 실행 + 일시적 네트워크 오류는 1회 재시도
         //   (기존엔 loadRankings(최대 150개 문서)가 먼저라, 그게 느리거나 실패하면
@@ -7876,6 +7878,10 @@ async function endGame() {
           try {
             sessionStorage.setItem('oeing_just_updated', savedNick);
             sessionStorage.setItem('oeing_just_updated_prevrank', prevIdx === -1 ? '' : String(prevIdx + 1));
+            // 주간 '내 순위 바'가 "방금 대비"를 주간 스케일로 표시하도록, 이 게임 직전 주간 순위도 저장
+            const prevWeekList = await prevWeekListPromise;
+            const prevWeekIdx = prevWeekList.findIndex(e => e.nickname === savedNick);
+            sessionStorage.setItem('oeing_just_updated_prevrank_week', prevWeekIdx === -1 ? '' : String(prevWeekIdx + 1));
           } catch {}
           // ── 순위 추월 알림 — "○○님을 이겼어요! (N계단 ↑)" 복원 ──
           //  이전에 나보다 위였는데 내 새 점수보다 낮아진 사람들 = 내가 제친 사람들.
@@ -8612,6 +8618,28 @@ async function mergeRankSnapshot(partialRanksDotted) {
     await updateDoc(doc(db, 'meta', 'rankSnapshot'), partialRanksDotted);
   } catch (e) { console.warn('순위 스냅샷 병합 실패:', e); }
 }
+// '내 순위' 요약 바의 ▲▼ 기준 선택:
+//  · 방금 새 기록을 세운 판이면 "그 게임 직전 순위" 대비로 보여줌(=올리면 올랐다고 보임).
+//    전체/주간은 순위 스케일이 달라 각각의 직전 순위(prevrank / prevrank_week)를 쓴다.
+//  · 그 외(그냥 구경 중이거나 앱 재시작 후)에는 스냅샷(오늘 아침 / 이번주 초) 대비로 되돌아감.
+// 반환: { prevRank, label } — renderMyRankSummary에 그대로 넘김. (랭킹 순서/데이터는 안 건드림)
+function myRankChangeBaseline(myNick, snapshotPrev, mode) {
+  const snapLabel = mode === 'week' ? '이번주 초 대비' : '오늘 아침 대비';
+  try {
+    const just = sessionStorage.getItem('oeing_just_updated');
+    if (just && just === myNick) {
+      const raw = sessionStorage.getItem(mode === 'week' ? 'oeing_just_updated_prevrank_week' : 'oeing_just_updated_prevrank');
+      if (raw === '') return { prevRank: null, label: '방금 대비' };   // 방금 게임서 순위권 신규 진입
+      if (raw != null) {
+        const n = parseInt(raw, 10);
+        if (Number.isFinite(n)) return { prevRank: n, label: '방금 대비' };
+      }
+      // 직전 순위를 못 구한 경우(옛 세션 등) → 스냅샷 기준으로 폴백
+    }
+  } catch {}
+  return { prevRank: (snapshotPrev == null ? null : snapshotPrev), label: snapLabel };
+}
+
 // 상단 '내 순위' 요약 바 렌더
 function renderMyRankSummary(list, myIdx, prevRank, periodLabel) {
   const box = document.getElementById('myRankSummary');
@@ -9065,7 +9093,8 @@ async function renderRankingInner(gen = ++_rankRenderGen) {
     const myIdx = list.findIndex(e => e.nickname === myNick);
     if (myIdx !== -1) {
       myRankInfo.innerHTML = '';
-      renderMyRankSummary(list, myIdx, prevRanks[myNick], '어제 대비');
+      { const mrsBase = myRankChangeBaseline(myNick, prevRanks[myNick], 'all');
+        renderMyRankSummary(list, myIdx, mrsBase.prevRank, mrsBase.label); }
     } else {
       // 상위 150명 밖이라도 등록된 점수가 있으면 카드를 숨기지 않고 실제 점수로 표시
       const shown = await showMyRankCardIfBelowCut(myNick, false);
@@ -9220,7 +9249,8 @@ async function renderWeeklyRankingInner(gen = ++_rankRenderGen) {
     const myIdx = list.findIndex(e => e.nickname === myNick);
     if (myIdx !== -1) {
       myRankInfo.innerHTML = `<span style="font-size:13px; color:var(--muted);">🗓️ ${resetLabel} (매주 월요일)</span>`;
-      renderMyRankSummary(list, myIdx, prevWeekRanks[myNick], '최근 대비');
+      { const mrsBase = myRankChangeBaseline(myNick, prevWeekRanks[myNick], 'week');
+        renderMyRankSummary(list, myIdx, mrsBase.prevRank, mrsBase.label); }
     } else {
       // 이번 주 상위 150명 밖이라도 이번 주 기록이 있으면 카드를 실제 점수로 표시
       const shown = await showMyRankCardIfBelowCut(myNick, true);
