@@ -167,3 +167,26 @@ test('game_sessions: 클라 delete 거부', async () => {
   await seed((db) => setDoc(doc(db, 'game_sessions', 's5'), { uid: 'u1', status: 'active' }));
   await assertFails(deleteDoc(doc(asUser('u1'), 'game_sessions', 's5')));
 });
+
+// ─────────────── game_reviews (리뷰 — 모든 write는 reviewAction CF만) ───────────────
+test('game_reviews: 공개 read 허용', async () => {
+  await seed((db) => setDoc(doc(db, 'game_reviews', 'u1'), { nickname: 'n', rating: 5, text: 'good' }));
+  await assertSucceeds(getDoc(doc(unauth(), 'game_reviews', 'u1')));
+});
+test('game_reviews: 클라 write 전면 거부 (본인 uid여도 — 별점/하트 위조 차단)', async () => {
+  await assertFails(setDoc(doc(asUser('u1'), 'game_reviews', 'u1'), { nickname: 'n', rating: 5, text: 'x' }));
+  await seed((db) => setDoc(doc(db, 'game_reviews', 'u2'), { nickname: 'n', rating: 3, hearts: 0 }));
+  await assertFails(updateDoc(doc(asUser('u2'), 'game_reviews', 'u2'), { hearts: 999 }));
+  await assertFails(deleteDoc(doc(asUser('u2'), 'game_reviews', 'u2')));
+});
+test('game_reviews_pending: 어드민만 read, write 전면 거부', async () => {
+  await seed((db) => setDoc(doc(db, 'game_reviews_pending', 'u1'), { nickname: 'n', rating: 1, text: 'held' }));
+  await assertSucceeds(getDoc(doc(asUser(ADMIN), 'game_reviews_pending', 'u1')));
+  await assertFails(getDoc(doc(asUser('u1'), 'game_reviews_pending', 'u1'))); // 본인도 불가(공개 전)
+  await assertFails(setDoc(doc(asUser(ADMIN), 'game_reviews_pending', 'x'), { rating: 5 }));
+});
+test('game_reviews_meta: 공개 read / 클라 write 거부', async () => {
+  await seed((db) => setDoc(doc(db, 'game_reviews_meta', 'main'), { ratingSum: 5, ratingCount: 1, textCount: 1 }));
+  await assertSucceeds(getDoc(doc(unauth(), 'game_reviews_meta', 'main')));
+  await assertFails(updateDoc(doc(asUser('u1'), 'game_reviews_meta', 'main'), { ratingSum: 9999 }));
+});

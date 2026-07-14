@@ -397,6 +397,24 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ══════════════ 게임 리뷰 (앱스토어식 별점+한마디) ══════════════
+    // 모든 쓰기는 reviewAction Cloud Function(Admin SDK, 규칙 우회)만.
+    // 클라이언트 write 전면 차단 — 별점/하트/답글 위조, 남의 리뷰 수정 전부 불가.
+    match /game_reviews/{uid} {
+      allow read: if true;      // 공개 리뷰 목록
+      allow write: if false;
+    }
+    // 보류함(욕설 필터 HOLD) — 공개 전이므로 어드민만 읽기 가능
+    match /game_reviews_pending/{uid} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    // 통계 요약(평균/개수) — 입구 뱃지가 이 문서 1개만 읽음
+    match /game_reviews_meta/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // game_sessions — 서버 세션 shadow telemetry (PR2) + 공식 판정(PR3).
     // write 는 오직 Cloud Function(Admin SDK, 규칙 우회)만. 클라이언트 write 절대 불가.
     // read 는 어드민(관리자 대시보드)만 허용 — 보류/거부된 판(official.decision)을
