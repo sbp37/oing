@@ -10550,7 +10550,7 @@ document.getElementById('feedbackBoardCloseBtn').addEventListener('click', () =>
 //  · 입구 뱃지는 meta 문서 1개만 읽음(리뷰 전체 나열 없음) + 10분 로컬 캐시 — 읽기 비용 최소.
 // ══════════════════════════════
 const REVIEW_META_CACHE_KEY = 'oeing_review_meta_v1';
-const REVIEW_META_TTL = 10 * 60 * 1000;
+const REVIEW_META_TTL = 3 * 60 * 1000; // 3분 — 뱃지가 옛 통계를 너무 오래 붙들지 않게(리뷰 0→1 전환 반영 빠르게)
 const REVIEW_LIST_TTL = 5 * 60 * 1000;
 let _reviewsCache = null, _reviewsCacheTs = 0;
 let _rvwRating = 0;
@@ -10571,7 +10571,9 @@ async function refreshReviewEntryChip() {
   let meta = null;
   try {
     const c = JSON.parse(localStorage.getItem(REVIEW_META_CACHE_KEY) || 'null');
-    if (c && Date.now() - c.ts < REVIEW_META_TTL) meta = c.meta;
+    // 캐시가 "리뷰 0개"면 신뢰하지 않고 항상 다시 확인 — 첫 리뷰가 올라온 순간 "첫 리뷰 남겨달라"가
+    // 오래 남는 걸 방지(리뷰 1개짜리 문서 read라 비용 미미). 1개 이상이면 TTL 동안 캐시 사용.
+    if (c && (c.meta && (c.meta.ratingCount || 0) > 0) && Date.now() - c.ts < REVIEW_META_TTL) meta = c.meta;
   } catch {}
   if (!meta) {
     try {
@@ -10640,9 +10642,16 @@ async function openReviewBoard(forceReload) {
   const avg = n ? sum / n : 0;
   document.getElementById('rvbAvg').textContent = n ? avg.toFixed(1) : '-';
   document.getElementById('rvbStars').textContent = n ? reviewStarsHtml(Math.round(avg)) : '☆☆☆☆☆';
+  const textCnt = list.filter(r => r.text).length;
   document.getElementById('rvbCounts').textContent = n
-    ? `별점 ${n}명 · 리뷰 ${list.filter(r => r.text).length}개`
+    ? `별점 ${n}명 · 리뷰 ${textCnt}개`
     : '아직 리뷰가 없다냥';
+  // 방금 실제 리뷰를 읽었으니 입구 뱃지 통계 캐시도 이 값으로 즉시 맞춘다
+  // (뱃지가 옛 "리뷰 0개" 캐시로 "첫 리뷰 남겨달라"를 계속 띄우던 문제 해소)
+  try {
+    localStorage.setItem(REVIEW_META_CACHE_KEY, JSON.stringify({ ts: Date.now(), meta: { ratingSum: sum, ratingCount: n, textCount: textCnt } }));
+    refreshReviewEntryChip();
+  } catch {}
   // 내 리뷰 먼저, 나머지는 최신순
   const mine = list.find(r => MY_UID && r.uid === MY_UID);
   const others = list.filter(r => !mine || r.uid !== mine.uid);
@@ -10720,11 +10729,35 @@ function paintRvwStars() {
   document.getElementById('rvwHint').textContent = _rvwRating ? '★'.repeat(_rvwRating) + ' — ' + HINTS[_rvwRating] : '별을 눌러서 점수를 달라냥!';
   document.getElementById('rvwSubmitBtn').disabled = _rvwRating === 0;
 }
-function openReviewWrite(existing) {
-  if (!isUidLinked()) {
-    alert("리뷰는 '계정 연결'을 한 뒤에 남길 수 있다냥!\n랭킹탭 맨 아래에서 연결해달라냥 🐾");
+async function openReviewWrite(existing) {
+  const myNick = loadNickname();
+  // ① 닉네임이 아예 없음(완전 신규) — 게임부터 안내
+  if (!myNick) {
+    alert('게임을 한 판 하면 닉네임을 만들 수 있다냥! 🐱\n닉네임을 만든 뒤에 리뷰를 남겨달라냥~');
     return;
   }
+  // ② 닉은 있는데 이 기기가 아직 계정 연결 안 됨 — 조용히 자동연결 시도 후, 안 되면 핀으로 1회 연결
+  if (!isUidLinked()) {
+    // 저장된 핀이 있으면 조용히 연결 시도(성공하면 유저는 아무것도 안 하고 바로 씀)
+    const storedPin = loadMyPin();
+    if (storedPin && MY_UID) {
+      try { await restoreAccountOnNewDevice(myNick, storedPin); } catch {}
+    }
+    // 아직도 미연결이면, 리뷰가 계정에 저장되는 이득을 안내하고 핀으로 1회 연결
+    if (!isUidLinked()) {
+      alert('리뷰는 네 계정에 저장돼서 폰을 바꿔도 남고, 너만 고치거나 지울 수 있다냥 🐾\n핀번호로 딱 한 번만 연결하면 된다냥!');
+      let pin = await askPinVerification(myNick); // 성공 시 내부에서 계정 연결(markUidLinked)까지 마침
+      if (!pin) return;                            // 취소/실패 — 아무 변경 없음
+      pin = null;                                  // 입력값 즉시 폐기
+      try { saveNickname(myNick); } catch {}
+      try { updateAccountLinkBtn(); } catch {}
+    }
+    if (!isUidLinked()) {
+      alert('아직 연결이 안 됐다냥. 잠시 후 다시 시도해달라냥 🙏');
+      return;
+    }
+  }
+  // ③ 연결됨 — 리뷰 쓰기 진행
   _rvwRating = existing ? (existing.rating || 0) : 0;
   const ta = document.getElementById('rvwText');
   ta.value = existing ? (existing.text || '') : '';
@@ -10761,7 +10794,7 @@ document.getElementById('rvwSubmitBtn').addEventListener('click', async () => {
     const reason = e && e.details && e.details.reason;
     const code = (e && e.code) || '';
     if (reason === 'bad-words') alert('고운 말로 부탁한다냥 🙏');
-    else if (reason === 'not-linked') alert("먼저 '계정 연결'을 해야 리뷰를 남길 수 있다냥!");
+    else if (reason === 'not-linked') alert('리뷰 계정 연결이 아직 마무리 안 됐다냥. 잠시 후 다시 눌러달라냥 🙏');
     else if (/unauthenticated/.test(code)) alert('접속 상태가 고르지 않다냥. 잠시 후 다시 해달라냥 🙏');
     else alert('리뷰 남기기에 실패했다냥. 잠시 후 다시 해달라냥 🙏');
   } finally {
