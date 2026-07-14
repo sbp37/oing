@@ -804,6 +804,38 @@ body:not(.light) .action-btn:not(.secondary) {
   0% { left: -60%; }
   55%, 100% { left: 130%; }
 }
+
+/* ══ 메인 시작화면 위계 정리 ══ */
+/* 시작 카드를 배경과 구분 — 테두리 또렷 + 은은한 입체감(살짝 밝은 톤 + 그림자) */
+body:not(.light) .start-overlay-panel .overlay-card {
+  background: #141e30;
+  border: 1px solid rgba(126,194,240,0.20);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.05);
+  border-radius: 20px;
+}
+body.light .start-overlay-panel .overlay-card {
+  border: 1px solid rgba(120,90,50,0.22);
+  box-shadow: 0 8px 22px rgba(120,90,50,0.14), inset 0 1px 0 rgba(255,255,255,0.55);
+  border-radius: 20px;
+}
+/* 게임방법 · 튜토리얼 보조 링크 한 줄 (박스 아님, 클릭 가능성만 은근히) */
+.start-helpers { display:flex; align-items:center; justify-content:center; gap:12px; margin:15px 0 2px; }
+.start-helpers button { display:inline-flex; align-items:center; background:none; border:none; font-family:inherit; cursor:pointer; padding:5px 3px; font-size:12.5px; font-weight:700; color:#93a6bd; }
+body.light .start-helpers button { color:#836f52; }
+.start-helpers button:hover, .start-helpers button:active { color:var(--blue-light); }
+.start-helpers .sh-dot { color:var(--border2); font-size:11px; }
+.sh-chev { display:inline-block; width:6.5px; height:6.5px; margin-left:6px; margin-bottom:2px;
+  border-right:1.7px solid currentColor; border-bottom:1.7px solid currentColor;
+  transform:rotate(45deg); transition:transform .22s; }
+#howToBtn.open .sh-chev { transform:rotate(-135deg); margin-bottom:-2px; }
+.sh-arrow { margin-left:6px; font-size:13px; opacity:.9; }
+/* 첫 방문 튜토리얼 유도 — 링크에 맞는 은은한 색 펄스(박스 그림자 대신) */
+#tutorialStartBtn.tutorial-glow { animation: tutLinkGlow 1.7s ease-in-out infinite; }
+@keyframes tutLinkGlow { 0%,100% { color:#93a6bd; } 50% { color:var(--blue-light); } }
+/* 오늘 목표 — 값만 아이보리로 은은히 강조 */
+#dailyGoalStartLine1 b { font-weight:700; color:var(--ivory); }
+body.light #dailyGoalStartLine1 b { color:#6b4a12; }
+
 .action-btn:hover { filter: brightness(1.1); }
 .action-btn:active { transform: scale(0.97); }
 /* ── 젤리상점 ── */
@@ -2239,17 +2271,18 @@ body.game-active #kakaoInstallHint {
 /* ══════════════════════════════
    ⭐ 게임 리뷰 (앱스토어식 별점+한마디)
    ══════════════════════════════ */
+/* 리뷰 평점 칩 — "버튼"이 아니라 "클릭 가능한 작은 평점 정보"로 (금색 은은하게) */
 .review-entry-chip {
-  display: none; align-items: center; justify-content: center; gap: 7px;
-  margin: 10px auto 0; padding: 8px 14px; width: fit-content;
+  display: none; align-items: center; justify-content: center; gap: 6px;
+  margin: 12px auto 0; padding: 5px 12px; width: fit-content;
   border-radius: 999px; cursor: pointer; font-family: inherit;
-  background: linear-gradient(90deg, rgba(246,196,83,0.14), rgba(246,196,83,0.05));
-  border: 1px solid rgba(246,196,83,0.35);
-  font-size: 13px; font-weight: 800; color: #FFE9A8;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+  background: rgba(24,34,51,0.55);
+  border: 1px solid rgba(246,196,83,0.13);
+  font-size: 11.5px; font-weight: 700; color: rgba(217,193,132,0.85);
 }
-.review-entry-chip .cnt { font-weight: 700; color: var(--muted); font-size: 12px; }
-body.light .review-entry-chip { background: rgba(246,196,83,0.18); color: #8a5f14; border-color: rgba(200,150,40,0.45); }
+.review-entry-chip .rv-chip-avg { font-weight: 800; color: rgba(234,194,117,0.9); }
+.review-entry-chip .cnt { font-weight: 600; color: var(--muted); font-size: 11px; }
+body.light .review-entry-chip { background: rgba(246,196,83,0.10); color: #8a6a2a; border-color: rgba(200,150,40,0.30); }
 
 /* 보드 — 모바일 네이티브 앱 스타일(좌측 정렬 중심, 정돈된 여백) */
 .rvb-head { position: relative; display: flex; align-items: center; gap: 14px; padding: 6px 2px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -2494,17 +2527,16 @@ if ('serviceWorker' in navigator) {
                       display:flex; align-items:flex-start; justify-content:center;
                       padding:100px 20px 16px; overflow-y:auto;">
             <div class="overlay-card" style="position:relative;">
-              <button class="theme-btn" id="themeBtn" style="display:flex; position:absolute; top:10px; right:10px; width:30px; height:30px; padding:0; border-radius:50%; align-items:center; justify-content:center; font-size:14px;">☀️</button>
-              <div class="overlay-title" style="font-family:'Jua','Malgun Gothic',sans-serif; font-weight:700; font-size:34px;">오잉게임 <span style="font-size:15px; font-weight:900; color:#fff; background:linear-gradient(135deg,var(--blue-mid),var(--blue-bright)); padding:2px 8px; border-radius:8px; vertical-align:middle; letter-spacing:0.5px;">V3</span></div>
+              <button class="theme-btn" id="themeBtn" style="display:flex; position:absolute; top:10px; right:10px; width:28px; height:28px; padding:0; border-radius:50%; align-items:center; justify-content:center; font-size:13px; opacity:0.7;">☀️</button>
+              <div class="overlay-title" style="font-family:'Jua','Malgun Gothic',sans-serif; font-weight:700; font-size:34px;">오잉게임 <span style="font-size:12.5px; font-weight:800; color:var(--muted); vertical-align:6px; letter-spacing:0.3px; margin-left:1px;">V3</span></div>
               <div class="overlay-sub">합이 10이 되면 제거! · ⏱ 2분 최고점수 도전!</div>
 
-              <button id="howToBtn" style="
-                display:flex; align-items:center; justify-content:center; gap:4px;
-                width:100%; background:none; border:none;
-                color:var(--blue-light); font-family:inherit; font-size:14px; font-weight:700;
-                padding:6px 0 2px; cursor:pointer; text-decoration:underline;
-                text-underline-offset:2px;
-              ">게임방법 <span id="howToArrow" style="font-size:12px; transition:transform 0.2s;">▼</span></button>
+              <!-- 게임방법 · 튜토리얼 — 한 줄 보조 링크 그룹 (기능 동일) -->
+              <div class="start-helpers">
+                <button id="howToBtn">게임방법 보기<span id="howToArrow" class="sh-chev"></span></button>
+                <span class="sh-dot">·</span>
+                <button id="tutorialStartBtn">처음이라면 튜토리얼<span class="sh-arrow">→</span></button>
+              </div>
 
               <ul class="overlay-rules" id="howToRules" style="display:none;">
                 <li><div class="rule-num">1</div>두 셀을 탭해 직사각형 영역 선택 <span style="color:var(--muted);font-size:13px;">(빈칸 포함)</span></li>
@@ -2516,30 +2548,23 @@ if ('serviceWorker' in navigator) {
               <button id="tipBtn" style="
                 display:none; align-items:center; justify-content:center;
                 width:100%; background:none; border:none;
-                color:var(--blue-light); font-family:inherit; font-size:14px; font-weight:800;
-                padding:2px 0 12px; cursor:pointer; text-decoration:underline;
-                text-underline-offset:2px;
+                color:var(--blue-light); font-family:inherit; font-size:13px; font-weight:700;
+                padding:2px 0 10px; cursor:pointer;
               " data-shown-with-rules="1">💡 추가팁 보기</button>
 
-              <button class="action-btn" id="tutorialStartBtn" style="
-                background: var(--surface2);
-                border: 1px solid #a8722f55;
-                color: var(--accent-lemon);
-                font-size: 13px;
-                padding: 9px;
-                margin-top: 10px;
-                margin-bottom: 8px;
-              ">튜토리얼 해보라냥 <span style="font-size:12px; color:var(--muted); font-weight:700;">(처음이면 클릭!)</span></button>
               <button class="action-btn" id="startBtn">게임 시작</button>
-              <div id="dailyGoalStartLine" style="display:none; text-align:center; margin:6px 0 0; line-height:1.45;">
-                <div id="dailyGoalStartLine1" style="font-size:12.5px; font-weight:700; color:var(--blue-light); letter-spacing:-0.2px;"></div>
-                <div id="dailyGoalStartLine2" style="font-size:11px; font-weight:500; color:var(--muted); letter-spacing:-0.2px; margin-top:1px;"></div>
+              <div id="dailyGoalStartLine" style="display:none; text-align:center; margin:9px 0 0; line-height:1.5;">
+                <div id="dailyGoalStartLine1" style="font-size:12px; font-weight:600; color:var(--muted); letter-spacing:-0.2px;"></div>
+                <div id="dailyGoalStartLine2" style="font-size:10px; font-weight:500; color:rgba(122,139,163,0.72); letter-spacing:-0.2px; margin-top:1px;"></div>
               </div>
               <button class="action-btn" id="startRankBtn" style="
+                width: 88%;
+                margin: 13px auto 0;
+                padding: 8px;
+                font-size: 14px;
                 background: var(--surface2);
-                border: 1px solid var(--border2);
-                color: var(--blue-light);
-                margin-top: 6px;
+                border: 1px solid rgba(44,74,104,0.7);
+                color: rgba(126,194,240,0.82);
               ">랭킹 확인</button>
               <!-- ⭐ 게임 리뷰 입구 (메인) — 신규 유저 신뢰 뱃지. 랭킹탭 칩과 같은 meta 캐시 공유(추가 읽기 0) -->
               <button class="review-entry-chip" data-source="main">⭐ <span class="rv-chip-avg"></span> <span class="cnt rv-chip-cnt"></span></button>
@@ -2555,20 +2580,18 @@ if ('serviceWorker' in navigator) {
                 font-weight: 700;
                 border-radius: 20px;
               ">연습모드</button>
-              <div style="margin-top:12px; font-size:13px; color:var(--muted);">
+              <div style="margin-top:14px; font-size:11.5px; color:rgba(122,139,163,0.75);">
                 <button id="updateLogBtn" style="
-                  background:none; border:none; color:var(--muted);
-                  font-size:13px; font-family:inherit; cursor:pointer;
-                  text-decoration:underline;
-                ">📋 업데이트 내역 <span id="updateLogBtnNew" style="display:none;background:#DD6032;color:white;font-size:11px;font-weight:900;padding:1px 5px;border-radius:8px;">NEW</span></button>
-                <span style="color:var(--border2); margin:0 6px;">·</span>
+                  background:none; border:none; color:rgba(122,139,163,0.75);
+                  font-size:11.5px; font-family:inherit; cursor:pointer;
+                ">업데이트 내역 <span id="updateLogBtnNew" style="display:none;background:rgba(200,84,44,0.88);color:rgba(255,255,255,0.92);font-size:8.5px;font-weight:800;padding:0.5px 4px;border-radius:6px;letter-spacing:0.2px;vertical-align:1px;">NEW</span></button>
+                <span style="color:var(--border); margin:0 4px;">·</span>
                 <button id="contactBtnGame" style="
-                  background:none; border:none; color:var(--muted);
-                  font-size:13px; font-family:inherit; cursor:pointer;
-                  text-decoration:underline;
-                ">💌 문의하기 <span id="contactBtnNew" style="display:none;background:#DD6032;color:white;font-size:11px;font-weight:900;padding:1px 5px;border-radius:8px;">NEW</span></button>
+                  background:none; border:none; color:rgba(122,139,163,0.75);
+                  font-size:11.5px; font-family:inherit; cursor:pointer;
+                ">문의하기 <span id="contactBtnNew" style="display:none;background:rgba(200,84,44,0.88);color:rgba(255,255,255,0.92);font-size:8.5px;font-weight:800;padding:0.5px 4px;border-radius:6px;letter-spacing:0.2px;vertical-align:1px;">NEW</span></button>
               </div>
-              <div id="buildTag" style="margin-top:6px; font-size:10.5px; color:var(--border2);">build #1783602069</div>
+              <div id="buildTag" style="margin-top:5px; font-size:10px; color:rgba(44,74,104,0.85);">build #1783602069</div>
             </div>
           </div>
         </div>
@@ -2609,8 +2632,7 @@ if ('serviceWorker' in navigator) {
           <div class="rank-subtitle-main" id="rankSubtitleMain">🔥 이번 주 기록은 월요일 0시에 초기화된다냥!</div>
           <div id="rankFairplayNotice" style="font-size:11.5px; color:#96acc9; margin-top:8px; opacity:0.92; line-height:1.4; padding:0 8px;"></div>
           <div class="rank-subtitle-sub" id="rankSubtitleSub" style="margin-top:6px;">⏱️ 이번 시즌 진행 중</div>
-          <!-- ⭐ 게임 리뷰 입구 — meta 1문서만 읽어 평균/개수 표시 (메인 화면 칩과 캐시 공유) -->
-          <button class="review-entry-chip" data-source="rank">⭐ <span class="rv-chip-avg"></span> <span class="cnt rv-chip-cnt"></span></button>
+          <!-- 리뷰 입구 칩은 메인 화면에만 노출 (랭킹탭에선 제거) -->
         </div>
 
         <!-- 내 순위 요약 바 -->
@@ -4525,10 +4547,10 @@ function renderStartScreenGoal() {
     line1El.textContent = '오늘 목표 달성 완료 ✅';
     line2El.textContent = streak > 0 ? `🔥 ${streak}일 연속 달성 중` : '가볍게 한 판 더 해보라냥';
   } else if (streak > 0) {
-    line1El.textContent = `오늘 목표 · ${goalScore.toLocaleString()}점 넘기`;
+    line1El.innerHTML = `오늘 목표 · <b>${goalScore.toLocaleString()}점 넘기</b>`;
     line2El.textContent = `🔥 ${streak}일 연속 · ${phrase}`;
   } else {
-    line1El.textContent = `오늘 목표 · ${goalScore.toLocaleString()}점 넘기`;
+    line1El.innerHTML = `오늘 목표 · <b>${goalScore.toLocaleString()}점 넘기</b>`;
     line2El.textContent = `${goalType} · ${phrase}`;
   }
   wrap.style.display = 'block';
@@ -8547,11 +8569,11 @@ document.getElementById('freeModeBtn').addEventListener('click', () => { isFreeM
 document.getElementById('howToBtn').addEventListener('click', () => {
   const rules = document.getElementById('howToRules');
   const tip = document.getElementById('tipBtn');
-  const arrow = document.getElementById('howToArrow');
+  const btn = document.getElementById('howToBtn');
   const isOpen = rules.style.display !== 'none';
   rules.style.display = isOpen ? 'none' : 'block';
   tip.style.display = isOpen ? 'none' : 'flex';
-  arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+  btn.classList.toggle('open', !isOpen); // CSS chevron 회전
 });
 document.getElementById('tipBtn').addEventListener('click', () => {
   window.location.href = 'tip-1.html';
