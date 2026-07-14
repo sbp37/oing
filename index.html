@@ -2251,52 +2251,70 @@ body.game-active #kakaoInstallHint {
 .review-entry-chip .cnt { font-weight: 700; color: var(--muted); font-size: 12px; }
 body.light .review-entry-chip { background: rgba(246,196,83,0.18); color: #8a5f14; border-color: rgba(200,150,40,0.45); }
 
-/* 보드 */
-.rvb-head { position: relative; display: flex; align-items: center; gap: 14px; padding: 6px 2px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.rvb-avg { font-size: 38px; font-weight: 900; line-height: 1; color: #FFF3D6; font-variant-numeric: tabular-nums; }
+/* 보드 — 모바일 네이티브 앱 스타일(좌측 정렬 중심, 정돈된 여백) */
+.rvb-head { position: relative; display: flex; align-items: center; gap: 14px; padding: 6px 2px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.rvb-avg { font-size: 40px; font-weight: 900; line-height: 1; color: #FFF3D6; font-variant-numeric: tabular-nums; letter-spacing: -1px; }
 body.light .rvb-avg { color: #7a5a10; }
-.rvb-stars { font-size: 14px; letter-spacing: 1px; color: #F6C453; }
-.rvb-counts { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
-.rvb-vsign { position: absolute; right: 0; bottom: 6px; width: 76px; height: auto; pointer-events: none; filter: drop-shadow(0 0 10px rgba(246,196,83,0.35)); transform: rotate(3deg); }
-.rvb-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; overflow-y: auto; flex: 1; min-height: 60px; }
+.rvb-stars { font-size: 14px; letter-spacing: 1.5px; color: #F6C453; }
+.rvb-counts { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+.rvb-vsign { position: absolute; right: 0; bottom: 8px; width: 72px; height: auto; pointer-events: none; filter: drop-shadow(0 0 10px rgba(246,196,83,0.3)); transform: rotate(3deg); }
+.rvb-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; overflow-y: auto; flex: 1; min-height: 60px; padding-right: 3px; }
+/* 얇고 존재감 없는 스크롤바 */
+.rvb-list::-webkit-scrollbar { width: 6px; }
+.rvb-list::-webkit-scrollbar-thumb { background: rgba(122,139,163,0.32); border-radius: 8px; }
+.rvb-list::-webkit-scrollbar-thumb:hover { background: rgba(122,139,163,0.5); }
+.rvb-list::-webkit-scrollbar-track { background: rgba(0,0,0,0.12); border-radius: 8px; }
 .rvb-empty { text-align: center; color: var(--muted); font-size: 12.5px; padding: 22px 0 10px; line-height: 1.7; }
-.rv-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 13px; padding: 10px 12px; }
-.rv-item.mine { border-color: var(--border2); box-shadow: inset 0 0 0 1px rgba(126,194,240,0.18); }
-.rv-top { display: flex; align-items: center; gap: 8px; }
+
+/* 리뷰 카드 — (프사·닉·날짜)를 한 그룹으로, 별점은 우상단, 본문은 전체폭 좌측 정렬, 하트는 우하단 */
+.rv-item {
+  background: var(--surface2);
+  border: 1px solid rgba(127,151,178,0.14);
+  border-radius: 16px; padding: 13px 14px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.14);
+  text-align: left;
+}
+body.light .rv-item { border-color: rgba(90,70,40,0.14); box-shadow: 0 2px 6px rgba(90,70,40,0.08); }
+.rv-item.mine { border-color: rgba(126,194,240,0.35); box-shadow: inset 0 0 0 1px rgba(126,194,240,0.14), 0 2px 6px rgba(0,0,0,0.14); }
+.rv-top { display: flex; align-items: flex-start; gap: 9px; }
 .rv-face {
-  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; overflow: hidden; margin-top: 1px;
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--surface); border: 1.5px solid var(--border2); padding: 2px; box-sizing: border-box;
 }
 .rv-face img { width: 100%; height: 100%; object-fit: contain; display: block; }
-.rv-nick { flex: 1; min-width: 0; font-size: 13px; font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rv-mine-tag { flex-shrink: 0; font-size: 9.5px; font-weight: 800; color: var(--blue-light); border: 1px solid var(--border2); border-radius: 7px; padding: 2px 6px; }
-.rv-stars { flex-shrink: 0; font-size: 11.5px; color: #F6C453; letter-spacing: .5px; }
-.rv-body { font-size: 13px; color: var(--text); opacity: .92; line-height: 1.55; margin: 7px 0 0 34px; word-break: break-word; }
-.rv-stars-only { margin: 7px 0 0 34px; font-size: 11.5px; color: var(--muted); }
-.rv-reply { margin: 8px 0 0 34px; padding: 8px 10px; border-radius: 10px; background: rgba(246,196,83,0.07); border-left: 3px solid rgba(246,196,83,0.55); font-size: 12.5px; color: var(--text); line-height: 1.55; }
-.rv-reply b { color: #F6C453; font-size: 11.5px; }
-body.light .rv-reply { background: rgba(200,150,40,0.08); }
-.rv-foot { display: flex; align-items: center; justify-content: space-between; margin: 7px 0 0 34px; }
+.rv-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rv-nick-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rv-nick { min-width: 0; font-size: 13.5px; font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-mine-tag { flex-shrink: 0; font-size: 9.5px; font-weight: 800; color: var(--blue-light); border: 1px solid var(--border2); border-radius: 7px; padding: 1.5px 6px; }
 .rv-date { font-size: 10.5px; color: var(--muted); }
 .rv-date .edited { color: var(--accent-lemon); font-weight: 700; }
+.rv-stars { flex-shrink: 0; font-size: 12px; color: #F6C453; letter-spacing: 1px; margin-top: 2px; }
+.rv-body { font-size: 13.5px; color: var(--text); opacity: .94; line-height: 1.65; margin: 9px 0 0; word-break: break-word; text-align: left; }
+.rv-stars-only { margin: 9px 0 0; font-size: 11.5px; color: var(--muted); text-align: left; }
+.rv-reply { margin: 9px 0 0; padding: 8px 10px; border-radius: 10px; background: rgba(246,196,83,0.07); border-left: 3px solid rgba(246,196,83,0.55); font-size: 12.5px; color: var(--text); line-height: 1.6; text-align: left; }
+.rv-reply b { color: #F6C453; font-size: 11.5px; }
+body.light .rv-reply { background: rgba(200,150,40,0.08); }
+.rv-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; min-height: 24px; }
 .rv-like {
   display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-family: inherit;
   font-size: 11px; font-weight: 800; color: var(--muted);
-  background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px;
+  background: var(--surface); border: 1px solid rgba(127,151,178,0.18); border-radius: 999px; padding: 4px 11px;
+  margin-left: auto;
 }
 .rv-like.on { color: #ff9ab5; border-color: rgba(255,154,181,0.45); background: rgba(255,154,181,0.08); }
-.rv-mine-actions { display: flex; gap: 6px; margin: 8px 0 0 34px; }
-.rv-mine-actions button { font-family: inherit; font-size: 11px; font-weight: 700; cursor: pointer; padding: 5px 11px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border2); color: var(--blue-light); }
+.rv-mine-actions { display: flex; gap: 6px; }
+.rv-mine-actions button { font-family: inherit; font-size: 11px; font-weight: 700; cursor: pointer; padding: 4.5px 11px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border2); color: var(--blue-light); }
 .rv-mine-actions button.del { border-color: rgba(221,96,50,0.5); color: var(--accent-orange); }
-.rvb-write-btn {
-  width: 100%; margin-top: 12px; padding: 12px; border: none; border-radius: 13px; cursor: pointer;
-  font-family: inherit; font-size: 14px; font-weight: 800; color: #3a2606;
-  background: linear-gradient(135deg, #F6C453, #FFE9A8, #E0992B);
-  box-shadow: 0 4px 14px rgba(224,153,43,0.25); flex-shrink: 0;
-}
-.rvb-fb-link { font-size: 12px; color: var(--blue-light); text-align: center; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; background: none; border: none; font-family: inherit; padding: 6px 4px 0; width: 100%; flex-shrink: 0; }
 
+/* 쓰기 버튼 — 컴팩트한 버튼다운 비율, 가운데 정렬 */
+.rvb-write-btn {
+  display: block; width: 80%; max-width: 260px; margin: 11px auto 0;
+  padding: 10px 0; border: none; border-radius: 12px; cursor: pointer;
+  font-family: inherit; font-size: 13.5px; font-weight: 800; color: #3a2606;
+  background: linear-gradient(135deg, #F6C453, #FFE9A8, #E0992B);
+  box-shadow: 0 3px 10px rgba(224,153,43,0.22); flex-shrink: 0;
+}
 /* 쓰기 — 별점 선택 */
 .rvw-stars { display: flex; justify-content: center; gap: 6px; margin: 8px 0 2px; }
 .rvw-stars button { background: none; border: none; font-size: 30px; cursor: pointer; padding: 2px; line-height: 1; color: #3a4763; transition: transform .12s ease, color .12s ease; font-family: inherit; }
@@ -2945,8 +2963,7 @@ if ('serviceWorker' in navigator) {
     </div>
     <div class="rvb-list" id="rvbList"></div>
     <button class="rvb-write-btn" id="rvbWriteBtn">✍️ 내 리뷰 남기기</button>
-    <button class="rvb-fb-link" id="rvbFbLink">더 하고픈 말이 있으면 피드백 게시판으로 와달라냥 🐾</button>
-    <button id="reviewBoardCloseBtn" style="width:100%; margin-top:8px; flex-shrink:0; background:var(--surface2); border:1px solid var(--border2); color:var(--muted); border-radius:10px; padding:10px; font-family:inherit;">닫기</button>
+    <button id="reviewBoardCloseBtn" style="width:100%; margin-top:9px; flex-shrink:0; background:var(--surface2); border:1px solid var(--border2); color:var(--muted); border-radius:10px; padding:9px; font-family:inherit;">닫기</button>
   </div>
 </div>
 
@@ -10644,7 +10661,7 @@ async function openReviewBoard(forceReload) {
   document.getElementById('rvbStars').textContent = n ? reviewStarsHtml(Math.round(avg)) : '☆☆☆☆☆';
   const textCnt = list.filter(r => r.text).length;
   document.getElementById('rvbCounts').textContent = n
-    ? `별점 ${n}명 · 리뷰 ${textCnt}개`
+    ? `리뷰 ${n}개`
     : '아직 리뷰가 없다냥';
   // 방금 실제 리뷰를 읽었으니 입구 뱃지 통계 캐시도 이 값으로 즉시 맞춘다
   // (뱃지가 옛 "리뷰 0개" 캐시로 "첫 리뷰 남겨달라"를 계속 띄우던 문제 해소)
@@ -10662,20 +10679,25 @@ async function openReviewBoard(forceReload) {
     listEl.innerHTML = ordered.map(r => {
       const isMine = !!(MY_UID && r.uid === MY_UID);
       const hearted = !!(MY_UID && r.heartsBy && r.heartsBy[MY_UID]);
+      // 카드 구조: (프사·닉·날짜) 한 그룹 + 별점 우상단 / 본문 전체폭 좌측 / 하단줄 = 수정·삭제(내 것) + 하트(우측)
       return `<div class="rv-item${isMine ? ' mine' : ''}" data-uid="${escapeHtml(r.uid)}">
         <div class="rv-top">
           <span class="rv-face"><img src="${MY_CAT_IMG}" alt=""></span>
-          <span class="rv-nick">${escapeHtml(r.nickname || '')}</span>
-          ${isMine ? '<span class="rv-mine-tag">내 리뷰</span>' : ''}
+          <div class="rv-id">
+            <div class="rv-nick-row">
+              <span class="rv-nick">${escapeHtml(r.nickname || '')}</span>
+              ${isMine ? '<span class="rv-mine-tag">내 리뷰</span>' : ''}
+            </div>
+            <span class="rv-date">${reviewDateText(r.updatedAt || r.createdAt)}${(r.editCount || 0) > 0 ? ' <span class="edited">· 수정됨</span>' : ''}</span>
+          </div>
           <span class="rv-stars">${reviewStarsHtml(r.rating)}</span>
         </div>
         ${r.text ? `<div class="rv-body">${escapeHtml(r.text)}</div>` : '<div class="rv-stars-only">별점만 남기고 갔다냥</div>'}
         ${r.reply && r.reply.text ? `<div class="rv-reply"><b>😺 오잉냥이 <span style="font-size:9.5px;">✓만든이</span></b> — ${escapeHtml(r.reply.text)}</div>` : ''}
         <div class="rv-foot">
-          <span class="rv-date">${reviewDateText(r.updatedAt || r.createdAt)}${(r.editCount || 0) > 0 ? ' <span class="edited">· 수정됨</span>' : ''}</span>
+          ${isMine ? '<div class="rv-mine-actions"><button type="button" id="rvEditMineBtn">✏️ 수정</button><button type="button" class="del" id="rvDeleteMineBtn">삭제</button></div>' : ''}
           <button type="button" class="rv-like${hearted ? ' on' : ''}" data-target="${escapeHtml(r.uid)}">${hearted ? '❤️' : '🤍'} ${r.hearts || 0}</button>
         </div>
-        ${isMine ? '<div class="rv-mine-actions"><button type="button" id="rvEditMineBtn">✏️ 수정</button><button type="button" class="del" id="rvDeleteMineBtn">삭제</button></div>' : ''}
       </div>`;
     }).join('');
   }
@@ -10816,11 +10838,6 @@ document.getElementById('rvbWriteBtn').addEventListener('click', async () => {
   let mine = null;
   try { mine = (_reviewsCache || []).find(r => MY_UID && r.uid === MY_UID) || null; } catch {}
   openReviewWrite(mine);
-});
-document.getElementById('rvbFbLink').addEventListener('click', () => {
-  document.getElementById('reviewBoardOverlay').style.display = 'none';
-  document.getElementById('feedbackBoardOverlay').style.display = 'flex';
-  renderFeedbackBoard();
 });
 
 const feedbackTextEl = document.getElementById('feedbackText');
