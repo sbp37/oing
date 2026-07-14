@@ -1625,6 +1625,7 @@ body.light #dailyGoalStartLine1 b { color:#6b4a12; }
 .podium-rank-change { font-size: 12px; font-weight: 900; margin-left: 2px; -webkit-text-stroke: 0.5px rgba(0,0,0,0.4); }
 .podium-rank-change.up { color: var(--accent-green-light); }
 .podium-rank-change.down { color: var(--accent-orange); }
+.podium-rank-change.same { color: var(--muted); font-weight: 700; -webkit-text-stroke: 0; }
 .rank-nick { flex: 1; min-width: 0; font-size: 15.5px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rank-pts { font-size: 14.5px; font-weight: 800; color: #dbe6f5; flex-shrink: 0; white-space: nowrap; }
 .rank-bubble-tag {
@@ -8882,22 +8883,15 @@ async function showMyRankCardIfBelowCut(myNick, isWeek) {
 }
 
 // prevRank: 어제(또는 마지막 스냅샷) 순위, currentRank: 지금 순위
-// isMe: 내 줄인지. 남의 줄에서는 하락(▼)·유지(－)를 감춰 사기 저하를 막고, 상승(▲)·NEW만
-// 보여준다. 내 줄은 전부 표시(내 순위 변동은 스스로 알 수 있어야 하므로).
+// 사기 저하 방지 정책: 오른 사람만 초록 ▲로 축하하고, 떨어지거나 그대로면 은은한 회색 '－'로
+// 통일한다. 하락(▼ 빨강)을 아예 쓰지 않으므로 "내 줄만 빨간불로 튀는" 문제도 없고, 빈 자리가
+// '－'로 채워져 목록이 허전하지도 않다. 새로 진입한 유저는 NEW. (isMe는 더 이상 구분에 쓰지 않음)
 function rankChangeHtml(prevRank, currentRank, podium, isMe) {
   const cls = podium ? 'podium-rank-change' : 'rank-change';
-  // 이전 순위 정보가 없으면 = 이번에 새로 진입 → NEW (긍정 이벤트라 남/나 모두 표시)
   if (prevRank == null) return `<span class="rank-change" style="display:inline-flex;align-items:center;justify-content:center;"><span style="font-size:10px;font-weight:700;background:#0ea5e9;color:white;padding:1px 4px;border-radius:4px;">NEW</span></span>`;
   const diff = prevRank - currentRank;
-  if (!isMe) {
-    // 남의 줄: 오른 사람만 초록 ▲로 축하, 떨어지거나 그대로면 빈 자리(레이아웃은 유지)
-    if (diff > 0) return `<span class="${cls} up">▲${diff}</span>`;
-    return `<span class="${cls}"></span>`;
-  }
-  // 내 줄: 기존처럼 전부 표시
-  if (diff === 0) return `<span class="${cls} same">－</span>`;
   if (diff > 0) return `<span class="${cls} up">▲${diff}</span>`;
-  return `<span class="${cls} down">▼${Math.abs(diff)}</span>`;
+  return `<span class="${cls} same">－</span>`;
 }
 
 let currentRankMode = 'week'; // 'all' | 'week' — 이번주를 기본으로
