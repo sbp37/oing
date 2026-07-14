@@ -18,7 +18,7 @@ import {
   assertFails,
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
-import { doc, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, deleteDoc, addDoc, collection } from 'firebase/firestore';
 
 const PROJECT_ID = 'demo-oing-rules';
 let testEnv;
@@ -189,4 +189,25 @@ test('game_reviews_meta: 공개 read / 클라 write 거부', async () => {
   await seed((db) => setDoc(doc(db, 'game_reviews_meta', 'main'), { ratingSum: 5, ratingCount: 1, textCount: 1 }));
   await assertSucceeds(getDoc(doc(unauth(), 'game_reviews_meta', 'main')));
   await assertFails(updateDoc(doc(asUser('u1'), 'game_reviews_meta', 'main'), { ratingSum: 9999 }));
+});
+
+// ─────────────── review_entry_clicks (⭐ 리뷰 입구 버튼 클릭) ───────────────
+test('review_entry_clicks: 정상 create 허용(source=rank/main), read 공개', async () => {
+  await assertSucceeds(addDoc(collection(unauth(), 'review_entry_clicks'), { nickname: 'n', ts: 1, date: '2026-07-14', source: 'rank' }));
+  await assertSucceeds(addDoc(collection(unauth(), 'review_entry_clicks'), { nickname: 'n', ts: 1, date: '2026-07-14', source: 'main' }));
+  await seed((db) => setDoc(doc(db, 'review_entry_clicks', 'c1'), { nickname: 'n', ts: 1, date: '2026-07-14', source: 'rank' }));
+  await assertSucceeds(getDoc(doc(unauth(), 'review_entry_clicks', 'c1')));
+});
+test('review_entry_clicks: source 값 위조/허용외필드 거부', async () => {
+  await assertFails(addDoc(collection(unauth(), 'review_entry_clicks'), { nickname: 'n', ts: 1, date: 'd', source: 'hacked' }));
+  await assertFails(addDoc(collection(unauth(), 'review_entry_clicks'), { nickname: 'n', ts: 1, date: 'd', source: 'rank', extra: 1 }));
+});
+
+// ─────────────── 삭제된 추적(tutorial_starts/jellyshop_clicks/supporterpack_clicks) — 규칙에서도 완전 차단 ───────────────
+test('삭제된 추적 컬렉션: create/read 모두 거부 (catch-all)', async () => {
+  await assertFails(addDoc(collection(unauth(), 'tutorial_starts'), { nickname: 'n', ts: 1, date: 'd' }));
+  await assertFails(addDoc(collection(unauth(), 'jellyshop_clicks'), { nickname: 'n', ts: 1, date: 'd' }));
+  await assertFails(addDoc(collection(unauth(), 'supporterpack_clicks'), { nickname: 'n', ts: 1, date: 'd' }));
+  await seed((db) => setDoc(doc(db, 'tutorial_starts', 'x'), { nickname: 'n' }));
+  await assertFails(getDoc(doc(unauth(), 'tutorial_starts', 'x')));
 });

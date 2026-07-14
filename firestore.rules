@@ -49,6 +49,12 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly(['nickname','ts','date'])
         && okStr(request.resource.data.get('nickname', ''), 20);
     }
+    // ⭐ 리뷰 입구 버튼 클릭 — validLog()에 source(랭킹탭/메인 어디서 눌렀는지)만 추가한 변형
+    function validReviewClickLog() {
+      return request.resource.data.keys().hasOnly(['nickname','ts','date','source'])
+        && okStr(request.resource.data.get('nickname', ''), 20)
+        && request.resource.data.get('source', '') in ['rank', 'main', 'unknown'];
+    }
     function isUidDoc(id) {
       return signedIn() && id == request.auth.uid;
     }
@@ -305,15 +311,18 @@ service cloud.firestore {
     }
 
     // click logs — compat과 동일
+    // tutorial_starts / jellyshop_clicks / supporterpack_clicks 는 안 쓰는 추적이라 규칙에서도 제거함
+    // (아래 catch-all이 read/write 모두 차단 — 과거 문서는 남아있어도 더 이상 쓰지도 읽지도 않음)
     match /donate_clicks/{d}         { allow read: if true; allow create: if validLog(); }
     match /share_clicks/{d}          { allow read: if true; allow create: if validLog(); }
-    match /tutorial_starts/{d}       { allow read: if true; allow create: if validLog(); }
+    // support_topbtn_clicks: 버튼 라벨은 "스킨샵"으로 바뀌었지만(응원하기 버튼 자체가 사라짐),
+    // 클릭 이벤트 배선은 그대로라 컬렉션명은 유지 — admin 표시 라벨만 바뀜.
     match /support_topbtn_clicks/{d} { allow read: if true; allow create: if validLog(); }
     match /updatelog_clicks/{d}      { allow read: if true; allow create: if validLog(); }
-    match /jellyshop_clicks/{d}      { allow read: if true; allow create: if validLog(); }
-    match /supporterpack_clicks/{d}  { allow read: if true; allow create: if validLog(); }
     match /snack_clicks/{d}          { allow read: if true; allow create: if validLog(); }
     match /thanks_toggle_clicks/{d}  { allow read: if true; allow create: if validLog(); }
+    // ⭐ 게임 리뷰 입구 버튼 클릭 (랭킹탭/메인 어디서 눌렀는지 source로 구분)
+    match /review_entry_clicks/{d}   { allow read: if true; allow create: if validReviewClickLog(); }
 
     // visit_sessions — compat과 동일
     match /visit_sessions/{sessionId} {

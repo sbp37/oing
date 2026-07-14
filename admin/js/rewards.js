@@ -244,19 +244,20 @@ async function loadDonateFeedback({ reset = false } = {}) {
   }
 }
 
-// ── 클릭 기록 (990원/응원/간식/서포터팩/공유/스킨신청/젤리상점) ──
+// ── 클릭 기록 (990원/스킨샵/간식/공유/스킨신청/⭐리뷰버튼) ──
+// support_topbtn_clicks: 버튼 라벨이 "응원하기"→"스킨샵"으로 바뀌어 표시 라벨도 맞춤(컬렉션명은 유지).
+// supporterpack_clicks/jellyshop_clicks/tutorial_starts는 안 쓰는 추적이라 제거함(firestore.rules도 함께 차단).
 const CLICK_LABELS = {
   donate_clicks: '990원 응원',
-  support_topbtn_clicks: '응원하기',
+  support_topbtn_clicks: '스킨샵',
   snack_clicks: '간식',
-  supporterpack_clicks: '서포터팩',
   share_clicks: '카톡 공유',
   skin_requests: '스킨 신청',
-  jellyshop_clicks: '젤리상점',
-  tutorial_starts: '튜토리얼 시작',
+  review_entry_clicks: '⭐ 리뷰 버튼',
   updatelog_clicks: '업데이트로그',
   thanks_toggle_clicks: '감사메시지 열람',
 };
+const REVIEW_SOURCE_LABEL = { rank: '랭킹탭', main: '메인' };
 // 컬렉션별 pager/rows/오늘 카운트를 세션 내 캐시 — 로그 종류를 오가도 재조회 없음
 const clickState = {};
 
@@ -273,6 +274,16 @@ function clickRowHtml(colName, r) {
           <span class="skinreq-err list-error" style="display:block;padding:0;text-align:left;"></span></span>
         <span class="sub">${fmtDateTime(r.ts)}</span>
         ${pending ? `<button class="btn btn-primary btn-sm skinreq-fulfill" data-reqid="${escapeHtml(r.id)}">처리 완료</button>` : ''}
+      </div>`;
+  }
+  // ⭐ 리뷰 버튼 클릭 — 랭킹탭/메인 어디서 눌렀는지 배지로 구분 표시
+  if (colName === 'review_entry_clicks') {
+    const srcLabel = REVIEW_SOURCE_LABEL[r.source] || '알 수 없음';
+    return `
+      <div class="list-row">
+        <span class="main"><span class="nick">${escapeHtml(r.nickname || '익명')}</span>
+          <span class="badge">${escapeHtml(srcLabel)}</span></span>
+        <span class="sub">${fmtDateTime(r.ts)}</span>
       </div>`;
   }
   return `
