@@ -2523,6 +2523,8 @@ if ('serviceWorker' in navigator) {
                 color: var(--blue-light);
                 margin-top: 6px;
               ">랭킹 확인</button>
+              <!-- ⭐ 게임 리뷰 입구 (메인) — 신규 유저 신뢰 뱃지. 랭킹탭 칩과 같은 meta 캐시 공유(추가 읽기 0) -->
+              <button class="review-entry-chip">⭐ <span class="rv-chip-avg"></span> <span class="cnt rv-chip-cnt"></span></button>
               <button class="action-btn" id="freeModeBtn" style="
                 display: none;
                 width: auto;
@@ -2589,8 +2591,8 @@ if ('serviceWorker' in navigator) {
           <div class="rank-subtitle-main" id="rankSubtitleMain">🔥 이번 주 기록은 월요일 0시에 초기화된다냥!</div>
           <div id="rankFairplayNotice" style="font-size:11.5px; color:#96acc9; margin-top:8px; opacity:0.92; line-height:1.4; padding:0 8px;"></div>
           <div class="rank-subtitle-sub" id="rankSubtitleSub" style="margin-top:6px;">⏱️ 이번 시즌 진행 중</div>
-          <!-- ⭐ 게임 리뷰 입구 — meta 1문서만 읽어 평균/개수 표시 -->
-          <button class="review-entry-chip" id="reviewEntryChip">⭐ <span id="reviewEntryAvg"></span> <span class="cnt" id="reviewEntryCnt"></span></button>
+          <!-- ⭐ 게임 리뷰 입구 — meta 1문서만 읽어 평균/개수 표시 (메인 화면 칩과 캐시 공유) -->
+          <button class="review-entry-chip">⭐ <span class="rv-chip-avg"></span> <span class="cnt rv-chip-cnt"></span></button>
         </div>
 
         <!-- 내 순위 요약 바 -->
@@ -10513,10 +10515,10 @@ function invalidateReviewCaches() {
   try { localStorage.removeItem(REVIEW_META_CACHE_KEY); } catch {}
 }
 
-// ── 입구 뱃지 (랭킹 상단) ──
+// ── 입구 뱃지 (메인 화면 + 랭킹 상단, 같은 캐시 공유) ──
 async function refreshReviewEntryChip() {
-  const chip = document.getElementById('reviewEntryChip');
-  if (!chip) return;
+  const chips = document.querySelectorAll('.review-entry-chip');
+  if (!chips.length) return;
   let meta = null;
   try {
     const c = JSON.parse(localStorage.getItem(REVIEW_META_CACHE_KEY) || 'null');
@@ -10530,16 +10532,19 @@ async function refreshReviewEntryChip() {
     } catch { return; } // 네트워크 실패 — 칩 미표시(다음 기회에)
   }
   const n = meta.ratingCount || 0;
-  const avgEl = document.getElementById('reviewEntryAvg');
-  const cntEl = document.getElementById('reviewEntryCnt');
-  if (n > 0) {
-    avgEl.textContent = ((meta.ratingSum || 0) / n).toFixed(1);
-    cntEl.textContent = `별점 ${n}명 · 리뷰 ${meta.textCount || 0}개`;
-  } else {
-    avgEl.textContent = '오잉게임 리뷰';
-    cntEl.textContent = '첫 리뷰를 남겨달라냥!';
-  }
-  chip.style.display = 'flex';
+  chips.forEach(chip => {
+    const avgEl = chip.querySelector('.rv-chip-avg');
+    const cntEl = chip.querySelector('.rv-chip-cnt');
+    if (!avgEl || !cntEl) return;
+    if (n > 0) {
+      avgEl.textContent = ((meta.ratingSum || 0) / n).toFixed(1);
+      cntEl.textContent = `별점 ${n}명 · 리뷰 ${meta.textCount || 0}개`;
+    } else {
+      avgEl.textContent = '오잉게임 리뷰';
+      cntEl.textContent = '첫 리뷰를 남겨달라냥!';
+    }
+    chip.style.display = 'flex';
+  });
   return meta;
 }
 
@@ -10714,7 +10719,11 @@ document.getElementById('rvwSubmitBtn').addEventListener('click', async () => {
     btn.disabled = false; btn.textContent = '리뷰 남기기';
   }
 });
-document.getElementById('reviewEntryChip').addEventListener('click', () => { openReviewBoard(); });
+document.querySelectorAll('.review-entry-chip').forEach(chip => {
+  chip.addEventListener('click', () => { openReviewBoard(); });
+});
+// 메인 화면 칩 — 앱 시작 직후 1회 갱신 (10분 캐시라 추가 읽기 부담 없음)
+setTimeout(() => { try { refreshReviewEntryChip(); } catch (e) {} }, 2500);
 document.getElementById('reviewBoardCloseBtn').addEventListener('click', () => {
   document.getElementById('reviewBoardOverlay').style.display = 'none';
 });
