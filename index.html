@@ -3778,13 +3778,6 @@ async function claimLookupForNewNick(nick) {
     return false;
   }
 }
-async function releaseLookup(nick) {
-  // 내 소유 lookup만 규칙상 삭제 가능 — 남의 것은 서버 규칙이 거부
-  try {
-    const norm = normalizeNickname(nick);
-    if (norm) await deleteDoc(doc(db, 'nickname_lookup', norm));
-  } catch (e) {}
-}
 
 // ── 신규 닉네임을 내 UID에 연결 ──
 // 세 단계(① lookup 선점 → ② users 저장·재읽기 검증 → ③ PIN 해시 저장 확인)가
@@ -3935,7 +3928,7 @@ async function initAccountSystem() {
   } catch (e) { console.warn('계정 시스템 초기화 실패(레거시 모드로 계속):', e); }
 }
 setTimeout(() => { initAccountSystem(); }, 0);
-// [휴면] 닉변 v2 자가복구 — RENAME_V2_ENABLED=false라 즉시 반환(현재 아무 동작 없음)
+// 닉변 v2 자가복구 — 응답 유실/앱 종료로 pending이 남았을 때만 서버 status로 표시 닉을 맞춤
 setTimeout(() => { try { selfHealRenameIfPending(); } catch {} }, 0);
 // 계정 연결 버튼 초기 표시 상태(닉네임 있고 미연결일 때만) — 인증 초기화 후 반영
 setTimeout(() => { try { updateAccountLinkBtn(); } catch {} }, 1200);
@@ -4216,35 +4209,6 @@ async function repairMyAllTimeScore() {
 // PR3: 앱 로드 3초 후 — 기존 자가복구(direct write) 대신, 제출 실패분 재시도 큐를 flush.
 setTimeout(() => { _flushPendingSubmits(); }, 3000);
 
-async function addWeeklyScore(nickname, newScore) {
-  if (isLocalOnlyMode(nickname)) { saveWeeklyScoreLocallyOnly(nickname, newScore); return; } // 소유권 미확인 — 서버 쓰기 금지
-  const weekId = getWeekId();
-  try {
-    const docRef = doc(db, 'weekly_rankings', weekId, 'scores', nickname);
-    const snap = await getDoc(docRef);
-    const d0 = snap.exists() ? snap.data() : null;
-    const existingScore = (d0 && typeof d0.score === 'number') ? d0.score : null;
-    if (existingScore === null || newScore > existingScore) {
-      await setDoc(docRef, { score: newScore, ts: Date.now() });
-      invalidateWeeklyRankingsCache();
-    }
-  } catch (e) {
-    console.warn('주간 랭킹 저장 실패(권한/네트워크), 로컬 폴백:', e);
-    // 로컬 폴백은 표시용 — 서버로 자동 재동기화되지 않는다.
-    try {
-      const key = 'oeing_weekly_' + weekId;
-      const raw = localStorage.getItem(key);
-      const list = raw ? JSON.parse(raw) : [];
-      const idx = list.findIndex(x => x.nickname === nickname);
-      if (idx !== -1) { if (newScore > list[idx].score) { list[idx].score = newScore; } }
-      else list.push({ nickname, score: newScore });
-      list.sort((a, b) => b.score - a.score);
-      localStorage.setItem(key, JSON.stringify(list));
-    } catch {}
-    // ★서버 저장 실패를 호출자에 전파 (성공으로 오인 방지)
-    throw e;
-  }
-}
 
 let _weeklyRankingsCache = null, _weeklyRankingsCacheTs = 0, _weeklyRankingsCacheWeekId = null;
 
@@ -4998,41 +4962,6 @@ function getRestLineIfDue() {
   return null;
 }
 
-async function addScore(nickname, newScore) {
-  if (isLocalOnlyMode(nickname)) { saveScoreLocallyOnly(nickname, newScore); return; } // 소유권 미확인 — 서버 쓰기 금지
-  try {
-    const docRef = doc(db, 'rankings', nickname);
-    const snap = await getDoc(docRef);
-    const prev = snap.exists() ? snap.data() : null;
-    // 버그 수정: 핀만 발급되고 아직 게임 전인 문서는 score 필드가 없음 →
-    // undefined와 비교하면 항상 false가 돼서 점수가 영영 저장 안 되던 문제 (로로 케이스)
-    const existingScore = (prev && typeof prev.score === 'number') ? prev.score : null;
-    if (existingScore === null || newScore > existingScore) {
-      // merge 저장 — 문서의 다른 필드(uid, 과도기의 레거시 필드)는 클라이언트가 건드리지 않음.
-      // 공개 rankings 문서에 PIN을 저장하는 코드는 이제 어디에도 없다.
-      const payload = { score: newScore, ts: Date.now() };
-      if (prev && prev.uid) payload.uid = prev.uid;
-      else if (isUidLinked()) payload.uid = MY_UID;
-      await setDoc(docRef, payload, { merge: true });
-      invalidateRankingsCache();
-    }
-  } catch (e) {
-    console.warn('Firebase save 실패, 로컬 폴백:', e);
-    // 로컬 폴백은 이 기기 화면 표시용일 뿐 — 서버로 자동 재동기화되지 않는다.
-    try {
-      const raw = localStorage.getItem('oeing_rankings_v1');
-      const list = raw ? JSON.parse(raw) : [];
-      const idx = list.findIndex(e => e.nickname === nickname);
-      if (idx !== -1) { if (newScore > list[idx].score) { list[idx].score = newScore; list[idx].ts = Date.now(); } }
-      else list.push({ nickname, score: newScore, ts: Date.now() });
-      list.sort((a,b) => b.score - a.score);
-      localStorage.setItem('oeing_rankings_v1', JSON.stringify(list));
-    } catch {}
-    // ★서버 저장 실패를 삼키지 않고 호출자에 전파 — 호출자의 재시도/실패표시가 실제로 동작하게 함.
-    //  (로컬 폴백을 "서버 저장 성공"으로 취급하지 않는다)
-    throw e;
-  }
-}
 
 // 역대 1등 "등극" 감지 — 새로 1등 자리를 차지한 순간에만 +1
 // (이미 1등이던 사람이 자기 점수를 더 올리는 건 카운트 안 함)
@@ -5225,11 +5154,11 @@ function saveMyPin(pin) {
 }
 
 // ══════════════════════════════
-//  [휴면] 닉네임 변경 v2 — 클라이언트 배선
-//  renameNickname은 auth 필수 서버 함수다. 익명 인증이 꺼진 현재 운영 상태에서는 호출해도
-//  도달하지 못하므로, 아래 배선은 전부 RENAME_V2_ENABLED=false로 잠가둔 "휴면" 상태다.
-//  실제 활성화(익명 인증 + App Check + 함수 배포)가 끝난 뒤에만 이 플래그를 켜고
-//  닉변 버튼을 이 흐름으로 연결한다. 지금은 정의만 있고 어떤 서버 호출도 하지 않는다.
+//  닉네임 변경 v2 — 클라이언트 배선 (활성)
+//  renameNickname은 auth 필수 서버 함수다. 계정 연결(UID 로그인)된 사용자만 도달 가능하며,
+//  Firestore Rules가 클라이언트 직접 이동을 막으므로 실제 이동은 Admin SDK 서버 함수가
+//  단일 트랜잭션으로 처리한다. 닉변 버튼은 아래 흐름(RENAME_V2_ENABLED)으로 연결돼 있다.
+//  (미연결 레거시 사용자는 먼저 '계정 연결'로 승격해야 한다.)
 // ══════════════════════════════
 const RENAME_V2_ENABLED = true;
 const PENDING_RENAME_KEY = 'oeing_pending_rename_v1';
@@ -5242,17 +5171,17 @@ function savePendingRename(from, to, requestId) { try { localStorage.setItem(PEN
 function loadPendingRename() { try { return JSON.parse(localStorage.getItem(PENDING_RENAME_KEY) || 'null'); } catch { return null; } }
 function clearPendingRename() { try { localStorage.removeItem(PENDING_RENAME_KEY); } catch {} }
 
-// 서버 함수 호출 래퍼(휴면). action 없음 = rename 수행.
+// 서버 함수 호출 래퍼. action 없음 = rename 수행.
 async function callRenameNickname(oldNick, newNick, pin, requestId) {
   const fn = httpsCallable(fns, 'renameNickname');
   const res = await fn({ oldNickname: oldNick, newNickname: newNick, pin: pin || '', requestId });
   return (res && res.data) || {};
 }
 
-// 응답 유실/앱 종료 자가복구(휴면): 비공개 영수증(status)만 확인해 표시 닉네임을 맞춘다.
+// 응답 유실/앱 종료 자가복구: 비공개 영수증(status)만 확인해 표시 닉네임을 맞춘다.
 // 공개 문서 receipt는 쓰지 않고, 소유권은 서버가 uid로 재확인한다.
 async function selfHealRenameIfPending() {
-  if (!RENAME_V2_ENABLED) return;              // 휴면 — 아무 동작도 하지 않음
+  if (!RENAME_V2_ENABLED) return;              // 플래그 꺼진 경우 아무 동작 안 함(안전장치)
   const p = loadPendingRename();
   if (!p || !p.requestId || !p.to) return;
   try {
@@ -8818,7 +8747,7 @@ async function renderRankingInner() {
   const justUpdatedPrevRankRaw = sessionStorage.getItem('oeing_just_updated_prevrank');
   const justUpdatedPrevRank = justUpdatedPrevRankRaw ? parseInt(justUpdatedPrevRankRaw, 10) : null;
 
-  // 역대 챔피언(1등 등극) 횟수 — 점수 등록 시점(addScore)에 자동 누적됨
+  // 역대 챔피언(1등 등극) 횟수 — 점수 등록 시점에 자동 누적됨
   const champCounts = await getChampCounts();
   // champCounts를 전역으로 저장 (모든 칭호 표시에 사용)
   window._champCounts = champCounts;
@@ -9615,25 +9544,6 @@ document.getElementById('shareResultBtn').addEventListener('click', async () => 
 });
 
 // 닉네임 변경
-async function deleteOldScore(oldNick, pinForDelete) {
-  if (!oldNick) return;
-  // UID 소유자 경로로만 삭제 — PIN(delpin)은 더 이상 사용하지 않음 (공개 문서에서 PIN 퇴출)
-  // 이 함수는 닉네임 변경 성공 후 "내 옛 랭킹 항목 정리"에만 쓰이며, 계정 연결 상태에서만 동작
-  try {
-    if (isUidLinked()) {
-      try { await setDoc(doc(db, 'rankings', oldNick), { uid: MY_UID }, { merge: true }); } catch (e0) {}
-      await deleteDoc(doc(db, 'rankings', oldNick));
-    }
-  } catch (e) { console.warn('옛 랭킹 항목 정리 보류(다음 기회에 재시도 가능):', e); }
-  // 로컬 폴백 삭제
-  try {
-    const raw = localStorage.getItem('oeing_rankings_v1');
-    if (raw) {
-      const list = JSON.parse(raw).filter(e => e.nickname !== oldNick);
-      localStorage.setItem('oeing_rankings_v1', JSON.stringify(list));
-    }
-  } catch {}
-}
 
 function changeNickname() {
   const cur = loadNickname();
@@ -9701,110 +9611,6 @@ document.getElementById('nickChangeBtn').addEventListener('click', async () => {
     }
     return;
   }
-
-  // ═══ 닉네임 변경 전용 흐름 ═══
-  // 신규 등록 함수(registerNicknameWithPinCheck)를 재사용하지 않는다.
-  // (재사용하면 방금 자신이 만든 lookup/rankings를 "기존 닉네임"으로 오인해
-  //  점수 승계·기존 정리를 스킵하는 버그가 생김)
-  // 원칙: 어떤 문서도 만들기 전에 신규/기존 판정 → 새 것 전부 저장·검증 성공 → 그 후에만 기존 정리.
-  //       중간 실패 시 기존 닉네임과 기존 데이터는 그대로.
-  const failChange = (msg) => {
-    btn.disabled = false;
-    btn.textContent = '변경하기';
-    if (msg) alert(msg);
-  };
-
-  // ① 아무것도 만들기 전에 대상 닉네임 상태 판정
-  let existsRank = false, lookupData = null, checkError = false;
-  try {
-    const rs = await getDoc(doc(db, 'rankings', nick));
-    existsRank = rs.exists();
-    const ls = await getDoc(doc(db, 'nickname_lookup', normalizeNickname(nick)));
-    lookupData = ls.exists() ? ls.data() : null;
-  } catch (e) { checkError = true; }
-  if (checkError) { failChange('네트워크 문제로 닉네임 확인에 실패했어요. 잠시 후 다시 시도해주세요.'); return; }
-
-  const takenByMe = !!(MY_UID && isUidLinked() && lookupData && lookupData.uid === MY_UID);
-  const taken = existsRank || !!lookupData;
-
-  if (taken && !takenByMe) {
-    // 기존 닉네임 이어쓰기(takeover) — 서버 PIN 검증 + 그 계정으로 로그인. 실패하면 아무것도 변경되지 않음.
-    const verifiedPin = await askPinVerification(nick);
-    if (!verifiedPin) { failChange(null); return; }
-    saveMyPin(verifiedPin);
-    saveNickname(nick);
-    refreshMyCatSkin();
-    try {
-      await addScore(nick, score || 0);
-      await addWeeklyScore(nick, score || 0);
-    } catch (e) {}
-  } else {
-    // 완전히 새 닉네임으로 변경 — UID는 그대로, 표시 이름만 이전
-    // (젤리·유료 스킨·닉네임 꾸미기·말풍선·통계·출석·구매내역은 UID 문서에 있어 자동 유지)
-    if (!isUidLinked()) {
-      failChange('지금은 서버 확인이 안 돼 닉네임을 바꿀 수 없어요. 네트워크 확인 후 잠시 뒤 다시 시도해주세요.');
-      return;
-    }
-    // ② 기존 최고점수 확보 (승계용)
-    let carryScore = score || 0;
-    try {
-      const oldSnap = await getDoc(doc(db, 'rankings', oldNick));
-      if (oldSnap.exists() && typeof oldSnap.data().score === 'number') {
-        carryScore = Math.max(carryScore, oldSnap.data().score);
-      }
-    } catch (e) { failChange('네트워크 문제로 기존 점수 확인에 실패했어요. 잠시 후 다시 시도해주세요.'); return; }
-
-    // ③ 새 lookup 선점 — 실패하면 전면 중단 (기존 lookup·프로필·랭킹 일절 안 건드림)
-    const claimed = takenByMe ? true : await claimLookupForNewNick(nick);
-    if (!claimed) { failChange('방금 다른 분이 이 닉네임을 가져갔어요. 다른 닉네임으로 시도해주세요.'); return; }
-
-    // ④ 새 rankings 저장 + 저장 검증
-    let rankOk = false;
-    try {
-      await setDoc(doc(db, 'rankings', nick), { score: carryScore, ts: Date.now(), uid: MY_UID }, { merge: true });
-      const vs = await getDoc(doc(db, 'rankings', nick));
-      rankOk = vs.exists() && vs.data().uid === MY_UID
-        && typeof vs.data().score === 'number' && vs.data().score >= carryScore;
-    } catch (e) { rankOk = false; }
-    if (!rankOk) {
-      if (!takenByMe) await releaseLookup(nick); // 방금 선점한 것만 되돌림
-      failChange('닉네임 저장에 실패했어요. 기존 닉네임은 그대로 유지됩니다. 잠시 후 다시 시도해주세요.');
-      return;
-    }
-
-    // ⑤ users 프로필 갱신 + 검증
-    let usersOk = false;
-    try {
-      await setDoc(doc(db, 'users', MY_UID), { nickname: nick, nicknameNormalized: normalizeNickname(nick), nicknameChangedAt: Date.now() }, { merge: true });
-      const ms = await getDoc(doc(db, 'users', MY_UID));
-      usersOk = ms.exists() && ms.data().nicknameNormalized === normalizeNickname(nick);
-    } catch (e) { usersOk = false; }
-    if (!usersOk) {
-      // 롤백: 방금 만든 새 문서만 제거 — 기존 닉네임·데이터는 아직 아무것도 안 건드렸음
-      try { await deleteDoc(doc(db, 'rankings', nick)); } catch (e) {}
-      if (!takenByMe) await releaseLookup(nick);
-      failChange('프로필 갱신에 실패했어요. 기존 닉네임은 그대로 유지됩니다. 잠시 후 다시 시도해주세요.');
-      return;
-    }
-
-    // ⑥ 여기까지 전부 성공 — 이제서야 표시 이름 전환 + 기존 것 정리
-    saveNickname(nick);
-    for (const colName of ['user_stats', 'nickname_skins']) {
-      try { await setDoc(doc(db, colName, MY_UID), { nickname: nick }, { merge: true }); } catch (e) {}
-    }
-    if (oldNick && normalizeNickname(oldNick) !== normalizeNickname(nick)) {
-      await releaseLookup(oldNick);               // 옛 닉네임 반납
-      await deleteOldScore(oldNick, loadMyPin()); // 랭킹 목록의 옛 항목 정리 (소유 데이터는 UID 문서라 무관)
-    }
-    refreshMyCatSkin();
-    try { await addWeeklyScore(nick, score || 0); } catch (e) {}
-  }
-
-  btn.disabled = false;
-  btn.textContent = '변경하기';
-  input.style.borderColor = '';
-  document.getElementById('nickOverlay').style.display = 'none';
-  renderRanking();
 });
 
 function confirmRestart() {

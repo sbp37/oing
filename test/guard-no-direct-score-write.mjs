@@ -15,13 +15,12 @@
 //   1. The score:0 new-nickname create — it does `setDoc(docRef, { score: 0 })`
 //      via a `docRef`/`payload` variable, so it never matches the inline
 //      `setDoc(doc(db,'rankings',…),{score:…})` shape, and score:0 is excluded anyway.
-//   2. Dead legacy code behind `if (RENAME_V2_ENABLED) { … return; }`. RENAME_V2 is
-//      currently ON, so the old direct-write rename path (addScore/addWeeklyScore/
-//      setDoc rankings) after that early-return is unreachable. Those exact lines are
-//      allow-listed below (by trimmed text + a max count).
-//   3. Comments — block and line comments are stripped before scanning.
-//   4. The `async function addScore/addWeeklyScore` DEFINITIONS themselves (only
-//      *calls* are a revival signal, not the presence of the helper).
+//   2. Comments — block and line comments are stripped before scanning.
+//   3. Any `async function addScore/addWeeklyScore` DEFINITION (only *calls* are a
+//      revival signal). Those helpers have since been deleted, but this keeps the
+//      guard correct if a definition is ever reintroduced without a live call.
+//
+// (The old dead legacy rename path that used to be allow-listed here was removed.)
 //
 // No dependencies. Run: node test/guard-no-direct-score-write.mjs
 // ─────────────────────────────────────────────────────────────────────────────
@@ -35,20 +34,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FILE = process.argv[2] ? resolve(process.argv[2]) : join(ROOT, 'index.html');
 
 // ── Allow-list of KNOWN-acceptable direct-write occurrences ──────────────────
-// Each is matched by the exact trimmed source line + a maximum allowed count.
-// Every entry here is dead code behind `if (RENAME_V2_ENABLED){…return;}` (the
-// legacy client-side rename flow, unreachable while RENAME_V2_ENABLED === true).
-// If any of these lines appears MORE times than `max`, or a NEW direct-write
-// line shows up that is not listed here, the guard fails — that is Incident B.
-const ALLOW = [
-  { text: `await addScore(nick, score || 0);`, max: 1 },
-  { text: `await addWeeklyScore(nick, score || 0);`, max: 1 },
-  { text: `try { await addWeeklyScore(nick, score || 0); } catch (e) {}`, max: 1 },
-  {
-    text: `await setDoc(doc(db, 'rankings', nick), { score: carryScore, ts: Date.now(), uid: MY_UID }, { merge: true });`,
-    max: 1,
-  },
-];
+// Previously this listed the dead legacy client-side rename flow (behind
+// `if (RENAME_V2_ENABLED){…return;}`, unreachable while RENAME_V2 is ON). That
+// dead block AND the addScore/addWeeklyScore helper definitions were DELETED, so
+// nothing is allow-listed anymore: ANY direct client score-write now fails the
+// guard. If a legitimate exception ever reappears, add its exact trimmed line
+// here with a `max` count and a justification.
+const ALLOW = [];
 
 // ── Strip comments while preserving line numbers ─────────────────────────────
 function stripComments(src) {
