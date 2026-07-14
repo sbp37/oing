@@ -8779,7 +8779,7 @@ async function mergeRankSnapshot(partialRanksDotted) {
 //  · 그 외(그냥 구경 중이거나 앱 재시작 후)에는 스냅샷(오늘 아침 / 이번주 초) 대비로 되돌아감.
 // 반환: { prevRank, label } — renderMyRankSummary에 그대로 넘김. (랭킹 순서/데이터는 안 건드림)
 function myRankChangeBaseline(myNick, snapshotPrev, mode) {
-  const snapLabel = mode === 'week' ? '이번주 초 대비' : '오늘 아침 대비';
+  const snapLabel = '오늘 아침 대비'; // 전체·주간 모두 오늘 아침 스냅샷 대비로 통일(매일 리셋)
   try {
     const just = sessionStorage.getItem('oeing_just_updated');
     if (just && just === myNick) {
@@ -9332,16 +9332,27 @@ async function renderWeeklyRankingInner(gen = ++_rankRenderGen) {
 
   // 이번주 순위변동 비교 기준 — 전체 랭킹과 동일하게: 주가 바뀌기 전까진 기준선을 고정하고,
   // 새로 참여한 닉네임만 추가로 병합 (지난주 데이터 유무에 의존하지 않아 항상 안정적으로 동작)
+  // 주간 변동도 전체 랭킹과 동일하게 "오늘 아침 대비"로 매일 리셋한다(예전엔 주차 단위라
+  //  같은 ▲가 그 주 내내 유지됐음). 기준(스냅샷)은 같은 주 + 같은 날일 때만 재사용하고,
+  //  날짜가 바뀌면 그날 첫 조회에서 오늘 순위를 새 기준으로 저장한다.
   const wSnapshot = await getWeeklyRankSnapshot();
-  const prevWeekRanks = (wSnapshot && wSnapshot.weekId === weekId) ? (wSnapshot.ranks || {}) : {};
+  const todayW = getTodayDateStr();
+  const sameWeekW = !!(wSnapshot && wSnapshot.weekId === weekId);
+  const freshW = sameWeekW && wSnapshot.date === todayW; // 오늘 이미 찍어둔 기준이 있음
+  let prevWeekRanks = sameWeekW ? (wSnapshot.ranks || {}) : {};
   const currentWeekRanks = {};
   list.forEach((e, i) => { currentWeekRanks[e.nickname] = i + 1; });
-  const snapshotIsEmptyW = wSnapshot && wSnapshot.weekId === weekId && Object.keys(wSnapshot.ranks || {}).length === 0;
-  if (list.length > 0 && (!wSnapshot || wSnapshot.weekId !== weekId || snapshotIsEmptyW)) {
-    // 새 주차거나 기준이 없으면 지금 기준으로 전체 새로 저장
+  const snapshotIsEmptyW = freshW && Object.keys(wSnapshot.ranks || {}).length === 0;
+  if (list.length > 0 && (!freshW || snapshotIsEmptyW)) {
+    // 오늘 첫 조회(또는 새 주차/기준 없음) → 오늘 순위를 새 기준으로 저장
     saveWeeklyRankSnapshot(weekId, currentWeekRanks);
+    if (!sameWeekW) {
+      // 새 주차(점수 리셋됨) 또는 기준 자체가 없음 → 비교 대상이 없으니 이번엔 전원 '－'
+      prevWeekRanks = currentWeekRanks;
+    }
+    // 같은 주 + 날짜만 바뀐 경우: prevWeekRanks는 어제 값 유지 → "어제 대비"로 자연스럽게 표시
   } else if (list.length > 0) {
-    // 같은 주차 안에서는 새로 참여한 닉네임만 추가로 병합
+    // 같은 날 안에서는 새로 참여한 닉네임만 추가로 병합
     const missingW = {};
     list.forEach((e, i) => { if (!(e.nickname in prevWeekRanks)) missingW[`ranks.${e.nickname}`] = i + 1; });
     if (Object.keys(missingW).length > 0) mergeWeeklyRankSnapshot(missingW);
