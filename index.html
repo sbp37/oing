@@ -1623,8 +1623,9 @@ body.light #dailyGoalStartLine1 b { color:#6b4a12; }
 .rank-change.down { color: var(--accent-orange); text-shadow: none; }
 .rank-change.same { color: var(--muted); font-size: 13px; }
 .rank-hot { font-size: 12px; margin-left: 4px; vertical-align: middle; }
-/* 내 친구 표시(🤍) — 🔥보다 한 단계 작게, Top뱃지/점수 왼쪽에 조용히 붙는 정도 */
-.rank-friend-badge { font-size: 10px; margin-right: 3px; flex-shrink: 0; vertical-align: middle; opacity: 0.9; }
+/* 내 친구 표시(🤍) — 🔥보다 한 단계 작게, Top뱃지/점수 왼쪽에 조용히 붙는 정도.
+   row의 기본 gap(8px)에 더해 왼쪽은 살짝 띄우고 오른쪽 간격은 좁혀서 뱃지/점수 쪽에 붙인다. */
+.rank-friend-badge { font-size: 10px; margin-left: 2px; margin-right: -4px; flex-shrink: 0; vertical-align: middle; opacity: 0.9; }
 /* 전체 랭킹 '더보기'로 접어둔 하위 순위 */
 .rank-extra-hidden { display: none; }
 .rank-more-btn {
@@ -4812,6 +4813,9 @@ const NEAR_GOAL_TEMPLATES = [
   '🎯 {next}점, 거의 다 왔다냥!',
   '🎯 이 흐름이면 {next}점도 금방이다냥!',
   '🎯 다음 판엔 {next}점 넘어보자냥!',
+  '🎯 {next}점 문턱에 걸쳐 있다냥, 한 발만 더냥!',
+  '🎯 {next}점까지 손 뻗으면 닿는다냥!',
+  '🎯 다음 판 한 콤보면 {next}점이다냥!',
 ];
 const SCORE_COMMENT_TIERS = [
   { min: 15000,
@@ -4896,6 +4900,9 @@ const SCORE_COMMENT_TIERS = [
       '🎯 한 판 더 하면 확 달라질 수 있다냥 💪',
       '🎯 최고기록도 노려볼 만하다냥 👀',
       '🎯 조금만 더 집중하면 랭킹이 바뀐다냥 👑',
+      '🎯 긴 콤보 한 번이면 확 뛴다냥 ⚡',
+      '🎯 이 페이스면 TOP10도 보인다냥 🔥',
+      '🎯 실수만 줄이면 자기 기록 갱신이다냥 🏆',
     ],
     taunts: [
       '😼 위 자리는 쉽게 안 비워준다냥',
@@ -4924,6 +4931,12 @@ const SCORE_COMMENT_TIERS = [
       '🎯 지금 감각이면 충분히 가능하다냥 💪',
       '🎯 이 감각 그대로 이어가보자냥 🐱',
       '🎯 한 번만 터지면 순위가 확 오른다냥 🔥',
+      '🎯 콤보 한 번만 길게 이어보라냥 ✨',
+      '🎯 다음 판은 실수 하나만 줄여보자냥 🐾',
+      '🎯 고양이까지 챙기면 점수가 더 붙는다냥 🐱',
+      '🎯 남은 시간 끝까지 써보자냥 ⏱️',
+      '🎯 상위권까지 이제 몇 판 안 남았다냥 👀',
+      '🎯 오늘 안에 기록 하나 갈아치워보자냥 🌟',
     ],
     taunts: [
       '👀 위 사람은 지금도 점수를 올리고 있을지도 모른다냥...',
@@ -4954,6 +4967,8 @@ const SCORE_COMMENT_TIERS = [
       '🎯 조금만 더 하면 확 달라진다냥 🔥',
       '🎯 이 흐름 놓치지 말라냥 💪',
       '🎯 다음 판부터 진짜 시작이다냥 😼',
+      '🎯 콤보 감만 잡으면 쭉쭉 오른다냥 📈',
+      '🎯 고양이 챙기는 재미도 붙여보라냥 🐾',
     ],
     taunts: [
       '🐾 위 순위는 가만히 안 있을 거다냥',
@@ -5156,6 +5171,19 @@ function getSmartScoreComment(finalScoreVal) {
 //  - 다음 구간에 75% 이상 근접 → "○○점 코앞이다냥" 계산형
 //  - 아니면 구간별 고정 목표 랜덤
 //  - 최상위(15000+)는 다음 구간이 없어 항상 "최고기록/전설" 쪽 고정 멘트
+// 두 번째 줄도 첫 번째 줄(pickReactLine)처럼 최근 쓴 문구를 회피한다 — 점수대가 안정된
+// 유저에게 같은 목표 멘트가 반복돼 질리던 문제 해결(표시 전용, 게임/랭킹과 무관).
+let _recentGoalLines = [];
+function pickGoalLine(arr) {
+  if (!arr || !arr.length) return arr && arr[0];
+  const avoid = new Set(_recentGoalLines);
+  let pool = arr.filter(l => !avoid.has(l));
+  if (!pool.length) pool = arr; // 이 풀을 최근에 다 써버렸으면 전체에서 다시
+  const line = pool[Math.floor(Math.random() * pool.length)];
+  _recentGoalLines.push(line);
+  if (_recentGoalLines.length > 6) _recentGoalLines.shift(); // 가장 작은 goals 풀(6개)보다 크지 않게
+  return line;
+}
 function getNextGoal(finalScoreVal) {
   let idx = SCORE_COMMENT_TIERS.findIndex(t => finalScoreVal >= t.min);
   if (idx === -1) idx = SCORE_COMMENT_TIERS.length - 1;
@@ -5169,11 +5197,11 @@ function getNextGoal(finalScoreVal) {
     const span = nextThreshold - tier.min;
     const progress = span > 0 ? (finalScoreVal - tier.min) / span : 1;
     if (progress >= 0.75) {
-      const tmpl = NEAR_GOAL_TEMPLATES[Math.floor(Math.random() * NEAR_GOAL_TEMPLATES.length)];
+      const tmpl = pickGoalLine(NEAR_GOAL_TEMPLATES);
       return tmpl.replace('{next}', nextThreshold.toLocaleString());
     }
   }
-  return tier.goals[Math.floor(Math.random() * tier.goals.length)];
+  return pickGoalLine(tier.goals);
 }
 
 // ── 쉬는 타이밍 ──
