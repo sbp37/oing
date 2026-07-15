@@ -3160,6 +3160,20 @@ if ('serviceWorker' in navigator) {
     </div>
     <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
 
+      <!-- v4.2 -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v4.2</div>
+        <span id="newBadge42" style="display:none;background:#DD6032;color:white;font-size:11px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:#DA9845;margin-bottom:5px;">🎉 새 기능 · 개선</div>
+      <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
+        <li>▫️ ⭐ <b>게임 후기(리뷰) 기능</b> 추가 — 이제 게임 후기를 남기고 다른 사람 후기도 볼 수 있다냥! 프로필 사진은 귀여운 고양이 얼굴로 랜덤하게 붙어요 🐱</li>
+        <li>▫️ 🔥 <b>최근 신기록 표시</b> — 최근에 자기 기록을 깬 유저 옆에 불꽃이 붙어요. 지금 활발하게 도전 중인 사람이 보인다냥</li>
+        <li>▫️ 🤍 <b>친구 표시</b> — 랭킹 목록에서 내가 등록한 친구를 하얀 하트로 바로 알아볼 수 있어요</li>
+        <li>▫️ 🌡️ <b>발열·배터리 최적화</b> — 오래 플레이해도 기기가 덜 뜨겁도록 화면 효과와 동작을 다듬었어요</li>
+      </ul>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
+
       <!-- v4.1 -->
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
         <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v4.1</div>
@@ -10283,19 +10297,19 @@ document.addEventListener('mouseup', () => {
 });
 
 // 업데이트 내역 팝업
-const UPDATE_VERSION = 'v4.1';
+const UPDATE_VERSION = 'v4.2';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784010000; // 순위변동 스냅샷 병합(dotted-key merge) 버그 수정 배포
+const BUILD = 1784120000; // v4.2 — 리뷰/🔥/친구표시/발열 최적화 업데이트 내역 반영
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
-const SEEN_KEY = 'seenUpdate_v4.1';
+const SEEN_KEY = 'seenUpdate_v4.2';
 
 function openUpdateLog() {
   document.getElementById('updateLog').style.display = 'flex';
   // NEW 뱃지 숨기기 + 본 것으로 저장
   localStorage.setItem(SEEN_KEY, '1');
-  const badge = document.getElementById('newBadge41');
+  const badge = document.getElementById('newBadge42');
   if (badge) badge.style.display = 'none';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'none';
@@ -10308,7 +10322,7 @@ document.getElementById('updateLogBtn').addEventListener('click', openUpdateLog)
 
 // 최초 방문 시 NEW 뱃지 표시
 if (!localStorage.getItem(SEEN_KEY)) {
-  const badge = document.getElementById('newBadge41');
+  const badge = document.getElementById('newBadge42');
   if (badge) badge.style.display = 'inline';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'inline';
