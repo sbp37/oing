@@ -287,6 +287,21 @@ function clickRowHtml(colName, r) {
         <span class="sub">${fmtDateTime(r.ts)}</span>
       </div>`;
   }
+  // 📣 리뷰요청 팝업 노출 — 어떤 버튼을 눌렀는지(리뷰 남기기 / 그냥 계속할래 / 노출만) 배지로 표시
+  if (colName === 'review_prompt_shown') {
+    const A = {
+      write:   { t: '✍️ 리뷰 남기기', c: 'green' },
+      dismiss: { t: '그냥 계속할래',  c: 'warn' },
+      shown:   { t: '노출만(무응답)', c: '' },
+    };
+    const a = A[r.action] || A.shown;
+    return `
+      <div class="list-row">
+        <span class="main"><span class="nick">${escapeHtml(r.nickname || '익명')}</span>
+          <span class="badge ${a.c}">${a.t}</span></span>
+        <span class="sub">${fmtDateTime(r.ts)}</span>
+      </div>`;
+  }
   return `
     <div class="list-row">
       <span class="main"><span class="nick">${escapeHtml(r.nickname || '익명')}</span></span>

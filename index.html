@@ -11272,13 +11272,18 @@ async function maybeShowReviewPrompt(playCount) {
     }, delay);
   } catch {}
 }
-async function markReviewPromptShown() {
-  try { localStorage.setItem(REVIEW_PROMPT_SEEN_KEY, '1'); } catch {}
+// action: 'shown'(노출만) → 버튼 누르면 'write'(리뷰 남기기) / 'dismiss'(그냥 계속할래)로 덮어씀.
+// 전체 필드를 다시 써서(setDoc) 노출 기록이 아직 안 끝났어도 안전하게 갱신된다.
+async function recordReviewPromptAction(action) {
   try {
     await setDoc(doc(db, 'review_prompt_shown', MY_UID), {
-      nickname: loadNickname() || '익명', ts: Date.now(), date: getTodayDateStr(),
+      nickname: loadNickname() || '익명', ts: Date.now(), date: getTodayDateStr(), action,
     });
-  } catch (e) { console.warn('리뷰 요청 노출 기록 실패:', e); }
+  } catch (e) { console.warn('리뷰 요청 기록 실패:', e); }
+}
+async function markReviewPromptShown() {
+  try { localStorage.setItem(REVIEW_PROMPT_SEEN_KEY, '1'); } catch {}
+  await recordReviewPromptAction('shown');
 }
 function hideReviewPromptCard() {
   const card = document.getElementById('reviewPromptCard');
@@ -11296,10 +11301,14 @@ function showReviewPromptCard() {
   markReviewPromptShown(); // 뜨는 순간 "봤음"으로 확정 — 닫든 쓰든 이후 다시 안 뜸
 }
 document.getElementById('rpcWriteBtn')?.addEventListener('click', () => {
+  recordReviewPromptAction('write'); // 어떤 버튼 눌렀는지 추적
   hideReviewPromptCard();
   openReviewWrite(); // 연결 유저만 여기 오므로 PIN/계정 안내 없이 바로 작성창(openReviewWrite ③단계)
 });
-document.getElementById('rpcLaterBtn')?.addEventListener('click', hideReviewPromptCard);
+document.getElementById('rpcLaterBtn')?.addEventListener('click', () => {
+  recordReviewPromptAction('dismiss'); // 어떤 버튼 눌렀는지 추적
+  hideReviewPromptCard();
+});
 
 // ── 리뷰 쓰기 ──
 function paintRvwStars() {
