@@ -3119,7 +3119,7 @@ if ('serviceWorker' in navigator) {
     </div>
   </div>
   <div id="scoreComment" style="text-align:center; font-family:'Jua','Malgun Gothic',sans-serif; font-weight:400; font-size:20px; color:var(--blue-light); margin:4px 0 5px;"></div>
-  <div id="nextGoal" style="display:none; text-align:center; font-size:14px; font-weight:700; color:#DA9845; margin:0 0 12px; letter-spacing:-0.2px;"></div>
+  <div id="nextGoal" style="display:none; text-align:center; font-size:15.5px; font-weight:700; color:#DA9845; margin:0 0 12px; letter-spacing:-0.2px;"></div>
   <div id="beatMsg" style="display:none; text-align:center; font-size:14px; font-weight:800; color:#DA9845; margin:-2px 0 14px;"></div>
   <div id="dailyGoalResult" style="display:none; text-align:center; font-size:13.5px; font-weight:700; color:var(--blue-light); margin:0 0 4px; letter-spacing:-0.2px; line-height:1.5;"></div>
   <div id="dailyGoalTotalLine" style="display:none; text-align:center; font-size:11.5px; font-weight:600; color:var(--muted); margin:0 0 10px;"></div>
@@ -4832,6 +4832,31 @@ const NEAR_GOAL_TEMPLATES = [
   '🎯 다음 판 한 콤보면 {next}점이다냥!',
 ];
 const SCORE_COMMENT_TIERS = [
+  { min: 30000,
+    lines: [
+      '이 점수는 오잉게임 역사에 박제된다냥 📜👑🐱',
+      '전설 위의 전설, 신화급 기록이다냥 🌌🐱',
+      '이 판은 두고두고 회자될 거다냥 🏛️🐱',
+      '오잉게임이 널 영원히 기억할 거다냥 ✨🐱',
+      '3만 고지를 넘은 사람은 정말 몇 없다냥 🏔️🐱',
+      '지금 랭킹 꼭대기 공기를 마시는 중이다냥 ⛰️🐱',
+      '이건 실력이 아니라 경지다냥 🧘🐱',
+      '숫자판이 항복 선언했다냥 🏳️🐱',
+      '오늘의 기록이 내일의 전설이 된다냥 🌠🐱',
+      '이 점수 실제로 본 사람 거의 없다냥, 방금 네가 해냈다냥 📸🐱',
+    ],
+    goals: [
+      '🎯 이제 목표는 자기 자신뿐이다냥 🌌',
+      '🎯 이 기록 위엔 하늘뿐이다냥 ☁️',
+      '🎯 다음 신화를 써보자냥 📜',
+      '🎯 정상의 풍경을 즐겨보라냥 ⛰️',
+      '🎯 역대 최고 기록에 도전해보자냥 👑',
+      '🎯 이 자리를 지키는 게 다음 도전이다냥 😼',
+    ],
+    taunts: [
+      '👑 신화의 자리는 도전자를 부른다냥',
+      '😼 이 기록을 노리는 눈이 많다냥...',
+    ] },
   { min: 15000,
     lines: [
       '이건 인간의 반응속도가 아니다냥 🤖🐱',
@@ -4888,6 +4913,9 @@ const SCORE_COMMENT_TIERS = [
       '🎯 전설 등급도 노려볼 만하다냥 😼',
       '🎯 이 흐름 이어가면 더 갈 수 있다냥 💪',
       '🎯 한 판이면 누군가 추월할 수도 있다냥 🏃',
+      '🎯 다음 목표는 3만 고지다냥 🏔️',
+      '🎯 오늘 랭킹 한 계단 더 올라보자냥 📈',
+      '🎯 콤보를 끝까지 안 끊기게 가보자냥 ⚡',
     ],
     taunts: [
       '🏆 오늘 1등도 방심하면 안 된다냥',
@@ -5013,6 +5041,9 @@ const SCORE_COMMENT_TIERS = [
       '🎯 조금만 더 하면 게임이 보이기 시작한다냥 👀',
       '🎯 한 판만 더 가보자냥! 🔥',
       '🎯 시작이 반이다냥, 계속 가보라냥 😺',
+      '🎯 고양이 한 마리만 구해보자냥 🐱',
+      '🎯 이번엔 콤보 5개 이어보기다냥 ✨',
+      '🎯 어제의 나보다 한 칸만 더 가보자냥 🐾',
     ],
     taunts: [
     ] },
@@ -5069,7 +5100,7 @@ const SMART_REACT_LINES = {
   ],
   above: [
     '📈 오늘 평소보다 확실히 좋다냥! 감각 살아있다냥 ✨',
-    '😳 요즘 판들 중에 제일 매서웠다냥, 무슨 일 있었냥?',
+    '😳 오늘 판은 유난히 날카로웠다냥, 컨디션 좋아 보인다냥!',
     '📈 평소 페이스를 훌쩍 넘었다냥! 이 흐름 아깝다냥, 한 판 더냥',
     '✨ 오늘따라 손이 다르다냥, 컨디션 최고다냥',
     '🚀 평소보다 확 치고 올라갔다냥! 물 만났다냥',
@@ -5080,10 +5111,13 @@ const SMART_REACT_LINES = {
   rising: [
     '📊 판마다 점수가 오르고 있다냥! 지금 물올랐다냥 🔥',
     '📈 3판 연속 상승세다냥, 여기서 멈추기 아깝다냥',
-    '🚀 계속 오르는 중이다냥! 이 상승세 아깝다냥',
+    '🚀 계속 오르는 중이다냥! 어디까지 가나 보자냥',
     '😼 판이 갈수록 좋아진다냥, 감 잡았다냥',
     '📈 우상향이다냥! 다음 판도 더 오를 것 같다냥',
     '🔥 점점 잘하고 있다냥! 리듬 제대로 탔다냥',
+    '🌊 파도 제대로 탔다냥! 이 흐름 그대로 밀어붙이라냥',
+    '🎢 점수가 계단을 그리며 오르는 중이다냥, 다음 칸도 가보자냥',
+    '⏫ 어제의 나를 매 판 이기고 있다냥, 멋지다냥',
   ],
   below: [
     '🐾 이런 판도 있는 거다냥~ 손은 풀렸으니 다음 판 가보자냥',
@@ -5136,6 +5170,12 @@ function pickReactLine(arr) {
   if (_recentReactLines.length > 8) _recentReactLines.shift();
   return line;
 }
+// 점수 구간 멘트 풀 — 개인화 멘트와 반반으로 섞어 다양성을 늘린다.
+// 단, 맥락이 중요한 순간(신기록/코앞/상승세/아쉬움/첫판)은 개인화만 사용 — 그 순간의 특별함을 지킴.
+function tierLinesFor(score) {
+  const t = SCORE_COMMENT_TIERS.find(t => score >= t.min) || SCORE_COMMENT_TIERS[SCORE_COMMENT_TIERS.length - 1];
+  return t.lines;
+}
 function getSmartScoreComment(finalScoreVal) {
   let line = null;
   try {
@@ -5153,7 +5193,8 @@ function getSmartScoreComment(finalScoreVal) {
         line = pickReactLine(SMART_REACT_LINES.near);
         if (line) line = line.replace('{diff}', (h.best - finalScoreVal).toLocaleString());
       } else if (avg >= 200 && finalScoreVal >= avg * 1.2) {
-        line = pickReactLine(SMART_REACT_LINES.above);
+        // 잘한 판 — 개인화 칭찬과 구간 칭찬을 반반으로 (구간 멘트도 대부분 칭찬이라 잘 어울림)
+        line = pickReactLine(Math.random() < 0.5 ? SMART_REACT_LINES.above : tierLinesFor(finalScoreVal));
       } else if (prev2 > 0 && last > prev2 && finalScoreVal > last) {
         line = pickReactLine(SMART_REACT_LINES.rising);
       } else if (avg >= 800 && finalScoreVal <= avg * 0.6) {
@@ -5161,8 +5202,9 @@ function getSmartScoreComment(finalScoreVal) {
       } else if (h.lastDate && h.lastDate !== today) {
         line = pickReactLine(SMART_REACT_LINES.firstOfDay);
       } else {
-        // 위 특별 케이스 어디에도 안 걸린 "딱 평소 수준" 판 — 밋밋한 옛 멘트 대신 개인화 멘트
-        line = pickReactLine(SMART_REACT_LINES.around);
+        // 위 특별 케이스 어디에도 안 걸린 "딱 평소 수준" 판 — 제일 흔한 판이라
+        // 개인화 멘트와 점수 구간 멘트를 반반으로 섞어 반복 체감을 줄인다
+        line = pickReactLine(Math.random() < 0.5 ? SMART_REACT_LINES.around : tierLinesFor(finalScoreVal));
       }
     }
   } catch (e) { /* 판정 실패 시 폴백 — 표시 전용이라 게임엔 영향 없음 */ }
@@ -5184,7 +5226,7 @@ function getSmartScoreComment(finalScoreVal) {
 // 다음 목표 한 줄 (하이브리드)
 //  - 다음 구간에 75% 이상 근접 → "○○점 코앞이다냥" 계산형
 //  - 아니면 구간별 고정 목표 랜덤
-//  - 최상위(15000+)는 다음 구간이 없어 항상 "최고기록/전설" 쪽 고정 멘트
+//  - 최상위(30000+)는 다음 구간이 없어 항상 "최고기록/신화" 쪽 고정 멘트
 // 두 번째 줄도 첫 번째 줄(pickReactLine)처럼 최근 쓴 문구를 회피한다 — 점수대가 안정된
 // 유저에게 같은 목표 멘트가 반복돼 질리던 문제 해결(표시 전용, 게임/랭킹과 무관).
 let _recentGoalLines = [];
