@@ -16,10 +16,10 @@ import { deleteRankingRecord } from './users.js';
 
 // ── 🛟 점수 누락 복구 ──
 // 오늘 실제 플레이했지만 랭킹에 반영 안 된 후보를 찾아, 관리자 버튼으로 서버 복구 함수를 호출.
-// 실제 복구 판정(관리자 확인·5만 미만·현재보다 높을 때만·감사 로그)은 전부 서버(adminRecoverScore).
+// 실제 복구 판정(관리자 확인·상한 미만·현재보다 높을 때만·감사 로그)은 전부 서버(adminRecoverScore).
 // 여기서는 후보 표시와 서버 호출만 한다. user_stats.bestScore(전체 최고점)가 아니라
 // "오늘 실제 점수"만 대상 — recentScores 뒤 dailyPlayCount개의 최댓값(서버 로직과 동일).
-const RECOVER_SCORE_MAX = 50000;
+const RECOVER_SCORE_MAX = 60000; // 서버(adminRecover.js) 공식 상한과 동일 — 2026-07-15 운영 결정
 function todaysBestScoreClient(s, today) {
   if (!s) return 0;
   if (s.lastPlayDate !== today && s.dailyDate !== today) return 0;
@@ -51,7 +51,7 @@ async function scanRecoverCandidates() {
       if (!nick) continue;
       const todaysBest = todaysBestScoreClient(p, today);
       if (!Number.isInteger(todaysBest) || todaysBest <= 0) continue;
-      if (todaysBest >= RECOVER_SCORE_MAX) continue; // 5만 이상은 복구 대상 아님
+      if (todaysBest >= RECOVER_SCORE_MAX) continue; // 공식 상한 이상은 복구 대상 아님
       const curWeek = weekMap.get(nick) || 0;
       if (todaysBest <= curWeek) continue;           // 이미 주간에 반영됨
       cands.push({ nick, todaysBest, curWeek });
@@ -136,7 +136,7 @@ async function resetPin() {
 const VERDICT_DECISIONS = ['pending_review', 'rejected_invalid'];
 const REASON_LABELS = {
   ELAPSED_TOO_SHORT: '30초 미만 즉시클리어',
-  SCORE_OVER_OFFICIAL_CAP: '점수 상한 초과(10만+)',
+  SCORE_OVER_OFFICIAL_CAP: '점수 상한 초과(6만+)',
   IMPOSSIBLE_BURST: '비정상 폭발 성공(버스트)',
   COMPOSITE_ANOMALY: '복합 이상패턴',
   NO_SESSION: '서버세션 없음',
