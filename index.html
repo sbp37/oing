@@ -2383,6 +2383,39 @@ body.light .rv-reply { background: rgba(200,150,40,0.08); }
   background: linear-gradient(135deg, #F6C453, #FFE9A8, #E0992B);
   box-shadow: 0 3px 10px rgba(224,153,43,0.22); flex-shrink: 0;
 }
+/* ⭐ 리뷰 요청 카드 — 결과 화면 하단에서 부드럽게 슬라이드업. 중앙 모달 아님, 컴팩트 */
+#reviewPromptCard {
+  position: fixed; left: 50%; bottom: 12px;
+  width: min(94vw, 400px);
+  transform: translate(-50%, 160%);
+  display: none; align-items: center; gap: 11px;
+  padding: 12px 14px; box-sizing: border-box;
+  background: linear-gradient(135deg, #22304e, #1a2440);
+  border: 1px solid rgba(246,196,83,0.35);
+  border-radius: 16px;
+  box-shadow: 0 8px 26px rgba(0,0,0,0.4);
+  z-index: 400;
+  transition: transform .45s cubic-bezier(.22,.9,.32,1);
+}
+#reviewPromptCard.show { display: flex; }
+#reviewPromptCard.in { transform: translate(-50%, 0); }
+#rpcCat { width: 42px; height: 42px; flex-shrink: 0; object-fit: contain; }
+.rpc-body { flex: 1; min-width: 0; }
+.rpc-text { font-size: 12.5px; font-weight: 700; color: #eaf0fb; line-height: 1.5; }
+.rpc-text .rpc-sub { font-size: 11px; font-weight: 600; color: var(--muted); }
+.rpc-btns { display: flex; gap: 7px; margin-top: 8px; }
+.rpc-primary {
+  flex: 1; padding: 8px 0; border: none; border-radius: 10px; cursor: pointer;
+  font-family: inherit; font-size: 12.5px; font-weight: 800; color: #3a2606;
+  background: linear-gradient(135deg, #F6C453, #FFE9A8, #E0992B);
+}
+.rpc-ghost {
+  flex-shrink: 0; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px;
+  cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 700;
+  color: var(--muted); background: transparent;
+}
+@media (prefers-reduced-motion: reduce) { #reviewPromptCard { transition: none; } }
+
 /* 쓰기 — 별점 선택 */
 .rvw-stars { display: flex; justify-content: center; gap: 6px; margin: 8px 0 2px; }
 .rvw-stars button { background: none; border: none; font-size: 30px; cursor: pointer; padding: 2px; line-height: 1; color: #3a4763; transition: transform .12s ease, color .12s ease; font-family: inherit; }
@@ -3023,6 +3056,18 @@ if ('serviceWorker' in navigator) {
     <div class="rvb-list" id="rvbList"></div>
     <button class="rvb-write-btn" id="rvbWriteBtn">✍️ 내 리뷰 남기기</button>
     <button id="reviewBoardCloseBtn" style="width:100%; margin-top:9px; flex-shrink:0; background:var(--surface2); border:1px solid var(--border2); color:var(--muted); border-radius:10px; padding:9px; font-family:inherit;">닫기</button>
+  </div>
+</div>
+
+<!-- ⭐ 리뷰 요청 카드 — 결과 화면 하단에서 부드럽게 올라옴(6판+·연결·미작성·미노출 시 1회) -->
+<div id="reviewPromptCard" aria-live="polite">
+  <img id="rpcCat" alt="" src="" />
+  <div class="rpc-body">
+    <div class="rpc-text">슬슬 오잉게임에 정들었냥? 🐱❤️<br>리뷰 하나 남겨주면 개발자가 진짜 힘난다냥 🔥<br><span class="rpc-sub">별점만 콕 눌러줘도 고맙다냥!</span></div>
+    <div class="rpc-btns">
+      <button id="rpcWriteBtn" type="button" class="rpc-primary">⭐ 리뷰 남기기</button>
+      <button id="rpcLaterBtn" type="button" class="rpc-ghost">그냥 계속할래</button>
+    </div>
   </div>
 </div>
 
@@ -8138,6 +8183,8 @@ async function endGame() {
           if (maxCombo > prevBestCombo && maxCombo > 0) showComboRecordPop(maxCombo);
           if (ENABLE_DAILY_GOAL) renderDailyGoalResult(stats, prev, score);
           renderStartScreenGoal();
+          // ⭐ 리뷰 요청 카드 — 6판+·연결·미작성·미노출 시 결과화면에서 2.5초 뒤 1회
+          maybeShowReviewPrompt(stats && stats.playCount);
         } catch (se) {
           console.warn('스탯 업데이트 실패:', se);
         }
@@ -11175,6 +11222,68 @@ async function openReviewBoard(forceReload) {
     }
   });
 }
+
+// ══════════════════════════════
+//  ⭐ 리뷰 요청 카드 (결과 화면 하단, 사람당 딱 1회)
+// ══════════════════════════════
+// 표시 조건(전부 충족): 6판+ 완료 · 연결된 유저(isUidLinked) · 리뷰 미작성 · 미노출 · 결과화면.
+// 익명/미연결 유저에겐 절대 안 뜸(PIN/계정 안내·인증 유도 일절 없음 — 그냥 조용히 넘어감).
+// "이미 봤는지"는 UID 기준 서버 문서(review_prompt_shown/{uid})로 저장 → 기기 바꿔도 재노출 안 됨.
+// 이 문서가 곧 어드민 추적 기록이기도 함. 신기록 여부·일주일 재등장 같은 로직은 없음.
+const REVIEW_PROMPT_SEEN_KEY = 'oeing_review_prompt_seen_v1';
+const REVIEW_PROMPT_MIN_GAMES = 6;
+let _reviewPromptChecked = false; // 한 세션에서 중복 검사/노출 방지
+async function maybeShowReviewPrompt(playCount) {
+  try {
+    if (_reviewPromptChecked) return;
+    if (!isUidLinked() || !MY_UID) return;                 // 익명/미연결 → 조용히 스킵(안내 없음)
+    if (!(typeof playCount === 'number' && playCount >= REVIEW_PROMPT_MIN_GAMES)) return;
+    if (localStorage.getItem(REVIEW_PROMPT_SEEN_KEY)) return; // 이 기기에서 이미 처리됨(읽기 0으로 빠른 차단)
+    _reviewPromptChecked = true;
+    // UID 기준 서버 확인 — 기기 바꿔도 재노출 안 되게 + 리뷰 이미 썼는지 확인(두 문서 한 번에)
+    const [shownSnap, reviewSnap] = await Promise.all([
+      getDoc(doc(db, 'review_prompt_shown', MY_UID)).catch(() => null),
+      getDoc(doc(db, 'game_reviews', MY_UID)).catch(() => null),
+    ]);
+    if ((shownSnap && shownSnap.exists()) || (reviewSnap && reviewSnap.exists())) {
+      try { localStorage.setItem(REVIEW_PROMPT_SEEN_KEY, '1'); } catch {} // 이미 봤거나 이미 씀 → 영영 안 뜸
+      return;
+    }
+    // 결과 화면에서만, 결과(점수/순위/신기록) 확인할 시간을 준 뒤 2.5초 후 카드 슬라이드업
+    setTimeout(() => {
+      if (!isResultScreenVisible()) return; // 그새 화면을 벗어났으면 취소(플레이 중엔 절대 안 뜸)
+      showReviewPromptCard();
+    }, 2500);
+  } catch {}
+}
+async function markReviewPromptShown() {
+  try { localStorage.setItem(REVIEW_PROMPT_SEEN_KEY, '1'); } catch {}
+  try {
+    await setDoc(doc(db, 'review_prompt_shown', MY_UID), {
+      nickname: loadNickname() || '익명', ts: Date.now(), date: getTodayDateStr(),
+    });
+  } catch (e) { console.warn('리뷰 요청 노출 기록 실패:', e); }
+}
+function hideReviewPromptCard() {
+  const card = document.getElementById('reviewPromptCard');
+  if (!card) return;
+  card.classList.remove('in');
+  setTimeout(() => card.classList.remove('show'), 460);
+}
+function showReviewPromptCard() {
+  const card = document.getElementById('reviewPromptCard');
+  if (!card) return;
+  const cat = document.getElementById('rpcCat');
+  if (cat && typeof MY_CAT_IMG === 'string') cat.src = MY_CAT_IMG;
+  card.classList.add('show');
+  requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add('in')));
+  markReviewPromptShown(); // 뜨는 순간 "봤음"으로 확정 — 닫든 쓰든 이후 다시 안 뜸
+}
+document.getElementById('rpcWriteBtn')?.addEventListener('click', () => {
+  hideReviewPromptCard();
+  openReviewWrite(); // 연결 유저만 여기 오므로 PIN/계정 안내 없이 바로 작성창(openReviewWrite ③단계)
+});
+document.getElementById('rpcLaterBtn')?.addEventListener('click', hideReviewPromptCard);
 
 // ── 리뷰 쓰기 ──
 function paintRvwStars() {

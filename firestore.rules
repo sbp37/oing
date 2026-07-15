@@ -326,6 +326,14 @@ service cloud.firestore {
     // ⭐ 게임 리뷰 입구 버튼 클릭 (랭킹탭/메인 어디서 눌렀는지 source로 구분)
     match /review_entry_clicks/{d}   { allow read: if true; allow create: if validReviewClickLog(); }
 
+    // ⭐ 리뷰 요청 카드 "본 사람" 기록 — 문서 id = uid. 사람당 1회 노출 판정 + 어드민 추적.
+    //  본인만 자기 문서 생성/조회(재노출 방지 확인용). 어드민은 전체 조회. 수정/삭제는 어드민만.
+    match /review_prompt_shown/{uid} {
+      allow read:   if isAdmin() || isUidDoc(uid);
+      allow create: if isUidDoc(uid) && validLog();
+      allow update, delete: if isAdmin();
+    }
+
     // visit_sessions — compat과 동일
     match /visit_sessions/{sessionId} {
       allow read: if true;

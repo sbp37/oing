@@ -185,6 +185,28 @@ test('ranking_blocklist: 클라 write 거부', async () => {
   await assertFails(deleteDoc(doc(asUser('bad3'), 'ranking_blocklist', 'bad3'))); // 본인이 차단 해제 못 함
 });
 
+// ─────────────── review_prompt_shown (리뷰요청 카드 노출기록 — 문서id=uid) ───────────────
+test('review_prompt_shown: 본인 uid 문서 create 허용 (nickname/ts/date)', async () => {
+  await assertSucceeds(setDoc(doc(asUser('u1'), 'review_prompt_shown', 'u1'), { nickname: '냥', ts: 1, date: '2026-07-16' }));
+});
+test('review_prompt_shown: 본인 문서 read 허용 (재노출 방지 확인용)', async () => {
+  await seed((db) => setDoc(doc(db, 'review_prompt_shown', 'u1'), { nickname: '냥', ts: 1, date: '2026-07-16' }));
+  await assertSucceeds(getDoc(doc(asUser('u1'), 'review_prompt_shown', 'u1')));
+});
+test('review_prompt_shown: 남의 uid 문서 create/read 거부', async () => {
+  await assertFails(setDoc(doc(asUser('u2'), 'review_prompt_shown', 'u1'), { nickname: 'x', ts: 1, date: '2026-07-16' }));
+  await seed((db) => setDoc(doc(db, 'review_prompt_shown', 'u1'), { nickname: '냥', ts: 1, date: '2026-07-16' }));
+  await assertFails(getDoc(doc(asUser('u2'), 'review_prompt_shown', 'u1')));
+});
+test('review_prompt_shown: 허용외 필드/미인증 create 거부', async () => {
+  await assertFails(setDoc(doc(asUser('u1'), 'review_prompt_shown', 'u1'), { nickname: '냥', ts: 1, date: 'd', foo: 1 }));
+  await assertFails(setDoc(doc(unauth(), 'review_prompt_shown', 'anon'), { nickname: '냥', ts: 1, date: 'd' }));
+});
+test('review_prompt_shown: 어드민 전체 read 허용', async () => {
+  await seed((db) => setDoc(doc(db, 'review_prompt_shown', 'u9'), { nickname: '냥', ts: 1, date: '2026-07-16' }));
+  await assertSucceeds(getDoc(doc(asUser(ADMIN), 'review_prompt_shown', 'u9')));
+});
+
 // ─────────────── game_reviews (리뷰 — 모든 write는 reviewAction CF만) ───────────────
 test('game_reviews: 공개 read 허용', async () => {
   await seed((db) => setDoc(doc(db, 'game_reviews', 'u1'), { nickname: 'n', rating: 5, text: 'good' }));
