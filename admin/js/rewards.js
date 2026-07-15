@@ -254,6 +254,7 @@ const CLICK_LABELS = {
   share_clicks: '카톡 공유',
   skin_requests: '스킨 신청',
   review_entry_clicks: '⭐ 리뷰 버튼',
+  review_prompt_shown: '📣 리뷰요청 노출',
   updatelog_clicks: '업데이트로그',
   thanks_toggle_clicks: '감사메시지 열람',
 };
