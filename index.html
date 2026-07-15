@@ -8753,16 +8753,10 @@ function getTodayDateStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-// 순위 변동 비교 기준을 3일마다 새로 잡기 위한 '3일 버킷' 도장.
-// 변동을 '이 버킷 시작 순위 대비'로 보여줘, 3일치 변동이 쌓이되 3일마다 리셋된다
-// (매일 리셋은 변동이 너무 적고, 주간 유지는 같은 ▲가 너무 오래 떠서 그 중간).
-const RANK_CHANGE_BUCKET_DAYS = 3;
-function getRankBucketId() {
-  const s = getTodayDateStr(); // 로컬 'YYYY-MM-DD'
-  const [y, m, d] = s.split('-').map(Number);
-  const dayNum = Math.floor(Date.UTC(y, m - 1, d) / 86400000); // 그 날짜의 에포크 일수
-  return String(Math.floor(dayNum / RANK_CHANGE_BUCKET_DAYS));
-}
+// 순위 변동 비교 기준 도장 = 이번 주(getWeekId). 이 게임은 누적 최고점 랭킹이라 순위가
+// 천천히 움직여, 하루·3일 같은 짧은 기준으론 변동이 거의 안 뜬다(다 '－'). '이번 주 초 대비'로
+// 잡아야 그 주에 게임한 사람들의 순위 상승이 ▲로 충분히 뜨고, 매주 월요일 자연히 리셋된다.
+function getRankBucketId() { return getWeekId(); }
 async function getRankSnapshot() {
   try {
     const snap = await getDoc(doc(db, 'meta', 'rankSnapshot'));
@@ -8789,7 +8783,7 @@ async function mergeRankSnapshot(partialRanksDotted) {
 //  · 그 외(그냥 구경 중이거나 앱 재시작 후)에는 스냅샷(오늘 아침 / 이번주 초) 대비로 되돌아감.
 // 반환: { prevRank, label } — renderMyRankSummary에 그대로 넘김. (랭킹 순서/데이터는 안 건드림)
 function myRankChangeBaseline(myNick, snapshotPrev, mode) {
-  const snapLabel = '최근 3일 대비'; // 전체·주간·친구 모두 3일 버킷 기준으로 통일
+  const snapLabel = '이번 주 대비'; // 전체·주간·친구 모두 이번 주(getWeekId) 기준으로 통일
   try {
     const just = sessionStorage.getItem('oeing_just_updated');
     if (just && just === myNick) {
@@ -9120,7 +9114,7 @@ async function renderRankingInner(gen = ++_rankRenderGen) {
     // v:2 표시가 없는 스냅샷 = 과거 친구탭 버그로 오염됐을 수 있는 구버전 → 감지 즉시 통으로 새로 저장 (자가복구)
     const legacyOrBroken = !snapshot || snapshotIsEmpty || snapshot.v !== 2;
     if (list.length > 0 && (legacyOrBroken || snapshot.date !== getRankBucketId())) {
-      // 기준이 없거나 / 구버전·오염이거나 / 3일 버킷이 바뀌었으면 → 지금 순위로 새 기준 저장
+      // 기준이 없거나 / 구버전·오염이거나 / 이번 주가 바뀌었으면 → 지금 순위로 새 기준 저장
       saveRankSnapshot(currentRanks);
       if (legacyOrBroken) {
         // 믿을 수 없는 기준일 땐 이번 렌더에서 엉뚱한 NEW가 안 뜨게 현재 순위를 그대로 기준으로 사용
@@ -9141,7 +9135,7 @@ async function renderRankingInner(gen = ++_rankRenderGen) {
     const FR_SNAP_KEY = 'oeing_friends_ranksnap_v1';
     let fsnap = null;
     try { fsnap = JSON.parse(localStorage.getItem(FR_SNAP_KEY) || 'null'); } catch {}
-    const bucketStr = getRankBucketId(); // 친구 변동도 3일 버킷 기준으로 통일
+    const bucketStr = getRankBucketId(); // 친구 변동도 이번 주 기준으로 통일
     if (fsnap && fsnap.ranks && fsnap.date === bucketStr) {
       // 같은 버킷: 저장된 기준으로 비교 — 처음 보는 친구(새로 추가한 친구)만 NEW로 뜨고 기준에 병합
       Object.assign(prevRanks, fsnap.ranks);
@@ -9342,27 +9336,20 @@ async function renderWeeklyRankingInner(gen = ++_rankRenderGen) {
 
   // 이번주 순위변동 비교 기준 — 전체 랭킹과 동일하게: 주가 바뀌기 전까진 기준선을 고정하고,
   // 새로 참여한 닉네임만 추가로 병합 (지난주 데이터 유무에 의존하지 않아 항상 안정적으로 동작)
-  // 주간 변동도 전체 랭킹과 동일하게 "오늘 아침 대비"로 매일 리셋한다(예전엔 주차 단위라
-  //  같은 ▲가 그 주 내내 유지됐음). 기준(스냅샷)은 같은 주 + 같은 날일 때만 재사용하고,
-  //  날짜가 바뀌면 그날 첫 조회에서 오늘 순위를 새 기준으로 저장한다.
+  // 주간 변동은 "이번 주 초 대비"로 보여준다(같은 weekId 안에서는 기준 유지 → 그 주에 게임한
+  //  사람들의 순위 상승이 ▲로 충분히 뜬다). 매주 월요일 새 weekId가 되면 기준이 리셋된다.
   const wSnapshot = await getWeeklyRankSnapshot();
-  const bucketW = getRankBucketId();
   const sameWeekW = !!(wSnapshot && wSnapshot.weekId === weekId);
-  const freshW = sameWeekW && wSnapshot.date === bucketW; // 이번 3일 버킷 기준이 이미 있음
   let prevWeekRanks = sameWeekW ? (wSnapshot.ranks || {}) : {};
   const currentWeekRanks = {};
   list.forEach((e, i) => { currentWeekRanks[e.nickname] = i + 1; });
-  const snapshotIsEmptyW = freshW && Object.keys(wSnapshot.ranks || {}).length === 0;
-  if (list.length > 0 && (!freshW || snapshotIsEmptyW)) {
-    // 오늘 첫 조회(또는 새 주차/기준 없음) → 오늘 순위를 새 기준으로 저장
+  const snapshotIsEmptyW = sameWeekW && Object.keys(wSnapshot.ranks || {}).length === 0;
+  if (list.length > 0 && (!sameWeekW || snapshotIsEmptyW)) {
+    // 새 주차(점수 리셋)거나 기준이 없음 → 이번 주 기준을 새로 저장(이번엔 전원 '－', 다음부터 정상)
     saveWeeklyRankSnapshot(weekId, currentWeekRanks);
-    if (!sameWeekW) {
-      // 새 주차(점수 리셋됨) 또는 기준 자체가 없음 → 비교 대상이 없으니 이번엔 전원 '－'
-      prevWeekRanks = currentWeekRanks;
-    }
-    // 같은 주 + 날짜만 바뀐 경우: prevWeekRanks는 어제 값 유지 → "어제 대비"로 자연스럽게 표시
+    prevWeekRanks = currentWeekRanks;
   } else if (list.length > 0) {
-    // 같은 날 안에서는 새로 참여한 닉네임만 추가로 병합
+    // 같은 주 안에서는 이번 주 초 기준을 유지하고, 새로 참여한 닉네임만 추가로 병합
     const missingW = {};
     list.forEach((e, i) => { if (!(e.nickname in prevWeekRanks)) missingW[`ranks.${e.nickname}`] = i + 1; });
     if (Object.keys(missingW).length > 0) mergeWeeklyRankSnapshot(missingW);
