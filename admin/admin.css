@@ -298,11 +298,14 @@ textarea { width: 100%; resize: vertical; }
 .chart .bar-val { font-size: 10px; color: var(--text); margin-bottom: 2px; }
 .chart .bar-label { font-size: 9.5px; color: var(--muted); margin-top: 4px; white-space: nowrap; }
 .chart-note { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
-/* 모바일: 14일 그래프는 숫자 겹침 방지를 위해 "최고값 + 오늘"만 값 표시 (나머지는 터치 툴팁) */
+/* 모바일: 14일 그래프도 값 전부 표시(요청) — 대신 글씨를 줄여 겹침 최소화 */
 @media (max-width: 480px) {
-  .chart.day .bar-val { visibility: hidden; }
-  .chart.day .bar-wrap.is-peak .bar-val,
-  .chart.day .bar-wrap.is-today .bar-val { visibility: visible; }
+  .chart.day .bar-val { font-size: 8.5px; letter-spacing: -0.3px; }
+}
+/* 시간대별(24칸) 그래프 값 — 칸이 좁아 가장 작은 글씨로 전부 표시 */
+.chart.hour .bar-val { font-size: 8.5px; letter-spacing: -0.3px; margin-bottom: 1px; }
+@media (max-width: 480px) {
+  .chart.hour .bar-val { font-size: 7.5px; }
 }
 
 /* ── 피드백 스레드 ── */

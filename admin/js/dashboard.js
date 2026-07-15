@@ -15,7 +15,7 @@ import {
 } from './firebase.js';
 import {
   getTodaySessions, aggregateSessions, getDailyStatsRange, computeWeeklyMetrics,
-  countTodayCached, todayNewUsersCount, SESSION_FETCH_CAP, ONLINE_WINDOW_MS,
+  countTodayCached, todayNewUsersCount, todayNewUsersList, SESSION_FETCH_CAP, ONLINE_WINDOW_MS,
 } from './stats.js';
 import { setError, setEmpty } from './admin.js';
 
@@ -24,16 +24,16 @@ import { setError, setEmpty } from './admin.js';
 // C. 클릭 5종 — 카드 1개 안의 행 / D. 주간 2종 — 카드 1개 안의 행
 // 화면에는 내부 컬렉션·필드명을 쓰지 않는다 (사람이 읽는 설명만).
 const CORE_TILES = [
-  ['visitors', '오늘 방문자', '고유 방문자 기준'],
-  ['plays',    '오늘 플레이', ''],
-  ['newUsers', '오늘 신규 유저', '오늘 첫 플레이 기준'],
-  ['mvp',      '오늘 MVP', '가장 많이 플레이'],
+  ['visitors', '👥 오늘 방문자', '고유 방문자 기준'],
+  ['plays',    '🎮 오늘 플레이', ''],
+  ['newUsers', '🌱 오늘 신규 유저', '오늘 첫 플레이 기준'],
+  ['mvp',      '👑 오늘 MVP', '가장 많이 플레이'],
 ];
 const OPS_TILES = [
-  ['avgDur',     '평균 체류시간', '세션 기준'],
-  ['startRate',  '게임 시작률', '방문자 중 플레이 시작'],
-  ['bounceRate', '바로 나간 비율', '15초 미만 · 미플레이'],
-  ['totalUsers', '전체 유저 수', '점수 등록 닉네임 기준'],
+  ['avgDur',     '⏱️ 평균 체류시간', '세션 기준'],
+  ['startRate',  '🚀 게임 시작률', '방문자 중 플레이 시작'],
+  ['bounceRate', '🚪 바로 나간 비율', '15초 미만 · 미플레이'],
+  ['totalUsers', '📇 전체 유저 수', '점수 등록 닉네임 기준'],
 ];
 const CLICK_ROWS = [   // 990원 응원 / 스킨샵 버튼(옛 응원하기 버튼) / 간식 / 카톡 공유 / ⭐리뷰 버튼 클릭 로그
   ['donate',  '990원'],
@@ -134,11 +134,13 @@ export async function loadDashboard({ force = false } = {}) {
       setTile('mvp', '-');
     }
 
-    // 최근 접속 — 오늘 세션을 lastSeenTs 순으로 (실시간 리스너 대신 새로고침 갱신)
+    // 최근 플레이 — 오늘 실제로 게임을 한 사람만 lastSeenTs 순으로 (방문만 한 사람은 제외 —
+    // 유저 탭과 중복이라 홈에서는 "플레이한 사람 + 최근 점수"만 보여준다)
     const rows = [...agg._byVisitor.entries()]
+      .filter(([, v]) => v.plays > 0)
       .sort((a, b) => b[1].lastSeenTs - a[1].lastSeenTs)
       .slice(0, 10);
-    if (!rows.length) { setEmpty(recentEl, '오늘 방문 기록이 아직 없어요'); return agg; }
+    if (!rows.length) { setEmpty(recentEl, '오늘 플레이 기록이 아직 없어요'); return agg; }
     // 조회 상한 도달 = 오늘 지표가 "최근 세션 기준 근사치"임을 명시 (조용한 잘림 방지)
     const capNote = agg.truncated
       ? `<div class="list-error">⚠️ 오늘 세션이 ${SESSION_FETCH_CAP}건을 넘어 최근 ${SESSION_FETCH_CAP}건 기준 근사치입니다</div>` : '';
@@ -187,7 +189,19 @@ export async function loadDashboard({ force = false } = {}) {
     // 전체 수가 아님(레거시 유저 다수 누락). rankings는 닉네임당 문서 1개라 중복도 없음.
     ['totalUsers', () => cache.get('home:totalUsers', () => countQuery(collection(db, 'rankings')))],
     // 오늘 신규 = 오늘 첫 플레이 (분석 그래프·주간 합계와 동일한 기준·동일한 캐시)
-    ['newUsers',   () => todayNewUsersCount()],
+    // 숫자만으론 누가 왔는지 몰라서, 타일 하단(stat-sub)에 닉네임을 나열한다(최대 10명 + 외 N명).
+    ['newUsers',   async () => {
+      const n = await todayNewUsersCount();
+      if (n > 0) {
+        todayNewUsersList().then(names => {
+          const el = document.querySelector('#tile-newUsers .stat-sub');
+          if (!el || !names.length) return;
+          const extra = n > names.length ? ` 외 ${n - names.length}명` : '';
+          el.innerHTML = '🌱 ' + names.map(x => escapeHtml(x)).join(', ') + extra;
+        }).catch(() => { /* 목록 조회 실패해도 카운트 타일은 그대로 */ });
+      }
+      return n;
+    }],
   ];
   const countsPromise = Promise.all([
     ...clickJobs.map(([id, job]) =>
