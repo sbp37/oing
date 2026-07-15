@@ -8753,6 +8753,16 @@ function getTodayDateStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+// 순위 변동 비교 기준을 3일마다 새로 잡기 위한 '3일 버킷' 도장.
+// 변동을 '이 버킷 시작 순위 대비'로 보여줘, 3일치 변동이 쌓이되 3일마다 리셋된다
+// (매일 리셋은 변동이 너무 적고, 주간 유지는 같은 ▲가 너무 오래 떠서 그 중간).
+const RANK_CHANGE_BUCKET_DAYS = 3;
+function getRankBucketId() {
+  const s = getTodayDateStr(); // 로컬 'YYYY-MM-DD'
+  const [y, m, d] = s.split('-').map(Number);
+  const dayNum = Math.floor(Date.UTC(y, m - 1, d) / 86400000); // 그 날짜의 에포크 일수
+  return String(Math.floor(dayNum / RANK_CHANGE_BUCKET_DAYS));
+}
 async function getRankSnapshot() {
   try {
     const snap = await getDoc(doc(db, 'meta', 'rankSnapshot'));
@@ -8762,7 +8772,7 @@ async function getRankSnapshot() {
 async function saveRankSnapshot(ranks) {
   try {
     // v:2 = 친구탭 오염 버그가 고쳐진 버전이 저장한 스냅샷이라는 표시 (자가복구 감지용)
-    await setDoc(doc(db, 'meta', 'rankSnapshot'), { date: getTodayDateStr(), savedAt: Date.now(), ranks, v: 2 });
+    await setDoc(doc(db, 'meta', 'rankSnapshot'), { date: getRankBucketId(), savedAt: Date.now(), ranks, v: 2 });
   } catch (e) { console.warn('순위 스냅샷 저장 실패:', e); }
 }
 async function mergeRankSnapshot(partialRanksDotted) {
@@ -8779,7 +8789,7 @@ async function mergeRankSnapshot(partialRanksDotted) {
 //  · 그 외(그냥 구경 중이거나 앱 재시작 후)에는 스냅샷(오늘 아침 / 이번주 초) 대비로 되돌아감.
 // 반환: { prevRank, label } — renderMyRankSummary에 그대로 넘김. (랭킹 순서/데이터는 안 건드림)
 function myRankChangeBaseline(myNick, snapshotPrev, mode) {
-  const snapLabel = '오늘 아침 대비'; // 전체·주간 모두 오늘 아침 스냅샷 대비로 통일(매일 리셋)
+  const snapLabel = '최근 3일 대비'; // 전체·주간·친구 모두 3일 버킷 기준으로 통일
   try {
     const just = sessionStorage.getItem('oeing_just_updated');
     if (just && just === myNick) {
@@ -9109,8 +9119,8 @@ async function renderRankingInner(gen = ++_rankRenderGen) {
   if (currentRankMode === 'all') {
     // v:2 표시가 없는 스냅샷 = 과거 친구탭 버그로 오염됐을 수 있는 구버전 → 감지 즉시 통으로 새로 저장 (자가복구)
     const legacyOrBroken = !snapshot || snapshotIsEmpty || snapshot.v !== 2;
-    if (list.length > 0 && (legacyOrBroken || snapshot.date !== getTodayDateStr())) {
-      // 기준이 없거나 / 구버전·오염이거나 / 하루가 지났으면 → 오늘 기준으로 전체 새로 저장
+    if (list.length > 0 && (legacyOrBroken || snapshot.date !== getRankBucketId())) {
+      // 기준이 없거나 / 구버전·오염이거나 / 3일 버킷이 바뀌었으면 → 지금 순위로 새 기준 저장
       saveRankSnapshot(currentRanks);
       if (legacyOrBroken) {
         // 믿을 수 없는 기준일 땐 이번 렌더에서 엉뚱한 NEW가 안 뜨게 현재 순위를 그대로 기준으로 사용
@@ -9131,22 +9141,22 @@ async function renderRankingInner(gen = ++_rankRenderGen) {
     const FR_SNAP_KEY = 'oeing_friends_ranksnap_v1';
     let fsnap = null;
     try { fsnap = JSON.parse(localStorage.getItem(FR_SNAP_KEY) || 'null'); } catch {}
-    const todayStr = getTodayDateStr();
-    if (fsnap && fsnap.ranks && fsnap.date === todayStr) {
-      // 같은 날: 저장된 기준으로 비교 — 오늘 처음 보는 친구(새로 추가한 친구)만 NEW로 뜨고 기준에 병합
+    const bucketStr = getRankBucketId(); // 친구 변동도 3일 버킷 기준으로 통일
+    if (fsnap && fsnap.ranks && fsnap.date === bucketStr) {
+      // 같은 버킷: 저장된 기준으로 비교 — 처음 보는 친구(새로 추가한 친구)만 NEW로 뜨고 기준에 병합
       Object.assign(prevRanks, fsnap.ranks);
       const merged = { ...fsnap.ranks };
       let added = false;
       list.forEach((e, i) => { if (!(e.nickname in merged)) { merged[e.nickname] = i + 1; added = true; } });
-      if (added) { try { localStorage.setItem(FR_SNAP_KEY, JSON.stringify({ date: todayStr, ranks: merged })); } catch {} }
+      if (added) { try { localStorage.setItem(FR_SNAP_KEY, JSON.stringify({ date: bucketStr, ranks: merged })); } catch {} }
     } else if (fsnap && fsnap.ranks) {
-      // 날짜가 바뀜: 어제 기준으로 비교하고, 오늘 기준을 새로 저장
+      // 버킷이 바뀜: 이전 버킷 기준으로 비교하고, 이번 버킷 기준을 새로 저장
       Object.assign(prevRanks, fsnap.ranks);
-      try { localStorage.setItem(FR_SNAP_KEY, JSON.stringify({ date: todayStr, ranks: currentRanks })); } catch {}
+      try { localStorage.setItem(FR_SNAP_KEY, JSON.stringify({ date: bucketStr, ranks: currentRanks })); } catch {}
     } else {
       // 친구탭 첫 사용: 전원 NEW로 도배되지 않게 현재 순위를 그대로 기준으로 사용 (전부 '－')
       Object.assign(prevRanks, currentRanks);
-      try { localStorage.setItem(FR_SNAP_KEY, JSON.stringify({ date: todayStr, ranks: currentRanks })); } catch {}
+      try { localStorage.setItem(FR_SNAP_KEY, JSON.stringify({ date: bucketStr, ranks: currentRanks })); } catch {}
     }
   }
 
@@ -9294,7 +9304,7 @@ async function getWeeklyRankSnapshot() {
 }
 async function saveWeeklyRankSnapshot(weekId, ranks) {
   try {
-    await setDoc(doc(db, 'meta', 'weeklyRankSnapshot'), { date: getTodayDateStr(), savedAt: Date.now(), weekId, ranks });
+    await setDoc(doc(db, 'meta', 'weeklyRankSnapshot'), { date: getRankBucketId(), savedAt: Date.now(), weekId, ranks });
   } catch (e) { console.warn('주간 순위 스냅샷 저장 실패:', e); }
 }
 async function mergeWeeklyRankSnapshot(partialRanksDotted) {
@@ -9336,9 +9346,9 @@ async function renderWeeklyRankingInner(gen = ++_rankRenderGen) {
   //  같은 ▲가 그 주 내내 유지됐음). 기준(스냅샷)은 같은 주 + 같은 날일 때만 재사용하고,
   //  날짜가 바뀌면 그날 첫 조회에서 오늘 순위를 새 기준으로 저장한다.
   const wSnapshot = await getWeeklyRankSnapshot();
-  const todayW = getTodayDateStr();
+  const bucketW = getRankBucketId();
   const sameWeekW = !!(wSnapshot && wSnapshot.weekId === weekId);
-  const freshW = sameWeekW && wSnapshot.date === todayW; // 오늘 이미 찍어둔 기준이 있음
+  const freshW = sameWeekW && wSnapshot.date === bucketW; // 이번 3일 버킷 기준이 이미 있음
   let prevWeekRanks = sameWeekW ? (wSnapshot.ranks || {}) : {};
   const currentWeekRanks = {};
   list.forEach((e, i) => { currentWeekRanks[e.nickname] = i + 1; });
