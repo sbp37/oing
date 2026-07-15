@@ -7862,6 +7862,11 @@ function startGame() {
   document.getElementById('startOverlay').style.display = 'none';
   document.getElementById('resultPanel').style.display = 'none';
   _resultPending = false; // 새 게임 시작 — 이전 결과 복원 대기 상태 해제
+  // 리뷰 요청 카드가 이전 판에서 떠 있었다면 확실히 숨기고, 대기 중 타이머도 취소
+  // (position:fixed라서 안 숨기면 새 게임 위에 그대로 떠 있게 됨)
+  if (_reviewPromptTimer) { clearTimeout(_reviewPromptTimer); _reviewPromptTimer = null; }
+  try { const _rpc = document.getElementById('reviewPromptCard'); if (_rpc) _rpc.classList.remove('in', 'show'); } catch {}
+  _resultShownAt = 0;
   const bestCompareEl0 = document.getElementById('bestCompare');
   if (bestCompareEl0) bestCompareEl0.textContent = '';
   const beatMsgEl0 = document.getElementById('beatMsg');
@@ -7952,6 +7957,7 @@ let gameEnding = false; // endGame 중복 방지
 // 결과 화면이 떠 있는 상태에서 랭킹으로 이동한 경우 표시(탭 이동 동안만 결과 패널을 잠시 숨김).
 // 게임 탭으로 돌아오면 새 게임을 바로 시작하지 않고 결과 화면을 그대로 복원한다.
 let _resultPending = false;
+let _resultShownAt = 0; // 결과 패널이 실제로 표시된 시각 — 리뷰 카드 타이밍 기준
 
 function showComboMilestonePop(n) {
   const pop = document.createElement('div');
@@ -8081,6 +8087,7 @@ async function endGame() {
   // resultPanel은 Firebase 결과와 무관하게 무조건 600ms 후 표시
   setTimeout(() => {
     document.getElementById('resultPanel').style.display = 'block';
+    _resultShownAt = Date.now(); // 리뷰 카드 타이밍 기준점
     updateEndedLayout();
     watchEndedLayout();
   }, 600);
@@ -10176,6 +10183,8 @@ document.getElementById('resultRankBtn').addEventListener('click', () => {
   // 결과 패널은 fixed라 랭킹 위에 겹치므로 이동 동안만 숨기고, 게임 탭 복귀 시 그대로 복원한다
   // (예전처럼 결과 화면 유지 — 새 게임을 자동으로 시작하지 않는다).
   document.getElementById('resultPanel').style.display = 'none';
+  if (_reviewPromptTimer) { clearTimeout(_reviewPromptTimer); _reviewPromptTimer = null; }
+  try { const _rpc = document.getElementById('reviewPromptCard'); if (_rpc) _rpc.classList.remove('in', 'show'); } catch {}
   _resultPending = true;
   switchTab('rank');
 });
@@ -11232,7 +11241,9 @@ async function openReviewBoard(forceReload) {
 // 이 문서가 곧 어드민 추적 기록이기도 함. 신기록 여부·일주일 재등장 같은 로직은 없음.
 const REVIEW_PROMPT_SEEN_KEY = 'oeing_review_prompt_seen_v1';
 const REVIEW_PROMPT_MIN_GAMES = 6;
+const REVIEW_PROMPT_DELAY_AFTER_PANEL = 2000; // 결과 패널이 뜬 시점 기준 지연(ms) — 서버 응답속도와 무관하게 일정
 let _reviewPromptChecked = false; // 한 세션에서 중복 검사/노출 방지
+let _reviewPromptTimer = null;    // 대기 중 타이머 — 새 게임 시작 시 취소
 async function maybeShowReviewPrompt(playCount) {
   try {
     if (_reviewPromptChecked) return;
@@ -11249,11 +11260,16 @@ async function maybeShowReviewPrompt(playCount) {
       try { localStorage.setItem(REVIEW_PROMPT_SEEN_KEY, '1'); } catch {} // 이미 봤거나 이미 씀 → 영영 안 뜸
       return;
     }
-    // 결과 화면에서만, 결과(점수/순위/신기록) 확인할 시간을 준 뒤 2.5초 후 카드 슬라이드업
-    setTimeout(() => {
+    // 결과 패널이 뜬 시점(_resultShownAt) 기준으로 딜레이를 계산 — 점수 저장(CF) 응답이
+    // 빠르든 느리든 항상 "패널 뜨고 약 2초 뒤"에 일정하게 올라온다. (CF가 이미 오래 걸렸으면 최소 600ms)
+    const sincePanel = _resultShownAt ? (Date.now() - _resultShownAt) : 0;
+    const delay = Math.max(600, REVIEW_PROMPT_DELAY_AFTER_PANEL - sincePanel);
+    if (_reviewPromptTimer) clearTimeout(_reviewPromptTimer);
+    _reviewPromptTimer = setTimeout(() => {
+      _reviewPromptTimer = null;
       if (!isResultScreenVisible()) return; // 그새 화면을 벗어났으면 취소(플레이 중엔 절대 안 뜸)
       showReviewPromptCard();
-    }, 2500);
+    }, delay);
   } catch {}
 }
 async function markReviewPromptShown() {
