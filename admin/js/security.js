@@ -7,7 +7,7 @@
 // ══════════════════════════════════════════════════════════════
 import {
   db, collection, doc, query, where, orderBy, limit,
-  fetchDocs, fetchDoc, deleteDoc, getUserDocByNick,
+  fetchDocs, fetchDoc, setDoc, deleteDoc, getUserDocByNick, resolveUserDocId,
   getWeekId, fmtNum, fmtDateTime, escapeHtml, downloadJSON, humanError,
   getTodayDateStr, cache, fns, httpsCallable,
 } from './firebase.js';
@@ -658,6 +658,58 @@ async function scanReviews() {
   }
 }
 
+// ══════════════════════════════
+//  🚫 랭킹 영구차단 (섀도우밴)
+// ══════════════════════════════
+// ranking_blocklist/{uid} 문서를 만들면 서버(submitScore)가 그 계정 점수를 랭킹에 영구 미반영.
+// 닉네임 → uid 해석은 nickname_lookup 우선, 없으면 rankings/{nick}.uid 폴백(레거시/핵 계정 대비).
+async function resolveBlockUid(nick) {
+  const { uid } = await resolveUserDocId(nick);
+  if (uid) return uid;
+  // 폴백: 랭킹 문서에 박힌 uid (nickname_lookup에 없던 레거시/익명 계정)
+  const rk = await fetchDoc(doc(db, 'rankings', nick)).catch(() => null);
+  if (rk && rk.uid) return rk.uid;
+  return null;
+}
+async function blockAccount(nick) {
+  const el = 'blocklistResult';
+  if (!nick) { resultMsg(el, '닉네임을 입력하세요.', false); return; }
+  const uid = await resolveBlockUid(nick);
+  if (!uid) { resultMsg(el, `"${nick}"의 계정(UID)을 못 찾았어요. 랭킹/닉네임 기록이 있는 계정만 차단할 수 있어요.`, false); return; }
+  await setDoc(doc(db, 'ranking_blocklist', uid), {
+    nickname: nick, blockedAt: Date.now(), blockedBy: 'admin',
+  });
+  resultMsg(el, `🚫 "${nick}" 차단 완료 — 이제 이 계정 점수는 랭킹에 안 올라가요(섀도우밴).`, true);
+  await loadBlocklist();
+}
+async function unblockAccount(uid, nick) {
+  await deleteDoc(doc(db, 'ranking_blocklist', uid));
+  resultMsg('blocklistResult', `✅ "${nick || uid}" 차단 해제됨.`, true);
+  await loadBlocklist();
+}
+async function loadBlocklist() {
+  const listEl = document.getElementById('blocklistList');
+  if (!listEl) return;
+  setLoading(listEl);
+  try {
+    const rows = await fetchDocs(collection(db, 'ranking_blocklist'));
+    if (!rows.length) { setEmpty(listEl, '차단된 계정이 없어요.'); return; }
+    rows.sort((a, b) => (b.blockedAt || 0) - (a.blockedAt || 0));
+    listEl.innerHTML = rows.map(r => `
+      <div class="list-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div>
+          <span class="nick" style="font-weight:700;">${escapeHtml(r.nickname || '(닉 없음)')}</span>
+          <span style="color:var(--muted);font-size:11px;"> · ${escapeHtml(r.id)}</span>
+          <div style="color:var(--muted);font-size:11px;">${r.blockedAt ? fmtDateTime(r.blockedAt) : ''}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm unblock-btn" data-uid="${escapeHtml(r.id)}" data-nick="${escapeHtml(r.nickname || '')}">해제</button>
+      </div>`).join('');
+    listEl.querySelectorAll('.unblock-btn').forEach(btn => {
+      btn.addEventListener('click', guardBtn(btn, () => unblockAccount(btn.dataset.uid, btn.dataset.nick)));
+    });
+  } catch (e) { setError(listEl, humanError(e)); }
+}
+
 // ── 바인딩 / 로드 ──
 export function initSecurityTab() {
   const scanBtn = document.getElementById('suspectScanBtn');
@@ -668,6 +720,15 @@ export function initSecurityTab() {
 
   const hsBtn = document.getElementById('highScoreScanBtn');
   if (hsBtn) hsBtn.addEventListener('click', guardBtn(hsBtn, loadHighScores));
+
+  const blockLoadBtn = document.getElementById('blocklistLoadBtn');
+  if (blockLoadBtn) blockLoadBtn.addEventListener('click', guardBtn(blockLoadBtn, loadBlocklist));
+  const blockAddBtn = document.getElementById('blockAddBtn');
+  if (blockAddBtn) blockAddBtn.addEventListener('click', guardBtn(blockAddBtn, async () => {
+    const nick = document.getElementById('blockNick').value.trim();
+    await blockAccount(nick);
+    if (nick) document.getElementById('blockNick').value = '';
+  }));
 
   const pinResetBtn = document.getElementById('pinResetBtn');
   if (pinResetBtn) pinResetBtn.addEventListener('click', guardBtn(pinResetBtn, resetPin));

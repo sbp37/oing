@@ -251,6 +251,20 @@
       </div>
 
       <div class="card">
+        <div class="card-head">
+          <h3>🚫 랭킹 영구차단 (섀도우밴)</h3>
+          <button id="blocklistLoadBtn" class="btn btn-ghost btn-sm">명단 보기</button>
+        </div>
+        <div class="card-note" style="margin-bottom:8px;">이 계정은 <b>게임은 정상으로 되지만 점수가 랭킹에 영구히 안 올라갑니다.</b> 본인 화면엔 "등록 완료"가 그대로 떠서(섀도우밴) 차단 사실을 눈치채기 어렵습니다. 닉네임으로 차단하면 해당 계정(UID) 기준으로 걸립니다. (시크릿모드/새 기기로 새 계정을 파면 빠져나갈 수 있으나, 그 경우 버스트 감지가 다시 잡습니다. 기존에 올라간 점수는 여기서 지우지 않으니 필요하면 위 "랭킹 기록 삭제"를 쓰세요.)</div>
+        <div class="row">
+          <input id="blockNick" type="text" placeholder="차단할 닉네임">
+          <button id="blockAddBtn" class="btn btn-danger">차단</button>
+        </div>
+        <div id="blocklistResult"></div>
+        <div id="blocklistList" class="list" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="card">
         <div class="card-head"><h3>💾 백업</h3></div>
         <div class="btn-row">
           <button class="btn btn-ghost backup-btn" data-backup="rankings">전체 랭킹 백업</button>

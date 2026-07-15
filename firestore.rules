@@ -435,6 +435,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ranking_blocklist — 랭킹 영구차단(섀도우밴) 명단. {uid} 문서가 있으면 그 계정의
+    // 점수는 submitScore(Admin SDK)가 랭킹에 반영하지 않는다. 어드민만 읽고/쓰기.
+    // 일반 클라이언트는 read 불가(자기가 차단됐는지 알 수 없어야 섀도우밴이 유지됨).
+    match /ranking_blocklist/{uid} {
+      allow read, write: if isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
