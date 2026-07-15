@@ -43,7 +43,12 @@ export const FEATURES = {
   skinRequests: false, // 스킨 꾸미기 신청(skin_requests) — 게임에서 현재 OFF
 };
 
-const app = initializeApp(firebaseConfig);
+// ★ 관리자 앱은 게임(index.html의 기본 앱)과 다른 이름으로 초기화한다.
+//   Firebase Auth는 세션을 "firebase:authUser:<apiKey>:<앱이름>" 키로 IndexedDB에 저장하는데,
+//   예전엔 관리자도 기본 이름([DEFAULT])을 써서 게임과 같은 서랍을 공유했다. 그래서 같은 기기에서
+//   게임을 열면 게임의 익명 로그인이 관리자 이메일 세션을 덮어써 "권한 없음"이 되곤 했다(로그인 풀림).
+//   이름을 분리하면 관리자 세션이 별도 서랍에 저장돼 게임이 아무리 열려도 안 건드린다.
+const app = initializeApp(firebaseConfig, 'oingAdmin');
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 // 서울 리전 — Cloud Functions 배포 리전(asia-northeast3)과 반드시 일치해야 callable이 도달한다.
