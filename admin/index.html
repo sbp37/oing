@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>오잉게임 관리자</title>
+<title>🐱</title>
 <link rel="icon" href="icon.png">
 <link rel="stylesheet" href="admin.css">
 </head>
@@ -14,19 +14,13 @@
 <div id="loginGate" class="login-gate">
   <div class="login-card">
     <div class="login-logo">🐱</div>
-    <h1>오잉게임 관리자</h1>
-    <p class="login-sub">관리자 암호를 입력하세요</p>
-    <input id="loginPw" type="password" placeholder="관리자 암호" autocomplete="current-password">
+    <input id="loginPw" type="password" placeholder="암호" autocomplete="current-password">
     <button id="loginBtn" class="btn btn-primary btn-block">입장</button>
     <div id="loginErr" class="login-err"></div>
-    <button id="loginEmailToggle" class="login-email-toggle">Firebase 관리자 계정으로 로그인 (보안 규칙용) ▾</button>
+    <button id="loginEmailToggle" class="login-email-toggle">계정 로그인 ▾</button>
     <div id="loginEmailBox" class="login-email-box" style="display:none;">
-      <input id="loginEmail" type="email" placeholder="관리자 이메일" autocomplete="username">
+      <input id="loginEmail" type="email" placeholder="이메일" autocomplete="username">
       <input id="loginEmailPw" type="password" placeholder="계정 비밀번호" autocomplete="current-password">
-      <div class="login-hint">⚠️ 위 암호는 화면 잠금일 뿐이고, 실제 데이터 권한은 Firebase 보안 규칙이 결정합니다.<br>
-      스킨 지급·피드백 열람·초기화 같은 관리자 작업은 보안 규칙상 관리자 계정 인증이 필요할 가능성이 높으니,
-      되도록 여기에 관리자 계정으로 로그인하세요.<br>
-      비워두면 게임과 동일한 익명 인증으로 접속하며, 규칙이 막는 작업은 해당 카드에 "권한 없음"으로 표시됩니다.</div>
     </div>
   </div>
 </div>
@@ -35,7 +29,7 @@
 <div id="adminApp" class="admin-app" style="display:none;">
 
   <header class="topbar">
-    <div class="topbar-title">🐱 오잉게임 관리자</div>
+    <div class="topbar-title">🐱</div>
     <div class="topbar-right">
       <button id="verdictBadge" class="verdict-badge" style="display:none;" title="서버가 자동 판정한 의심 세션 — 눌러서 확인">🚨 의심 판정 <b id="verdictBadgeCount">0</b>건</button>
       <span id="readCounter" class="read-counter" title="이번 세션의 Firestore 조회량 추정치 — 실제 청구 읽기 수와 다소 차이가 있을 수 있어요">추정 읽기 0 · 쿼리 0</span>
