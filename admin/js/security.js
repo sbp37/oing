@@ -136,7 +136,7 @@ async function resetPin() {
 const VERDICT_DECISIONS = ['pending_review', 'rejected_invalid'];
 const REASON_LABELS = {
   ELAPSED_TOO_SHORT: '30초 미만 즉시클리어',
-  SCORE_OVER_OFFICIAL_CAP: '점수 상한 초과(5만+)',
+  SCORE_OVER_OFFICIAL_CAP: '점수 상한 초과(10만+)',
   IMPOSSIBLE_BURST: '비정상 폭발 성공(버스트)',
   COMPOSITE_ANOMALY: '복합 이상패턴',
   NO_SESSION: '서버세션 없음',
