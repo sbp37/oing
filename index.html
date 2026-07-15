@@ -6101,9 +6101,11 @@ let _shadowSubmitted = false;
 let _shadowFailCount = 0;
 let _shadowSuccTimes = [];   // 최근 3초 성공 시각(ms)
 let _shadowMaxIn3s = 0;      // 임의 3초 창 내 최대 성공수
+let _shadowClockUsed = 0;    // 이번 판 시계(⏰ +8초) 아이템 발동 횟수 — 어드민 고득점 검토 표시용
 function _shadowResetTelemetry() {
   _shadowSessionId = null; _shadowSubmitted = false;
   _shadowFailCount = 0; _shadowSuccTimes = []; _shadowMaxIn3s = 0;
+  _shadowClockUsed = 0;
 }
 function _shadowNoteSuccess() {
   const now = Date.now();
@@ -6136,6 +6138,7 @@ async function _shadowSubmitSession(nickname) {
     maxCombo: maxCombo,
     maxSuccessesIn3Sec: _shadowMaxIn3s,
     failCount: _shadowFailCount,
+    clockUsed: _shadowClockUsed, // 시계 사용 횟수(표시 전용 — 판정에 미사용)
   };
   try {
     const res = await httpsCallable(fns, 'submitScore')(payload);
@@ -6352,6 +6355,7 @@ function triggerCaughtItem(bd, rr, cc, chainDepth) {
   if (bd.clock) {
     timeLeft = Math.min(timeLeft + 8, 999);
     gameEndTime += 8000;
+    _shadowClockUsed++;
   } else if (bd.freeze) {
     activateFreeze(15);
   } else if (bd.lucky) {
@@ -6732,6 +6736,7 @@ function onCellTap(e) {
       vibrateFeedback(15);
       timeLeft = Math.min(timeLeft + 8, 999);
       gameEndTime += 8000;
+      _shadowClockUsed++;
       updateTimer();
       showItemPop(r, c, '⏰ +8초!', 'clock');
       setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350); }, 380);
@@ -6964,6 +6969,7 @@ function tryRemove(sel2) {
     vibrateFeedback(15);
     timeLeft = Math.min(timeLeft + 8, 999);
     gameEndTime += 8000;
+    _shadowClockUsed++;
     updateTimer();
     showItemPop(rMin, cMin, '⏰ +8초!', 'clock');
   }
