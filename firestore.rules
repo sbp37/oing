@@ -327,11 +327,17 @@ service cloud.firestore {
     match /review_entry_clicks/{d}   { allow read: if true; allow create: if validReviewClickLog(); }
 
     // ⭐ 리뷰 요청 카드 "본 사람" 기록 — 문서 id = uid. 사람당 1회 노출 판정 + 어드민 추적.
-    //  본인만 자기 문서 생성/조회(재노출 방지 확인용). 어드민은 전체 조회. 수정/삭제는 어드민만.
+    //  본인만 자기 문서 생성/수정/조회. action: 노출('shown')·리뷰남기기('write')·그냥계속('dismiss').
+    //  본인이 버튼을 누른 순간 자기 문서의 action만 갱신(setDoc 덮어쓰기). 삭제는 어드민만.
+    function validPromptShown() {
+      return request.resource.data.keys().hasOnly(['nickname','ts','date','action'])
+        && okStr(request.resource.data.get('nickname', ''), 20)
+        && request.resource.data.get('action', 'shown') in ['shown','write','dismiss'];
+    }
     match /review_prompt_shown/{uid} {
       allow read:   if isAdmin() || isUidDoc(uid);
-      allow create: if isUidDoc(uid) && validLog();
-      allow update, delete: if isAdmin();
+      allow create, update: if isAdmin() || (isUidDoc(uid) && validPromptShown());
+      allow delete: if isAdmin();
     }
 
     // visit_sessions — compat과 동일

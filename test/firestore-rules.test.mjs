@@ -202,6 +202,15 @@ test('review_prompt_shown: 허용외 필드/미인증 create 거부', async () =
   await assertFails(setDoc(doc(asUser('u1'), 'review_prompt_shown', 'u1'), { nickname: '냥', ts: 1, date: 'd', foo: 1 }));
   await assertFails(setDoc(doc(unauth(), 'review_prompt_shown', 'anon'), { nickname: '냥', ts: 1, date: 'd' }));
 });
+test('review_prompt_shown: action 필드 create/update 허용 (본인)', async () => {
+  await assertSucceeds(setDoc(doc(asUser('u1'), 'review_prompt_shown', 'u1'), { nickname: '냥', ts: 1, date: 'd', action: 'shown' }));
+  await assertSucceeds(setDoc(doc(asUser('u1'), 'review_prompt_shown', 'u1'), { nickname: '냥', ts: 2, date: 'd', action: 'write' }));
+  await assertSucceeds(setDoc(doc(asUser('u1'), 'review_prompt_shown', 'u1'), { nickname: '냥', ts: 3, date: 'd', action: 'dismiss' }));
+});
+test('review_prompt_shown: 잘못된 action 값 / 남의 문서 action 거부', async () => {
+  await assertFails(setDoc(doc(asUser('u1'), 'review_prompt_shown', 'u1'), { nickname: '냥', ts: 1, date: 'd', action: 'hack' }));
+  await assertFails(setDoc(doc(asUser('u2'), 'review_prompt_shown', 'u1'), { nickname: '냥', ts: 1, date: 'd', action: 'write' }));
+});
 test('review_prompt_shown: 어드민 전체 read 허용', async () => {
   await seed((db) => setDoc(doc(db, 'review_prompt_shown', 'u9'), { nickname: '냥', ts: 1, date: '2026-07-16' }));
   await assertSucceeds(getDoc(doc(asUser(ADMIN), 'review_prompt_shown', 'u9')));
