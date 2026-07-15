@@ -150,6 +150,17 @@ function reasonLabel(code) { return REASON_LABELS[code] || code; }
 // 의심 판정 집계·배지에서는 제외하고, 목록에서는 별도 섹션(회색 "검증 불가")으로 분리 표시한다.
 const isUnverifiable = (d) => Array.isArray(d.official?.reasons) && d.official.reasons.includes('NO_SESSION');
 
+// ELAPSED_TOO_SHORT(30초 미만 즉시클리어) 단독 사유는 실제로는 대부분 오탐이다:
+// 게임 자체는 정상적으로 120초를 채워야 끝나므로, 진짜로 30초 안에 낸 점수라면 클라이언트가
+// 아예 제출을 안 한다 — 이 사유가 뜨는 실제 원인은 startSession 응답 지연(콜드스타트·네트워크
+// 지연)으로 세션의 serverStartedAt이 실제 게임 시작보다 한참 늦게 찍히는 경우가 대부분이다.
+// 점수를 랭킹에 반영하지 않는 서버 판정 자체는 그대로 두되(보수적으로 안전한 방향),
+// 관리자 "의심 판정" 알림에서는 제외해 진짜 의심 신호(점수 상한 초과·버스트 등)에 집중되게 한다.
+const isElapsedOnly = (d) => Array.isArray(d.official?.reasons)
+  && d.official.reasons.length === 1 && d.official.reasons[0] === 'ELAPSED_TOO_SHORT';
+// 위 두 가지(검증 불가 · 짧은 플레이 오탐)를 합쳐 "의심 아님" 버킷으로 취급한다.
+const isLowSignal = (d) => isUnverifiable(d) || isElapsedOnly(d);
+
 // "확인함" 상태는 어드민 브라우저(localStorage)에만 저장한다 — 백엔드/규칙 무변경.
 // 목록이 길어 정신없다는 피드백 → 아직 안 본 의심만 기본 표시하고, 이미 본 것/검증불가는
 // 토글로 접어둔다. game_sessions 문서 id 기준(30일 TTL로 문서가 사라지므로 무한증가 없음).
@@ -189,7 +200,7 @@ export async function loadVerdictBadge() {
   try {
     const rows = await cache.get('security:verdicts', () => fetchDocs(verdictQuery()));
     const seen = loadSeenIds();
-    const n = rows.filter(d => !isUnverifiable(d) && !seen.has(d.id)).length; // 안 본 의심만
+    const n = rows.filter(d => !isLowSignal(d) && !seen.has(d.id)).length; // 안 본 의심만
     if (n > 0 && badge && countEl) {
       countEl.textContent = n >= 50 ? '50+' : String(n);
       badge.style.display = '';
@@ -208,9 +219,10 @@ export async function loadVerdictBadge() {
 function verdictRowHtml(d) {
   const dec = d.official?.decision;
   const unverifiable = isUnverifiable(d);
+  const elapsedOnly = isElapsedOnly(d);
   const rejected = dec === 'rejected_invalid';
-  const cls = unverifiable ? 'unverifiable' : (rejected ? 'rejected' : 'pending');
-  const verdictText = unverifiable ? '검증 불가' : (rejected ? '거부' : '보류');
+  const cls = (unverifiable || elapsedOnly) ? 'unverifiable' : (rejected ? 'rejected' : 'pending');
+  const verdictText = unverifiable ? '검증 불가' : (elapsedOnly ? '오탐 가능' : (rejected ? '거부' : '보류'));
   const reasons = Array.isArray(d.official?.reasons) ? d.official.reasons : [];
   const elapsedSec = typeof d.serverElapsed === 'number' ? Math.round(d.serverElapsed / 1000) : null;
   const burst = d.client?.maxSuccessesIn3Sec;
@@ -236,11 +248,12 @@ async function loadVerdicts({ force = false } = {}) {
   try {
     const rows = await cache.get('security:verdicts', () => fetchDocs(verdictQuery()));
     const seen = loadSeenIds();
-    const suspects = rows.filter(d => !isUnverifiable(d));
+    const suspects = rows.filter(d => !isLowSignal(d));
     const unverifiable = rows.filter(isUnverifiable);
+    const elapsedOnly = rows.filter(isElapsedOnly);
     const newSuspects = suspects.filter(d => !seen.has(d.id));  // 아직 안 본 의심 → 메인
     const seenSuspects = suspects.filter(d => seen.has(d.id));  // 이미 본 의심 → 토글로
-    const folded = [...seenSuspects, ...unverifiable];          // 접어둘 것(본 의심 + 검증불가)
+    const folded = [...seenSuspects, ...unverifiable, ...elapsedOnly]; // 접어둘 것(본 의심 + 검증불가 + 짧은플레이 오탐)
 
     syncBadge(newSuspects.length);
     if (ackBtn) ackBtn.style.display = newSuspects.length ? '' : 'none';
@@ -263,6 +276,10 @@ async function loadVerdicts({ force = false } = {}) {
           (unverifiable.length
             ? `<div class="card-note" style="margin:10px 0 6px;">❔ 검증 불가 (서버세션 없음) — 치팅 의심이 아니라 서버세션이 생성되지 않아 판정을 확정할 수 없는 기록입니다.</div>
                ${unverifiable.map(verdictRowHtml).join('')}`
+            : '') +
+          (elapsedOnly.length
+            ? `<div class="card-note" style="margin:10px 0 6px;">⏱️ 짧은 플레이(30초 미만) — 대부분 오탐입니다. 게임은 정상적으로 120초를 채워야 끝나므로, 세션 생성 지연(콜드스타트·네트워크 지연) 때문에 실제로는 정상 플레이인데 짧게 찍히는 경우가 대부분입니다. 점수는 랭킹에 반영되지 않지만 계정 제재 등 조치는 필요 없습니다.</div>
+               ${elapsedOnly.map(verdictRowHtml).join('')}`
             : '');
       } else {
         seenToggle.style.display = 'none';
@@ -283,7 +300,7 @@ async function loadVerdicts({ force = false } = {}) {
 async function ackAllVerdicts() {
   const rows = cache.peek('security:verdicts') || [];
   const seen = loadSeenIds();
-  const newIds = rows.filter(d => !isUnverifiable(d) && !seen.has(d.id)).map(d => d.id);
+  const newIds = rows.filter(d => !isLowSignal(d) && !seen.has(d.id)).map(d => d.id);
   markSeen(newIds);
   await loadVerdicts();
 }
