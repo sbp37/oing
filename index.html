@@ -8787,7 +8787,9 @@ function myRankChangeBaseline(myNick, snapshotPrev, mode) {
   const snapLabel = '이번 주 대비'; // 전체·주간·친구 모두 이번 주(getWeekId) 기준으로 통일
   try {
     const just = sessionStorage.getItem('oeing_just_updated');
-    if (just && just === myNick) {
+    // 친구탭은 '친구들 사이 순위' 스케일이라 전체/주간용 직전 순위를 쓰면 엉터리 ▲가 뜬다
+    // → 친구탭에선 '방금 대비' 지름길을 쓰지 않고 친구 스냅샷(이번 주 기준) 대비만 사용.
+    if (mode !== 'friends' && just && just === myNick) {
       const raw = sessionStorage.getItem(mode === 'week' ? 'oeing_just_updated_prevrank_week' : 'oeing_just_updated_prevrank');
       if (raw === '') return { prevRank: null, label: '방금 대비' };   // 방금 게임서 순위권 신규 진입
       if (raw != null) {
@@ -9087,14 +9089,17 @@ async function renderRankingInner(gen = ++_rankRenderGen) {
     // 보조 표기(작게)로 밀고, 매주 월요일 리셋되는 주간 점수를 메인으로 정렬·표시.
     // 주간 상위 목록(캐시 공유)에 없는 친구만 개별 조회(친구 수가 적어 읽기 부담 없음).
     const weeklyList = await loadWeeklyRankings();
-    const weekMap = new Map(weeklyList.map(w => [w.nickname, w.score || 0]));
+    const weekMap = new Map(weeklyList.map(w => [w.nickname, { score: w.score || 0, ts: w.ts || 0 }]));
     await Promise.all(list.map(async (e) => {
       e.bestScore = e.score || 0; // 기존 값(역대 최고)은 보조 표기로 이동
-      if (weekMap.has(e.nickname)) { e.score = weekMap.get(e.nickname); return; }
+      // 🔥(최근 기록 갱신) 판정도 표시 점수와 같은 '주간' 기준의 ts를 쓴다
+      // (역대 ts를 쓰면 이번 주 기록을 갱신했는데도 🔥가 안 뜨는 누락 발생)
+      if (weekMap.has(e.nickname)) { const w = weekMap.get(e.nickname); e.score = w.score; e.ts = w.ts; return; }
       try {
         const ws = await getDoc(doc(db, 'weekly_rankings', getWeekId(), 'scores', e.nickname));
         e.score = (ws.exists() && typeof ws.data().score === 'number') ? ws.data().score : 0;
-      } catch (err) { e.score = 0; }
+        e.ts = (ws.exists() && typeof ws.data().ts === 'number') ? ws.data().ts : 0;
+      } catch (err) { e.score = 0; e.ts = 0; }
     }));
     list.sort((a, b) => (b.score || 0) - (a.score || 0) || (b.bestScore || 0) - (a.bestScore || 0));
   }
@@ -9182,7 +9187,9 @@ async function renderRankingInner(gen = ++_rankRenderGen) {
     const titleCountP = entry ? getHallTitle(entry.nickname) : 0;
     const titleBadgeP = titleCountP > 0 ? `<span class="podium-title-badge">👑x${titleCountP}</span>` : '';
     const rankNumP = i === 0 ? 2 : i === 1 ? 1 : 3;
-    const isJustUpdatedP = entry && justUpdated && entry.nickname === justUpdated;
+    // 친구탭은 순위 스케일이 달라(친구들 사이 순위) 전체용 직전 순위를 쓰면 엉터리 ▲가 뜸
+    // → 친구탭에선 친구 스냅샷 기준만 사용(방금 오른 것도 주 시작 대비로 정확히 ▲ 표시됨)
+    const isJustUpdatedP = entry && justUpdated && entry.nickname === justUpdated && currentRankMode !== 'friends';
     const changeHtmlP = entry
       ? (isJustUpdatedP ? rankChangeHtml(justUpdatedPrevRank, rankNumP, true, true) : rankChangeHtml(prevRanks[entry.nickname], rankNumP, true, true))
       : '';
@@ -9240,7 +9247,7 @@ async function renderRankingInner(gen = ++_rankRenderGen) {
       const titleCount2 = getHallTitle(entry.nickname);
       const titleHtml = titleCount2 > 0 ? `<span style="font-size:11px;color:#DA9845;font-weight:700;margin-left:3px;">👑x${titleCount2}</span>` : '';
       // 방금 점수 올린 본인 행은 "오늘 아침 대비"가 아니라 "방금 제출 전 순위 대비"로 보여줌
-      const changeHtml = isNew
+      const changeHtml = (isNew && currentRankMode !== 'friends')
         ? rankChangeHtml(justUpdatedPrevRank, rank, false, true)
         : rankChangeHtml(prevRanks[entry.nickname], rank, false, true);
       const bestSubR = currentRankMode === 'friends' && (entry.bestScore || 0) > 0
@@ -9278,7 +9285,7 @@ async function renderRankingInner(gen = ++_rankRenderGen) {
     const myIdx = list.findIndex(e => e.nickname === myNick);
     if (myIdx !== -1) {
       myRankInfo.innerHTML = '';
-      { const mrsBase = myRankChangeBaseline(myNick, prevRanks[myNick], 'all');
+      { const mrsBase = myRankChangeBaseline(myNick, prevRanks[myNick], currentRankMode === 'friends' ? 'friends' : 'all');
         renderMyRankSummary(list, myIdx, mrsBase.prevRank, mrsBase.label); }
     } else {
       // 상위 150명 밖이라도 등록된 점수가 있으면 카드를 숨기지 않고 실제 점수로 표시
