@@ -130,6 +130,117 @@ async function resetPin() {
   }
 }
 
+// ── 🏅 고득점 세션 열람 (game_sessions, 읽기 전용) ──
+// 4만+ 세션을 판정과 무관하게 나열하고, 줄을 누르면 이미 저장된 telemetry + 유저 통계
+// (user_stats 1건 추가 읽기)로 "플레이 스타일 요약"을 보여준다. 목적은 자동 차단이 아니라
+// 운영자가 직접 보고 판단하는 것 — 4만 초과 자체는 어떤 판정에도 쓰지 않는다.
+const HIGH_SCORE_MIN = 40000;
+const DECISION_KO = { accepted: ['정상 반영', 'ok'], pending_review: ['보류', 'pending'], rejected_invalid: ['거부', 'rejected'] };
+
+// 사람이 빠르게 읽는 한 줄 요약 — 전부 규칙 기반(추측·차단 없음)
+function highScoreSummary(d, stats) {
+  const parts = [];
+  const score = d.client?.finalScore ?? 0;
+  const elapsedSec = typeof d.serverElapsed === 'number' ? d.serverElapsed / 1000 : null;
+  // ① 플레이 길이 — 본인 평소 평균 대비
+  const avgPlay = (stats && stats.playCount > 0 && stats.totalPlayTime > 0) ? stats.totalPlayTime / stats.playCount : null;
+  if (elapsedSec != null && avgPlay) {
+    const r = elapsedSec / avgPlay;
+    parts.push(r >= 1.5 ? `평소보다 ${r.toFixed(1)}배 긴 장기플레이형` : (r <= 0.7 ? `평소보다 짧은 판(${r.toFixed(1)}배)` : '평소 길이와 비슷'));
+  } else if (elapsedSec != null) parts.push(`플레이 ${Math.round(elapsedSec)}초`);
+  // ② 시계 사용 (신버전 판부터 기록)
+  const clock = d.client?.clockUsed;
+  parts.push((typeof clock === 'number') ? `시계 ${clock}회 사용` : '시계 기록 없음(이전 버전 판)');
+  // ③ 순간 입력
+  const burst = d.client?.maxSuccessesIn3Sec;
+  if (typeof burst === 'number') {
+    parts.push(burst <= 8 ? `순간입력 정상(3초 최대 ${burst})` : (burst < 12 ? `순간입력 빠름(3초 최대 ${burst})` : `순간입력 비정상(3초 ${burst}회)`));
+  }
+  // ④ 이전 기록 대비 — 이번 점수를 제외한 최근 점수들의 최댓값 기준(근사)
+  const recent = (stats && Array.isArray(stats.recentScores)) ? stats.recentScores.filter(x => Number.isInteger(x) && x > 0) : [];
+  const others = recent.filter(x => x !== score);
+  if (others.length) {
+    const prevBest = Math.max(...others);
+    parts.push(score > prevBest ? `이전 기록 대비 ${(score / prevBest).toFixed(1)}배 상승` : '이전 기록 범위 내');
+  } else parts.push('비교할 이전 기록 없음');
+  // ⑤ 기존 자동 판정 신호
+  const reasons = Array.isArray(d.official?.reasons) ? d.official.reasons : [];
+  parts.push(reasons.length ? ('신호: ' + reasons.map(reasonLabel).join('·')) : '의심신호 없음');
+  return parts.join(' · ');
+}
+
+function highScoreDetailHtml(d, stats) {
+  const c = d.client || {};
+  const elapsedSec = typeof d.serverElapsed === 'number' ? Math.round(d.serverElapsed / 1000) : null;
+  const avgPlay = (stats && stats.playCount > 0 && stats.totalPlayTime > 0) ? Math.round(stats.totalPlayTime / stats.playCount) : null;
+  const avgGap = (elapsedSec && c.clearCount > 0) ? (elapsedSec / c.clearCount).toFixed(2) : null;
+  const recent = (stats && Array.isArray(stats.recentScores)) ? stats.recentScores : [];
+  const reasons = Array.isArray(d.official?.reasons) ? d.official.reasons : [];
+  const line = (k, v) => `<div class="mini-row"><span class="mini-label">${k}</span><span class="mini-val">${v}</span></div>`;
+  return `
+    <div class="hs-summary" style="margin:8px 0; padding:8px 10px; border-radius:8px; background:rgba(148,163,184,0.08); font-size:12.5px; line-height:1.6;">📝 ${escapeHtml(highScoreSummary(d, stats))}</div>
+    ${line('점수', fmtNum(c.finalScore ?? 0) + '점')}
+    ${line('플레이 시간', (elapsedSec != null ? elapsedSec + '초' : '-') + (avgPlay ? ` (평소 평균 ${avgPlay}초)` : ''))}
+    ${line('최고 콤보', fmtNum(c.maxCombo ?? 0))}
+    ${line('성공 / 실패', `${fmtNum(c.clearCount ?? 0)} / ${fmtNum(c.failCount ?? 0)}`)}
+    ${line('3초 내 최대 성공', fmtNum(c.maxSuccessesIn3Sec ?? 0) + '회')}
+    ${line('평균 성공 간격', avgGap ? avgGap + '초' : '-')}
+    ${line('시계 아이템', (typeof c.clockUsed === 'number') ? c.clockUsed + '회' : '기록 없음(이전 버전)')}
+    ${line('최근 점수 추이', recent.length ? recent.map(fmtNum).join(' → ') : '-')}
+    ${line('자동 판정', `${(DECISION_KO[d.official?.decision] || ['-'])[0]}${reasons.length ? ' — ' + reasons.map(reasonLabel).join(', ') : ''}`)}
+  `;
+}
+
+async function loadHighScores() {
+  const el = document.getElementById('highScoreList');
+  setLoading(el, '4만점 이상 세션을 찾는 중...');
+  try {
+    const rows = await fetchDocs(query(
+      collection(db, 'game_sessions'),
+      where('client.finalScore', '>=', HIGH_SCORE_MIN),
+      orderBy('client.finalScore', 'desc'),
+      limit(30),
+    ));
+    if (!rows.length) { setEmpty(el, '4만점 이상 세션이 아직 없어요'); return; }
+    el.innerHTML = rows.map((d, i) => {
+      const [decText, decCls] = DECISION_KO[d.official?.decision] || ['?', 'unverifiable'];
+      const when = d.submittedAt ? fmtDateTime(d.submittedAt) : '-';
+      return `
+        <div class="verdict-row ${decCls}" data-hs="${i}" style="cursor:pointer; flex-wrap:wrap;">
+          <span class="vr-main">
+            <span class="nick">${escapeHtml(d.nickname || d.uid || '?')}</span>
+            · <b>${fmtNum(d.client?.finalScore ?? 0)}점</b>
+            <span class="vr-sub">${when} · 눌러서 상세 ▾</span>
+          </span>
+          <span class="vr-verdict ${decCls}">${decText}</span>
+          <div class="hs-detail" style="display:none; flex-basis:100%; margin-top:4px;"></div>
+        </div>`;
+    }).join('');
+    // 줄 클릭 → 상세 토글 (유저 통계는 처음 펼칠 때 1건만 읽고 캐시)
+    el.querySelectorAll('[data-hs]').forEach(rowEl => {
+      rowEl.addEventListener('click', async () => {
+        const d = rows[Number(rowEl.dataset.hs)];
+        const box = rowEl.querySelector('.hs-detail');
+        if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+        if (!box.dataset.loaded) {
+          box.innerHTML = '<div class="list-loading">유저 통계 확인 중...</div>';
+          box.style.display = 'block';
+          let stats = null;
+          try { const r = await getUserDocByNick('user_stats', d.nickname || ''); stats = r && r.data; } catch {}
+          box.innerHTML = highScoreDetailHtml(d, stats);
+          box.dataset.loaded = '1';
+        }
+        box.style.display = 'block';
+      });
+    });
+  } catch (e) {
+    const msg = humanError(e);
+    const extra = /index/i.test(String(e && (e.code || e.message)))
+      ? '<br><span style="color:var(--muted);font-size:11.5px;">※ 처음 실행이면 브라우저 콘솔(F12)의 "인덱스 생성" 링크를 한 번 눌러주세요.</span>' : '';
+    setError(el, msg + extra);
+  }
+}
+
 // ── 🚨 서버 자동 판정 알림 (game_sessions, 읽기 전용) ──
 // 대시보드는 이 컬렉션을 절대 수정/삭제하지 않는다 (규칙상 write도 Cloud Function만 가능).
 // 문서는 30일 TTL(expireAt)로 서버가 알아서 지우므로 별도 보관 로직 없음.
@@ -554,6 +665,9 @@ export function initSecurityTab() {
 
   const recoverBtn = document.getElementById('recoverScanBtn');
   if (recoverBtn) recoverBtn.addEventListener('click', guardBtn(recoverBtn, scanRecoverCandidates));
+
+  const hsBtn = document.getElementById('highScoreScanBtn');
+  if (hsBtn) hsBtn.addEventListener('click', guardBtn(hsBtn, loadHighScores));
 
   const pinResetBtn = document.getElementById('pinResetBtn');
   if (pinResetBtn) pinResetBtn.addEventListener('click', guardBtn(pinResetBtn, resetPin));
