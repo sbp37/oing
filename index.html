@@ -6128,7 +6128,7 @@ async function _shadowSubmitSession(nickname) {
   if (_shadowSubmitted) return null; // 한 판당 최대 1회
   _shadowSubmitted = true;           // await 전 잠금
   const payload = {
-    sessionId: _shadowSessionId || '', // 세션 없으면 서버가 NO_SESSION → pending_review로 보존
+    sessionId: _shadowSessionId || '', // 세션 없어도 서버 v3가 정상 점수는 accepted로 반영(경과시간 검사만 생략)
     nickname: nickname || loadNickname() || '',
     finalScore: score,
     clearCount: clearCount,
@@ -7948,6 +7948,12 @@ async function endGame() {
     nickDone.textContent = `🎉 ${savedNick} 등록 중...`;
 
     let scoreSaved = false; // 점수 본체 저장 성공 여부 — 부가 작업 실패와 구분용
+    // 서버 판정 결과(accepted/pending_review/rejected_invalid). 예전엔 이 값을 버리고 무조건
+    // "등록 완료"를 표시해서, 보류 판정을 받은 유저가 "랭킹에 왜 안 뜨지?"가 되는 문제가 있었음.
+    let submitDecision = 'accepted';
+    const submitDoneMsg = () => submitDecision === 'accepted'
+      ? `🎉 ${escapeHtml(savedNick)} 자동 등록 완료`
+      : '🐾 점수는 접수됐다냥 — 확인 후 랭킹에 반영될 수 있다냥';
     try {
       // Firebase 작업 타임아웃 — PR3부터 점수 저장이 CF(submitScore) 왕복을 거치면서
       // 콜드스타트 시 10초를 넘기는 사례가 생겨 "실패"로 잘못 표시되는 문제가 있었음(25초로 상향).
@@ -7975,8 +7981,9 @@ async function endGame() {
         // PR3: 공식 랭킹/주간은 submitScore CF(Admin SDK)만 write. 클라 direct write 제거.
         //  실패 시 재시도 큐에 적재(다음 접속 재제출) — 정상 유저 점수 유실 방지, 직접 write fallback 없음.
         try {
-          await _shadowSubmitSession(savedNick);
+          const subRes = await _shadowSubmitSession(savedNick);
           scoreSaved = true;
+          if (subRes && subRes.decision) submitDecision = subRes.decision;
         } catch (se) {
           scoreSaved = false;
         }
@@ -8056,7 +8063,7 @@ async function endGame() {
           nickDone.style.fontSize = '12px';
           nickDone.style.color = 'var(--muted)';
           nickDone.style.fontWeight = '600';
-          nickDone.innerHTML = `🎉 ${escapeHtml(savedNick)} 자동 등록 완료`;
+          nickDone.innerHTML = submitDoneMsg();
           if (isResultScreenVisible()) showNewRecordPop();
         } else {
           renderRanking();
@@ -8064,7 +8071,7 @@ async function endGame() {
           nickDone.style.fontSize = '12px';
           nickDone.style.color = 'var(--muted)';
           nickDone.style.fontWeight = '600';
-          nickDone.innerHTML = `🎉 ${escapeHtml(savedNick)} 자동 등록 완료`;
+          nickDone.innerHTML = submitDoneMsg();
           // 비기록 판 → 두 번째 줄에 "다음 목표" 멘트를 기본으로 보여주고,
           // 세션당 1회 쉬는 타이밍이면 그 자리에 쉬는 멘트를 대신 표시
           const nextGoalEl = document.getElementById('nextGoal');
@@ -8087,7 +8094,7 @@ async function endGame() {
       // Firebase 실패해도 결과창은 이미 떠있음
       // 점수 본체는 저장됐고 순위 조회 같은 부가 작업만 실패/타임아웃한 경우엔 완료로 표시
       const ndEl = document.getElementById('nickDone');
-      ndEl.textContent = scoreSaved ? `🎉 ${savedNick} 자동 등록 완료` : '점수 저장에 실패했다냥 😿 잠시 후 다시 시도해달라냥!';
+      ndEl.innerHTML = scoreSaved ? submitDoneMsg() : '점수 저장에 실패했다냥 😿 잠시 후 다시 시도해달라냥!';
     }
   } else {
     document.getElementById('nickSection2').style.display = 'block';
