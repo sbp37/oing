@@ -105,12 +105,23 @@ async function enterAdmin() {
   const email = (document.getElementById('loginEmail').value || '').trim();
   const emailPw = document.getElementById('loginEmailPw').value || '';
   const errEl = document.getElementById('loginErr');
+  const savedEmail = (() => { try { return localStorage.getItem(EMAIL_KEY); } catch { return null; } })();
   try {
     if (email && emailPw) {
       await signInEmail(email, emailPw);
       try { localStorage.setItem(EMAIL_KEY, email); } catch {}
+    } else if (savedEmail) {
+      // ★ 이 기기는 관리자 이메일 로그인을 쓰는 기기 — 이메일 칸이 비었다고 조용히
+      //   익명으로 입장시키면 익명 세션이 저장돼, 다음 새로고침부터 "권한 없음(규칙 차단)"
+      //   상태로 열리는 원인이 됐다(로그인이 자꾸 풀리던 버그). 익명 입장 대신
+      //   이메일 비밀번호를 요구한다. 세션이 살아있는 평소에는 여기까지 오지 않는다.
+      document.getElementById('loginEmailBox').style.display = 'block';
+      document.getElementById('loginEmail').value = savedEmail;
+      errEl.textContent = '권한 로그인이 만료됐어요 — 이메일 비밀번호도 입력해주세요.';
+      document.getElementById('loginEmailPw').focus();
+      return false;
     } else {
-      await signInAnon(); // 게임과 동일한 익명 인증
+      await signInAnon(); // 게임과 동일한 익명 인증 (이메일을 쓴 적 없는 기기만)
     }
   } catch (e) {
     errEl.textContent = 'Firebase 로그인 실패: ' + (e.code || e.message);
@@ -168,8 +179,18 @@ function bindLogin() {
   if (unlocked) {
     const savedEmail = (() => { try { return localStorage.getItem(EMAIL_KEY); } catch { return null; } })();
     waitForAuth().then(user => {
-      if (user) showApp();               // 보존된 세션(익명/이메일) 그대로 재입장
-      else if (!savedEmail) enterAdmin(); // 익명 인증은 자동 재로그인
+      if (user && user.isAnonymous && savedEmail) {
+        // ★ 이메일 기기인데 익명 세션이 저장돼 있음(과거 버그의 잔재) — 이대로 입장하면
+        //   전부 "접근불가"가 되므로, 익명 세션을 지우고 이메일 재로그인을 안내한다.
+        signOutAll();
+        document.getElementById('loginEmailBox').style.display = 'block';
+        document.getElementById('loginEmail').value = savedEmail;
+        document.getElementById('loginErr').textContent = '권한 로그인이 풀려 있었어요 — 화면 암호와 이메일 비밀번호로 다시 로그인하면 이후엔 유지돼요.';
+        return;
+      }
+      if (user) showApp();               // 보존된 세션(이메일/순수 익명 기기) 그대로 재입장
+      else if (!savedEmail) enterAdmin(); // 익명 전용 기기만 자동 재로그인
+      // 이메일 기기인데 세션이 없으면 → 로그인 화면 유지(이메일 칸은 bindLogin에서 미리 열림)
     });
   }
 }

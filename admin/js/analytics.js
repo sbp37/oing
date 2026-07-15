@@ -44,13 +44,15 @@ function barChart(el, data, { valueKey, todayIdx = data.length - 1, unit = '' })
   }).join('');
 }
 
-// 시간대별 — 막대 위 숫자를 표시하지 않음(24개가 전부 겹치므로), 값은 툴팁 +
-// 아래 캡션에 "가장 활발한 시간대"만 요약
+// 시간대별 — 0이 아닌 시간대는 막대 위에 값을 전부 표시(요청). 24칸이라 글씨는
+// CSS(.chart.hour .bar-val)에서 최소 크기로. 캡션의 "가장 활발한 시간대" 요약은 유지.
 function hourChart(el, hours) {
   const max = Math.max(1, ...hours);
   const peak = hours.indexOf(Math.max(...hours));
+  el.classList.add('hour');
   el.innerHTML = hours.map((v, h) => `
     <div class="bar-wrap" title="${h}시: ${fmtNum(v)}회">
+      <div class="bar-val">${v > 0 ? fmtNum(v) : ''}</div>
       <div class="bar ${h === peak ? 'today' : ''}" style="height:${Math.round(v / max * 100)}%"></div>
       <div class="bar-label">${h % 3 === 0 ? h + '시' : ''}</div>
     </div>`).join('');

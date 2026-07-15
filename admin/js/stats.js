@@ -234,6 +234,16 @@ export function todayNewUsersCount() {
   return cache.get('shared:todayCount:newUsers', () =>
     countQuery(collection(db, 'user_stats'), where('firstPlayed', '>=', dayStartTs(getTodayDateStr()))));
 }
+// 오늘 신규 유저 닉네임 목록(최대 max명) — 홈 타일에 "누가" 들어왔는지 표시용.
+// 카운트(todayNewUsersCount)와 완전히 같은 조건. 신규 0명인 날은 호출부에서 스킵해 읽기 0.
+export function todayNewUsersList(max = 10) {
+  return cache.get('shared:todayList:newUsers', async () => {
+    const rows = await fetchDocs(query(collection(db, 'user_stats'),
+      where('firstPlayed', '>=', dayStartTs(getTodayDateStr())),
+      orderBy('firstPlayed', 'desc'), limit(max)));
+    return rows.map(r => r.nickname || r.id);
+  });
+}
 
 // WAU: 최근 7일 고유 방문자 합집합 / 재방문율: 오늘 방문자 중 지난 6일에도 온 비율
 // 미집계 날짜(null)는 건너뛰고 missingDays 로 개수를 알려준다.
