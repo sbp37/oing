@@ -168,6 +168,23 @@ test('game_sessions: 클라 delete 거부', async () => {
   await assertFails(deleteDoc(doc(asUser('u1'), 'game_sessions', 's5')));
 });
 
+// ─────────────── ranking_blocklist (섀도우밴 — 어드민만, 클라는 read조차 불가) ───────────────
+test('ranking_blocklist: 어드민 read/write 허용', async () => {
+  await assertSucceeds(setDoc(doc(asUser(ADMIN), 'ranking_blocklist', 'bad1'), { nickname: 'ㅋㅋ', blockedAt: 1 }));
+  await assertSucceeds(getDoc(doc(asUser(ADMIN), 'ranking_blocklist', 'bad1')));
+  await assertSucceeds(deleteDoc(doc(asUser(ADMIN), 'ranking_blocklist', 'bad1')));
+});
+test('ranking_blocklist: 클라 read 거부 (차단 여부를 알 수 없어야 섀도우밴 유지)', async () => {
+  await seed((db) => setDoc(doc(db, 'ranking_blocklist', 'bad2'), { nickname: '실루엣9', blockedAt: 1 }));
+  await assertFails(getDoc(doc(unauth(), 'ranking_blocklist', 'bad2')));
+  await assertFails(getDoc(doc(asUser('bad2'), 'ranking_blocklist', 'bad2'))); // 본인도 못 봄
+});
+test('ranking_blocklist: 클라 write 거부', async () => {
+  await assertFails(setDoc(doc(asUser('u1'), 'ranking_blocklist', 'u1'), { nickname: 'x', blockedAt: 1 }));
+  await seed((db) => setDoc(doc(db, 'ranking_blocklist', 'bad3'), { nickname: 'y', blockedAt: 1 }));
+  await assertFails(deleteDoc(doc(asUser('bad3'), 'ranking_blocklist', 'bad3'))); // 본인이 차단 해제 못 함
+});
+
 // ─────────────── game_reviews (리뷰 — 모든 write는 reviewAction CF만) ───────────────
 test('game_reviews: 공개 read 허용', async () => {
   await seed((db) => setDoc(doc(db, 'game_reviews', 'u1'), { nickname: 'n', rating: 5, text: 'good' }));
