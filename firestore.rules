@@ -169,7 +169,9 @@ service cloud.firestore {
         || (docId == 'rankSnapshot'
                 && request.resource.data.keys().hasOnly(['date','savedAt','ranks','v']))
         || (docId == 'weeklyRankSnapshot'
-                && request.resource.data.keys().hasOnly(['date','savedAt','ranks','weekId']));
+                && request.resource.data.keys().hasOnly(['date','savedAt','ranks','weekId']))
+        || (docId == 'dailyNewUsers'
+                && request.resource.data.keys().hasOnly(['date','savedAt','nicknames']));
     }
     match /meta/{docId} {
       allow read: if true;
