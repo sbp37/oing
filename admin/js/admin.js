@@ -11,7 +11,7 @@ import { signInAnon, signInEmail, signOutAll, waitForAuth, cache } from './fireb
 import { loadDashboard } from './dashboard.js';
 import { initUsersTab, loadUsers } from './users.js';
 import { initAnalyticsTab, loadAnalytics } from './analytics.js';
-import { initSecurityTab, loadSecurity, loadVerdictBadge } from './security.js';
+import { initSecurityTab, loadSecurity, loadVerdictBadge, loadReviewPendingBadge } from './security.js';
 import { initRewardsTab, loadRewards } from './rewards.js';
 import { initOperationsTab, loadOperations } from './operations.js';
 
@@ -93,11 +93,17 @@ function showApp() {
   //   (최대 50건 1쿼리). 결과는 캐시에 담겨 보안 탭이 그대로 재사용한다.
   openTab('home');
   loadVerdictBadge();
+  loadReviewPendingBadge();
   // 배지 클릭 → 보안 탭으로 이동
   const badge = document.getElementById('verdictBadge');
   if (badge && !badge._bound) {
     badge._bound = true;
     badge.addEventListener('click', () => openTab('security'));
+  }
+  const rpBadge = document.getElementById('reviewPendingBadge');
+  if (rpBadge && !rpBadge._bound) {
+    rpBadge._bound = true;
+    rpBadge.addEventListener('click', () => openTab('security'));
   }
 }
 
