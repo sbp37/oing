@@ -2057,6 +2057,8 @@ body.light #panelGame .hint-btn.pregame { background: #f5f5f5; border-color: #d0
   border-color: #8ab8e8 !important;
   box-shadow: 0 0 0 1px #8ab8e8 !important;
 }
+/* 선택 표시는 애니메이션 없이 즉시 반영 — 누르자마자 바로 파래지고, 취소도 즉시 (지연 체감 제거) */
+.cell.sel, .cell.answer.sel, .cell.cat.answer.sel { transition: none !important; }
 @keyframes answerBlinkPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
@@ -7237,7 +7239,7 @@ function tryRemove(sel2) {
       renderGrid();
       showAnswers();
       if (hintClearTimer) clearTimeout(hintClearTimer);
-      hintClearTimer = setTimeout(clearAnswerHighlight, 1600);
+      hintClearTimer = setTimeout(clearAnswerHighlight, 3500);
       if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350);
     }, 380);
   }
@@ -8644,7 +8646,7 @@ document.getElementById('hintBtn').addEventListener('click', () => {
   updateHintBtn();
   playHint();
   if (hintClearTimer) clearTimeout(hintClearTimer);
-  hintClearTimer = setTimeout(clearAnswerHighlight, 1600);
+  hintClearTimer = setTimeout(clearAnswerHighlight, 3500);
 });
 
 // 셔플 버튼 — 판당 1회, 남은 숫자들의 "위치만" 서로 뒤섞음 (개수/합계 불변, 고양이·아이템·빈칸은 그대로)
@@ -10531,7 +10533,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.2';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784220000; // v4.2 이후 — 힌트 강조 칸을 선택했을 때 선택표시가 안 보이던 문제 수정(조용한 배포)
+const BUILD = 1784230000; // v4.2 이후 — 힌트 위 선택표시 즉시 반영 + 힌트 지속 3.5초로(선택칸 파랑·나머지 정답칸 초록 유지)(조용한 배포)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
