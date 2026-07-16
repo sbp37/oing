@@ -5318,8 +5318,11 @@ function getSmartScoreComment(finalScoreVal) {
       } else if (h.best >= 1000 && finalScoreVal < h.best && finalScoreVal >= h.best * 0.9) {
         line = pickReactLine(SMART_REACT_LINES.near);
         if (line) line = line.replace('{diff}', (h.best - finalScoreVal).toLocaleString());
-      } else if (avg >= 200 && finalScoreVal >= avg * 1.2) {
-        // 잘한 판 — 15%는 교관·도발, 나머지는 개인화 칭찬/구간 칭찬 반반
+      } else if (avg >= 200 && finalScoreVal >= avg * 1.35) {
+        // 잘한 판 — "평소보다 확실히 좋다" 칭찬은 진짜 잘한 판에만. 콤보 게임 특성상 점수가
+        // 판마다 ±20%는 흔히 출렁여, 예전 1.2배(20%↑) 기준은 평소 수준 판에도 칭찬이 남발됐다.
+        // 1.35배(35%↑)로 올려 above가 과다하게 뜨지 않게 함(반대쪽 below=0.6배와의 비대칭도 완화).
+        // 15%는 교관·도발, 나머지는 개인화 칭찬/구간 칭찬 반반
         const rollA = Math.random();
         line = pickReactLine(rollA < 0.15 ? SMART_REACT_LINES.drill
           : (rollA < 0.575 ? SMART_REACT_LINES.above : tierLinesFor(finalScoreVal)));
@@ -10533,7 +10536,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.2';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784230000; // v4.2 이후 — 힌트 위 선택표시 즉시 반영 + 힌트 지속 3.5초로(선택칸 파랑·나머지 정답칸 초록 유지)(조용한 배포)
+const BUILD = 1784240000; // v4.2 이후 — "평소보다 확실히 좋다" 칭찬 멘트 기준 1.2배→1.35배(평소 수준 판에 남발되던 것 완화)(조용한 배포)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
