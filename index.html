@@ -3893,6 +3893,33 @@ async function callAccountFn(action, nickname, pin) {
   const res = await callFn({ action, nickname, pin });
   return (res && res.data) || {};
 }
+
+// ── 레거시 예약(reserved) 닉 자동입양 ──
+// 옛 마이그레이션으로 "예약"만 걸리고 uid·핀 둘 다 없는 닉네임의 진짜 주인이, "이 기기가 그 닉으로
+// 실제 플레이한 기록"을 근거로 소유권을 갖는다(핀 없이). 서버가 3중 안전조건을 최종 판정하므로
+// 조건 안 맞으면 조용히 실패(false). uid 있는 정상 계정은 서버에서 즉시 거부되어 절대 영향 없음.
+async function adoptLegacyIfEligible() {
+  try {
+    if (!MY_UID || isUidLinked()) return false;      // 이미 연결됨 → 불필요
+    const nick = loadNickname();
+    if (!nick) return false;
+    // 사전 필터(공개 read 1회): 내 닉이 예약+무주인+비-tombstone일 때만 서버 호출(불필요한 호출 방지)
+    const norm = normalizeNickname(nick);
+    const lk = await getDoc(doc(db, 'nickname_lookup', norm)).catch(() => null);
+    const d = lk && lk.exists() ? lk.data() : null;
+    if (!(d && d.reserved && !d.uid && !d.renamedTo)) return false;
+    const pin = generatePin();
+    const res = await callAccountFn('adoptLegacy', nick, pin); // 서버가 플레이기록 등 최종 검증
+    if (res && res.mode === 'adopted') {
+      saveMyPin(pin);
+      try { saveNickname(nick); } catch {}
+      markUidLinked(MY_UID);
+      try { updateAccountLinkBtn(); } catch {}
+      return true;
+    }
+  } catch (e) { /* no-history 등 조건 미달 — 조용히 실패, 기존 흐름으로 폴백 */ }
+  return false;
+}
 function parseAccountFnError(e) {
   const code = (e && e.code) || '';
   const details = (e && e.details) || {};
@@ -10070,6 +10097,8 @@ document.getElementById('pinCheckBtn').addEventListener('click', async () => {
   }
   display.textContent = '확인 중...';
   document.getElementById('pinShowOverlay').style.display = 'flex';
+  // 레거시 예약 닉(핀 유실 상태)이면 자동입양으로 새 핀 발급 후 표시 — 아니면 기존 흐름
+  if (!loadMyPin() && !isUidLinked()) { try { await adoptLegacyIfEligible(); } catch {} }
   const pin = loadMyPin() || await getOrCreatePin(myNick);
   if (pin) {
     saveMyPin(pin);
@@ -11356,6 +11385,10 @@ async function openReviewWrite(existing) {
   // ② 닉은 있는데 이 기기가 아직 계정 연결 안 됨 — 팝업 없이 조용히 자동 연결.
   //    (내 것이거나 비어 있는 닉네임이면 성공 → 아무 조작 없이 바로 리뷰가 저장된다.
   //     남의 닉네임이면 lookup 선점이 조용히 실패하고 서버가 최종 판단한다 — 도용 방지 유지.)
+  if (!isUidLinked() && MY_UID) {
+    // 레거시 예약 닉이면 자동입양부터 시도(플레이 기록 근거) — 되면 바로 연결돼 리뷰 저장 가능
+    try { if (await adoptLegacyIfEligible()) { /* 연결 완료 */ } } catch {}
+  }
   if (!isUidLinked() && MY_UID) {
     try {
       const storedPin = loadMyPin();
