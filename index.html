@@ -6685,8 +6685,15 @@ function makeBoard() {
   } else if (resetCount <= 2) {
     // STAGE 2~3 — 보통
     NUM_COUNTS = { 1: 9, 2: 9, 3: 13, 4: 14, 5: 20, 6: 14, 7: 13, 8: 9, 9: 9 };
+  } else if (resetCount === 3) {
+    // STAGE 4 — 살짝 어려움 (2~3과 최종 사이를 잇는 완만한 계단① : 5=18, 극단값 서서히↑)
+    NUM_COUNTS = { 1: 10, 2: 10, 3: 13, 4: 13, 5: 18, 6: 13, 7: 13, 8: 10, 9: 10 };
+  } else if (resetCount === 4) {
+    // STAGE 5 — 좀 더 어려움 (완만한 계단② : 5=16)
+    NUM_COUNTS = { 1: 11, 2: 11, 3: 13, 4: 12, 5: 16, 6: 12, 7: 13, 8: 11, 9: 11 };
   } else {
-    // STAGE 4+ — 어려움 (극단값 비중 상승, 짝 균형은 유지)
+    // STAGE 6+ — 어려움 (기존 최종 난이도 그대로. 예전엔 4판째에 바로 여기로 점프했으나,
+    //                     위 계단 2개(rc3·4)로 나눠 급격한 난이도 상승을 완만하게 폄. 짝 균형·총합 유지)
     NUM_COUNTS = { 1: 12, 2: 11, 3: 13, 4: 12, 5: 14, 6: 12, 7: 13, 8: 11, 9: 12 };
   }
   Object.keys(NUM_COUNTS).forEach(numStr => {
@@ -6723,7 +6730,7 @@ function makeBoard() {
   });
 
   // 합10 짝을 일부러 옆자리에 심어주기 — 첫 판은 많이, 갈수록 적게
-  seedAdjacentPairs(resetCount === 0 ? 8 : resetCount <= 2 ? 4 : 2);
+  seedAdjacentPairs(resetCount === 0 ? 8 : resetCount <= 2 ? 4 : resetCount <= 4 ? 3 : 2);
 
   hintsUsed = 0;
   bonusHintGiven = false;
@@ -10490,7 +10497,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.2';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784120000; // v4.2 — 리뷰/🔥/친구표시/발열 최적화 업데이트 내역 반영
+const BUILD = 1784200000; // v4.2 이후 — 4스테이지 난이도 급점프를 완만한 계단(S4·S5)으로 폄(조용한 배포)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
