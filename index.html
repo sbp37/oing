@@ -8259,12 +8259,16 @@ async function endGame() {
       const work = (async () => {
         // 최고기록 비교는 목록 검색이 아니라 본인 문서를 직접 읽음 (저장 전에 읽어야 함)
         // (목록은 상위 150명만 가져오므로, 그 밖 순위면 기록이 있어도 "첫 기록"으로 오탐하던 버그 수정)
-        let prevBest = null;
+        let prevBest = null, prevBestKnown = false;
         try {
           const mySnap = await getDoc(doc(db, 'rankings', savedNick));
+          prevBestKnown = true; // 읽기 성공 — 문서가 없으면 '진짜 기록 없음'(첫 기록)
           if (mySnap.exists()) prevBest = { nickname: savedNick, score: mySnap.data().score };
-        } catch {}
-        const isNewRecord = !prevBest || score > prevBest.score;
+        } catch { prevBestKnown = false; } // 읽기 실패 — 최고기록을 알 수 없음
+        // 서버 읽기가 실패했으면(prevBestKnown=false) 낮은 점수를 '신기록/첫 기록'으로 오판하지 않는다.
+        // 탭을 잠깐 떠났다 오면 게임 시간(실시간 기반)이 소진돼 낮은 점수로 끝나는데, 그 복귀 순간
+        // 이 읽기가 실패하면 2점 같은 점수에도 "신기록!"이 뜨던 버그 수정. (실제 랭킹은 서버 max라 안전)
+        const isNewRecord = prevBestKnown && (!prevBest || score > prevBest.score);
 
         // 이전 순위 목록은 병렬로 — 느려도 점수 저장을 막지 않게
         const prevListPromise = loadRankings().catch(() => []);
@@ -8288,7 +8292,7 @@ async function endGame() {
         // (여기서 바로 반영하면 결과창이 두 번(빠른 초반 + 느린 Firebase 완료 시점)에
         //  나눠서 줄어들어 "두두둥" 끊기는 애니메이션이 됨 → 한 번에 반영해서 매끄럽게)
         let bestCompareText = '', bestCompareColor = '', playRecordSfx = false;
-        if (score > 0) {
+        if (score > 0 && prevBestKnown) { // 최고기록을 못 읽었으면(탭 복귀 등) 대비 문구를 아예 안 띄운다
           if (!prevBest) {
             bestCompareText = '🐾 첫 기록이다냥!';
             bestCompareColor = 'var(--blue-light)';
@@ -10557,7 +10561,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.2';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784250000; // v4.2 이후 — 정체(제자리걸음) 구간에 "코앞이다·한 끗만 더" 돌파 독려 멘트 추가(조용한 배포)
+const BUILD = 1784260000; // v4.2 이후 — 탭 복귀로 기록 읽기 실패 시 낮은 점수가 "신기록"으로 오표시되던 버그 수정(조용한 배포)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
