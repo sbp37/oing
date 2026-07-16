@@ -2399,19 +2399,19 @@ body.light .rv-reply { background: rgba(200,150,40,0.08); }
   background: linear-gradient(135deg, #F6C453, #FFE9A8, #E0992B);
   box-shadow: 0 3px 10px rgba(224,153,43,0.22); flex-shrink: 0;
 }
-/* ⭐ 리뷰 요청 카드 — 결과 화면 하단에서 부드럽게 슬라이드업. 중앙 모달 아님, 컴팩트 */
+/* ⭐ 리뷰 요청 카드 — 결과 화면 '상단'에서 부드럽게 슬라이드다운(큰 점수 안 가림). 중앙 모달 아님, 컴팩트 */
 #reviewPromptCard {
-  position: fixed; left: 50%; bottom: 12px;
+  position: fixed; left: 50%; top: 10px;
   width: min(94vw, 400px);
-  transform: translate(-50%, 160%);
+  transform: translate(-50%, -180%);
   display: none; align-items: center; gap: 11px;
   padding: 12px 14px; box-sizing: border-box;
   background: linear-gradient(135deg, #22304e, #1a2440);
   border: 1px solid rgba(246,196,83,0.35);
   border-radius: 16px;
-  box-shadow: 0 8px 26px rgba(0,0,0,0.4);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.45);
   z-index: 400;
-  transition: transform .45s cubic-bezier(.22,.9,.32,1);
+  transition: transform .4s cubic-bezier(.22,.9,.32,1);
 }
 #reviewPromptCard.show { display: flex; }
 #reviewPromptCard.in { transform: translate(-50%, 0); }
@@ -11270,7 +11270,7 @@ async function openReviewBoard(forceReload) {
 // 이 문서가 곧 어드민 추적 기록이기도 함. 신기록 여부·일주일 재등장 같은 로직은 없음.
 const REVIEW_PROMPT_SEEN_KEY = 'oeing_review_prompt_seen_v1';
 const REVIEW_PROMPT_MIN_GAMES = 6;
-const REVIEW_PROMPT_DELAY_AFTER_PANEL = 2000; // 결과 패널이 뜬 시점 기준 지연(ms) — 서버 응답속도와 무관하게 일정
+const REVIEW_PROMPT_DELAY_AFTER_PANEL = 1000; // 결과 패널이 뜬 시점 기준 지연(ms) — 상단 배너라 게임 방해 없어 1초로 단축
 let _reviewPromptChecked = false; // 한 세션에서 중복 검사/노출 방지
 let _reviewPromptTimer = null;    // 대기 중 타이머 — 새 게임 시작 시 취소
 async function maybeShowReviewPrompt(playCount) {
