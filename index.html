@@ -2043,6 +2043,20 @@ body.light #panelGame .hint-btn.pregame { background: #f5f5f5; border-color: #d0
   background: var(--accent-green-dim) !important;
   border-color: var(--accent-green) !important;
 }
+/* 힌트(초록 answer)로 강조된 칸을 유저가 선택하면 파란 선택표시가 초록에 가려 보이지 않던
+   문제 수정 — answer의 !important를 이기도록 선택(sel)이 항상 위로 오게 한다. 그래야 어떤 칸을
+   골랐는지/취소했는지가 힌트 위에서도 바로 보인다. (게임 로직·판정 무관, 표시 전용) */
+.cell.answer.sel {
+  background: var(--blue-mid) !important;
+  border-color: var(--blue-bright) !important;
+  box-shadow: 0 0 0 1px var(--blue-bright) !important;
+  color: #fff !important;
+}
+.cell.cat.answer.sel {
+  background: #2a4a70 !important;
+  border-color: #8ab8e8 !important;
+  box-shadow: 0 0 0 1px #8ab8e8 !important;
+}
 @keyframes answerBlinkPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
@@ -2084,6 +2098,17 @@ body.light #panelGame .cell.cat.answer {
   background: #FBF3D0 !important;
   border-color: #16A34A !important;
   box-shadow: 0 0 0 2px rgba(22,163,74,0.28) !important;
+}
+/* 라이트모드도 동일 — 힌트 위에서 선택(파랑)이 항상 보이게 */
+body.light #panelGame .cell.answer.sel {
+  background: #2F7EC9 !important;
+  border-color: #245C91 !important;
+  box-shadow: 0 0 0 2px rgba(47,126,201,0.28) !important;
+  color: #FFFFFF !important;
+}
+body.light #panelGame .cell.cat.answer.sel {
+  background: #F8D86C !important;
+  border-color: #DA9845 !important;
 }
 
 /* ── 라이트모드(낮버전) 추가 보정 ── */
@@ -10506,7 +10531,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.2';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784210000; // v4.2 이후 — 랭킹 렌더 시 champions 전체 재로드 제거(5분 캐시)로 읽기 비용 절감(조용한 배포)
+const BUILD = 1784220000; // v4.2 이후 — 힌트 강조 칸을 선택했을 때 선택표시가 안 보이던 문제 수정(조용한 배포)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
