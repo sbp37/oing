@@ -122,6 +122,11 @@ textarea { width: 100%; resize: vertical; }
 }
 .verdict-badge b { color: #fff; }
 .verdict-badge:hover { filter: brightness(1.15); }
+/* 보류 리뷰 알림 — 의심판정(빨강)과 구분되게 노랑/앰버 계열 */
+.review-pending-badge {
+  color: #f6c453; background: rgba(246, 196, 83, 0.14); border-color: rgba(246, 196, 83, 0.55);
+}
+.review-pending-badge b { color: #fff; }
 
 /* 의심 판정 행 */
 .verdict-row {

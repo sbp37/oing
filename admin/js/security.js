@@ -7,7 +7,7 @@
 // ══════════════════════════════════════════════════════════════
 import {
   db, collection, doc, query, where, orderBy, limit,
-  fetchDocs, fetchDoc, setDoc, deleteDoc, getUserDocByNick, resolveUserDocId,
+  fetchDocs, fetchDoc, setDoc, deleteDoc, getUserDocByNick, resolveUserDocId, countQuery,
   getWeekId, fmtNum, fmtDateTime, escapeHtml, downloadJSON, humanError,
   getTodayDateStr, cache, fns, httpsCallable,
 } from './firebase.js';
@@ -291,6 +291,22 @@ function syncBadge(unseenCount) {
   if (!badge || !countEl) return;
   if (unseenCount > 0) { countEl.textContent = unseenCount >= 50 ? '50+' : String(unseenCount); badge.style.display = ''; }
   else badge.style.display = 'none';
+}
+
+// 상단 "📝 보류 리뷰" 배지 — 승인 대기 리뷰(game_reviews_pending) 개수. 진입 시 1회 count 집계
+// (문서를 내려받지 않고 개수만 — 저렴). 1~2점/욕설 필터로 보류된 리뷰를 바로 알아채는 용도.
+export async function loadReviewPendingBadge() {
+  const badge = document.getElementById('reviewPendingBadge');
+  const countEl = document.getElementById('reviewPendingCount');
+  if (!badge || !countEl) return;
+  try {
+    const n = await countQuery(collection(db, 'game_reviews_pending'));
+    if (n > 0) { countEl.textContent = n >= 50 ? '50+' : String(n); badge.style.display = ''; }
+    else badge.style.display = 'none';
+  } catch (e) {
+    console.warn('보류 리뷰 배지 로드 실패(무해):', e && (e.code || e.message));
+    badge.style.display = 'none';
+  }
 }
 
 // game_sessions에서 보류/거부 세션 최근 50건 (복합 인덱스 필요 — 첫 실행 시 콘솔 링크로 생성)
