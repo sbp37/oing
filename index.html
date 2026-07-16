@@ -2336,14 +2336,14 @@ body.game-active #kakaoInstallHint {
 /* 리뷰 평점 칩 — "버튼"이 아니라 "클릭 가능한 작은 평점 정보"로 (금색 은은하게) */
 .review-entry-chip {
   display: none; align-items: center; justify-content: center; gap: 6px;
-  margin: 12px auto 0; padding: 5px 12px; width: fit-content;
+  margin: 12px auto 0; padding: 7px 17px; width: fit-content;
   border-radius: 999px; cursor: pointer; font-family: inherit;
   background: rgba(24,34,51,0.55);
   border: 1px solid rgba(246,196,83,0.13);
-  font-size: 13px; font-weight: 700; color: rgba(217,193,132,0.85);
+  font-size: 15px; font-weight: 700; color: rgba(217,193,132,0.85);
 }
 .review-entry-chip .rv-chip-avg { font-weight: 800; color: rgba(234,194,117,0.9); }
-.review-entry-chip .cnt { font-weight: 600; color: var(--muted); font-size: 12px; }
+.review-entry-chip .cnt { font-weight: 600; color: var(--muted); font-size: 13px; }
 body.light .review-entry-chip { background: rgba(246,196,83,0.10); color: #8a6a2a; border-color: rgba(200,150,40,0.30); }
 
 /* 보드 — 모바일 네이티브 앱 스타일(좌측 정렬 중심, 정돈된 여백) */
@@ -10568,7 +10568,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.2';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784270000; // v4.2 이후 — 스킨 늦게 켜질 때 보드 리페인트 + 업데이트 배너 게임 카운트다운 중 억제(조용한 배포)
+const BUILD = 1784280000; // v4.2 이후 — 메인 리뷰 입구 칩 크기 키우고 캐시 있으면 즉시 노출(2.5초 지연 완화)(조용한 배포)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
@@ -11567,6 +11567,9 @@ document.querySelectorAll('.review-entry-chip').forEach(chip => {
   });
 });
 // 메인 화면 칩 — 앱 시작 직후 1회 갱신 (10분 캐시라 추가 읽기 부담 없음)
+// 캐시(10분)가 있으면 거의 즉시 표시(재방문 유저) — 300ms.
+// 첫 방문 등 캐시가 없으면 Firebase 준비 후 최신값으로 채워지도록 2.5초에 한 번 더.
+setTimeout(() => { try { refreshReviewEntryChip(); } catch (e) {} }, 300);
 setTimeout(() => { try { refreshReviewEntryChip(); } catch (e) {} }, 2500);
 document.getElementById('reviewBoardCloseBtn').addEventListener('click', () => {
   document.getElementById('reviewBoardOverlay').style.display = 'none';
