@@ -8992,13 +8992,22 @@ function addHallTitle(nickname) {
 
 
 // 역대 챔피언(1등 등극) 횟수 집계
+// champions는 영구 누적 컬렉션이라, 랭킹을 그릴 때마다(renderRanking은 매우 자주 호출됨)
+// 전체를 다시 읽으면 문서가 쌓일수록 읽기 비용이 무한히 커진다. 왕관 횟수는 실시간성이
+// 거의 필요 없으므로(새 챔피언 등극은 드묾) 5분 TTL 캐시로 반복 전체 로드를 막는다.
+// (다른 캐시 SKINS_CACHE_TTL/RANKING_CACHE_TTL과 동일한 패턴 — 게임 로직·데이터 구조 무변경)
+let _champCountsCache = null, _champCountsTs = 0;
+const CHAMP_COUNTS_TTL = 300000; // 5분
 async function getChampCounts() {
+  if (_champCountsCache && Date.now() - _champCountsTs < CHAMP_COUNTS_TTL) return _champCountsCache;
   try {
     const snap = await getDocs(collection(db, 'champions'));
     const counts = {};
     snap.docs.forEach(d => { counts[d.id] = d.data().count || 0; });
+    _champCountsCache = counts;
+    _champCountsTs = Date.now();
     return counts;
-  } catch { return {}; }
+  } catch { return _champCountsCache || {}; } // 실패 시 옛 캐시라도 반환(더 견고)
 }
 
 // ══════════════════════════════
@@ -10497,7 +10506,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.2';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784200000; // v4.2 이후 — 4스테이지 난이도 급점프를 완만한 계단(S4·S5)으로 폄(조용한 배포)
+const BUILD = 1784210000; // v4.2 이후 — 랭킹 렌더 시 champions 전체 재로드 제거(5분 캐시)로 읽기 비용 절감(조용한 배포)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
