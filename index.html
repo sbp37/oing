@@ -2365,7 +2365,8 @@ body.light .myinfo-chip { background: rgba(241,230,210,0.55); }
 .myi-avatar { width: 48px; height: 48px; border-radius: 50%; overflow: hidden; background: var(--blue-mid); display: flex; align-items: center; justify-content: center; font-size: 27px; flex-shrink: 0; box-shadow: 0 0 0 2px var(--border2); }
 .myi-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .myi-nick { font-size: 16.5px; font-weight: 900; letter-spacing: -0.3px; }
-.myi-since { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.myi-since { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+.myi-since .myi-days { font-size: 16px; font-weight: 900; color: var(--accent-lemon); }
 .myi-edit-btn { background: none; border: 1px solid var(--border2); color: var(--blue-light); border-radius: 9px; padding: 6px 11px; font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; flex-shrink: 0; }
 .myi-sec { font-size: 12.5px; font-weight: 800; color: var(--muted); margin: 14px 2px 7px; text-align: left; }
 .myi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -10385,14 +10386,16 @@ function openMyInfoOverlay() {
     const fp = d.firstPlayed;
     if (nick && typeof fp === 'number' && fp > 0 && fp <= Date.now()) {
       const days = (Math.floor((Date.now() - fp) / 86400000) + 1).toLocaleString();
+      // 날짜 숫자는 금색·크게 강조 (days는 숫자 유래 문자열이라 안전)
+      const daysHtml = `함께한 지 <b class="myi-days">${days}</b>일째`;
       // 통계 도입 전부터 함께한 게 확인된 유저 = 초창기 멤버 (닫힌 클럽 — 이후 유입은 불가)
       // 뱃지는 특별하게(금색·크게), "함께한 지"는 아랫줄에 따로 — 두 줄 표기
       if (fp < STATS_EPOCH_MS) {
         sinceEl.innerHTML =
-          `<span style="display:block; font-size:14.5px; font-weight:900; color:var(--accent-lemon); text-shadow:0 0 10px rgba(218,152,69,0.4); letter-spacing:0.3px; margin:3px 0 2px;">⭐️ 초창기 멤버</span>` +
-          `<span style="display:block;">함께한 지 ${days}일째 🐾</span>`;
+          `<span style="display:block; font-size:15.5px; font-weight:900; color:var(--accent-lemon); text-shadow:0 0 10px rgba(218,152,69,0.4); letter-spacing:0.3px; margin:3px 0 2px;">⭐️ 초창기 멤버</span>` +
+          `<span style="display:block;">${daysHtml} 🐾</span>`;
       } else {
-        sinceEl.textContent = `오잉게임과 함께한 지 ${days}일째 🐾`;
+        sinceEl.innerHTML = `오잉게임과 ${daysHtml} 🐾`;
       }
       sinceEl.style.display = '';
     } else { sinceEl.style.display = 'none'; }
@@ -10846,7 +10849,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.3';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784330000; // v4.3 — 초창기 멤버 판정 엄격화(통합주 오판 방지·오보정 자동 원복)
+const BUILD = 1784340000; // v4.3 — 함께한 지 표기 확대(숫자 금색 강조·글씨 키움)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
