@@ -155,7 +155,7 @@ async function openUserDetail(nick) {
       // 닉네임 변경 이력 — rename_history/{uid} (서버 함수 기록, 어드민만 read)
       uid ? fetchDoc(doc(db, 'rename_history', uid)).catch(() => null) : Promise.resolve(null),
     ]);
-    // 이전 닉네임 목록: "구닉 (7/10)" 형태, 최근 변경이 앞에 오게
+    // 이전 닉네임 목록: "구닉 (2026.07.10까지)" 형태, 최근 변경이 앞에 오게
     const prevNicks = (renameHist && Array.isArray(renameHist.previousNicknames))
       ? renameHist.previousNicknames.slice().reverse()
         .map(p => `${escapeHtml(p.nickname || '?')}${p.renamedAt ? ` (${fmtDateTime(p.renamedAt.toMillis ? p.renamedAt.toMillis() : p.renamedAt).split(' ')[0]}까지)` : ''}`)
