@@ -146,16 +146,25 @@ async function openUserDetail(nick) {
   try {
     const weekId = getWeekId();
     const { uid } = await resolveUserDocId(nick);
-    const [stats, rank, weekScore, skins, userDoc] = await Promise.all([
+    const [stats, rank, weekScore, skins, userDoc, renameHist] = await Promise.all([
       getUserDocByNick('user_stats', nick).then(r => r.data),
       fetchDoc(doc(db, 'rankings', nick)),
       fetchDoc(doc(db, 'weekly_rankings', weekId, 'scores', nick)),
       getUserDocByNick('nickname_skins', nick).then(r => r.data),
       uid ? fetchDoc(doc(db, 'users', uid)) : Promise.resolve(null),
+      // 닉네임 변경 이력 — rename_history/{uid} (서버 함수 기록, 어드민만 read)
+      uid ? fetchDoc(doc(db, 'rename_history', uid)).catch(() => null) : Promise.resolve(null),
     ]);
+    // 이전 닉네임 목록: "구닉 (7/10)" 형태, 최근 변경이 앞에 오게
+    const prevNicks = (renameHist && Array.isArray(renameHist.previousNicknames))
+      ? renameHist.previousNicknames.slice().reverse()
+        .map(p => `${escapeHtml(p.nickname || '?')}${p.renamedAt ? ` (${fmtDateTime(p.renamedAt.toMillis ? p.renamedAt.toMillis() : p.renamedAt).split(' ')[0]}까지)` : ''}`)
+        .join(' ← ')
+      : null;
     const kv = (k, v) => `<div class="kv"><span class="k">${k}</span><span class="v">${v ?? '-'}</span></div>`;
     body.innerHTML = `
       ${kv('계정 연동', uid ? `연동됨 (${uid.slice(0, 8)}…)` : '미연동 (이전 방식 데이터)')}
+      ${prevNicks ? kv('🏷️ 이전 닉네임', prevNicks) : ''}
       ${kv('첫 플레이 (가입)', stats?.firstPlayed ? fmtDateTime(stats.firstPlayed) : '가입일 미상')}
       ${kv('계정 연결일', userDoc?.createdAt ? fmtDateTime(userDoc.createdAt) : '-')}
       ${kv('마지막 접속', userDoc?.lastSeenAt ? fmtAgo(userDoc.lastSeenAt) : (stats?.lastPlayed ? fmtAgo(stats.lastPlayed) : '-'))}

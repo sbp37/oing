@@ -5660,6 +5660,11 @@ async function refreshMyCatSkin() {
   if (myCatSkinEnabled !== prevEnabled && gameRunning && Array.isArray(board) && board.length) {
     try { renderGrid(); } catch {}
   }
+  // 메인 프로필 칩 아바타도 즉시 동기화 — 칩이 먼저 그려지고 스킨 플래그가 늦게 켜지면
+  // 내 정보 모달(그림)과 칩(🐱 이모지)이 달라 보이던 문제 수정
+  if (myCatSkinEnabled !== prevEnabled) {
+    try { refreshMyInfoChip(); } catch {}
+  }
 }
 function renderCatCell(el) {
   el.className = 'cell cat';
@@ -10852,7 +10857,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.3';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784370000; // v4.3 — 함께한 지: 오픈일(6/22) 기준 초창기 날짜 복원(v4)
+const BUILD = 1784380000; // v4.3 — 메인 프로필 칩 아바타 스킨 동기화
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
