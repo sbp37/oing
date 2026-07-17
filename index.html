@@ -2346,6 +2346,50 @@ body.game-active #kakaoInstallHint {
 .review-entry-chip .cnt { font-weight: 600; color: var(--muted); font-size: 13px; }
 body.light .review-entry-chip { background: rgba(246,196,83,0.10); color: #8a6a2a; border-color: rgba(200,150,40,0.30); }
 
+/* ── 👤 내정보 v1 — 메인의 조용한 프로필 칩 + 내정보 모달 ──
+   칩은 보조 버튼(시작 버튼과 경쟁 금지) — 낮은 대비, 리뷰 칩보다 톤 다운.
+   모달은 기존 overlay/overlay-card 골격 재사용. 데이터는 로컬 캐시만(서버 추가 읽기 0). */
+.myinfo-chip {
+  display: none; align-items: center; justify-content: center; gap: 6px;
+  margin: 9px auto 0; padding: 5px 13px 5px 9px; width: fit-content;
+  border-radius: 999px; cursor: pointer; font-family: inherit;
+  background: rgba(24,34,51,0.45); border: 1px solid var(--border);
+  font-size: 13px; font-weight: 700; color: var(--muted);
+}
+.myinfo-chip .mic-avatar { width: 20px; height: 20px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 12.5px; background: var(--surface2); flex-shrink: 0; }
+.myinfo-chip .mic-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.myinfo-chip .mic-nick { color: var(--text); opacity: 0.85; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.myinfo-chip .mic-arrow { font-size: 12px; font-weight: 800; }
+body.light .myinfo-chip { background: rgba(241,230,210,0.55); }
+.myi-profile { display: flex; align-items: center; gap: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 13px; text-align: left; }
+.myi-avatar { width: 48px; height: 48px; border-radius: 50%; overflow: hidden; background: var(--blue-mid); display: flex; align-items: center; justify-content: center; font-size: 27px; flex-shrink: 0; box-shadow: 0 0 0 2px var(--border2); }
+.myi-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.myi-nick { font-size: 16.5px; font-weight: 900; letter-spacing: -0.3px; }
+.myi-since { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.myi-edit-btn { background: none; border: 1px solid var(--border2); color: var(--blue-light); border-radius: 9px; padding: 6px 11px; font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; flex-shrink: 0; }
+.myi-sec { font-size: 12.5px; font-weight: 800; color: var(--muted); margin: 14px 2px 7px; text-align: left; }
+.myi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.myi-rec { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 11px 12px; text-align: left; }
+.myi-rec.wide { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; }
+.myi-rec .k { font-size: 10.5px; color: var(--muted); font-weight: 700; margin-bottom: 3px; }
+.myi-rec.wide .k { margin-bottom: 0; }
+.myi-rec .v { font-size: 18px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+.myi-rec.wide .v { font-size: 16px; }
+.myi-rec .v.gold { color: var(--accent-lemon); }
+.myi-rec .v.blue { color: var(--blue-light); }
+.myi-privacy { text-align: center; font-size: 11px; color: var(--muted); margin-top: 8px; opacity: 0.85; }
+.myi-link { margin-top: 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.myi-link-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 13px; cursor: pointer; }
+.myi-link-head .t { font-size: 13px; font-weight: 800; }
+.myi-link-btn { background: none; border: 1px solid var(--border2); color: var(--muted); border-radius: 9px; padding: 5px 10px; font-size: 11.5px; font-weight: 700; font-family: inherit; cursor: pointer; }
+.myi-link-body { display: none; padding: 2px 13px 13px; border-top: 1px dashed var(--border); text-align: left; }
+.myi-link.open .myi-link-body { display: block; }
+.myi-link.open .myi-link-btn { color: var(--blue-light); border-color: var(--blue-bright); }
+.myi-pin-row { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; }
+.myi-pin { font-size: 21px; font-weight: 900; letter-spacing: 5px; color: var(--accent-lemon); font-variant-numeric: tabular-nums; }
+.myi-copy-btn { background: var(--surface); border: 1px solid var(--border2); color: var(--blue-light); border-radius: 8px; padding: 5px 10px; font-size: 11.5px; font-weight: 700; font-family: inherit; cursor: pointer; }
+.myi-hint { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+
 /* 보드 — 모바일 네이티브 앱 스타일(좌측 정렬 중심, 정돈된 여백) */
 .rvb-head { position: relative; display: flex; align-items: center; gap: 14px; padding: 6px 2px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .rvb-avg { font-size: 40px; font-weight: 900; line-height: 1; color: #FFF3D6; font-variant-numeric: tabular-nums; letter-spacing: -1px; }
@@ -2681,6 +2725,8 @@ if ('serviceWorker' in navigator) {
               ">랭킹 확인</button>
               <!-- ⭐ 게임 리뷰 입구 (메인) — 신규 유저 신뢰 뱃지. 랭킹탭 칩과 같은 meta 캐시 공유(추가 읽기 0) -->
               <button class="review-entry-chip" data-source="main">⭐ <span class="rv-chip-avg"></span> <span class="cnt rv-chip-cnt"></span></button>
+              <!-- 👤 내정보 입구 (v1) — 조용한 프로필 칩. 데이터 채워지면 refreshMyInfoChip()이 표시 -->
+              <button class="myinfo-chip" id="myInfoChip"><span class="mic-avatar">🐱</span><span class="mic-nick">내정보</span><span class="mic-arrow">›</span></button>
               <button class="action-btn" id="freeModeBtn" style="
                 display: none;
                 width: auto;
@@ -3600,6 +3646,44 @@ if ('serviceWorker' in navigator) {
       </ul>
     </div>
     <button class="action-btn" onclick="document.getElementById('updateLog').style.display='none'" style="margin-top:12px;flex-shrink:0;">닫기</button>
+  </div>
+</div>
+
+<!-- 👤 내정보 오버레이 (v1) — 기존 로컬 캐시 데이터만 표시(서버 추가 읽기 0) -->
+<div id="myInfoOverlay" class="overlay" style="display:none;">
+  <div class="overlay-card" style="position:relative; max-width:370px;">
+    <button id="myInfoCloseBtn" style="position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:10px; background:var(--surface2); border:1px solid var(--border); color:var(--muted); font-size:14px; font-weight:800; font-family:inherit; cursor:pointer;">✕</button>
+    <div class="overlay-title" style="font-size:17px; margin-bottom:12px;">👤 내정보</div>
+    <div class="myi-profile">
+      <div class="myi-avatar" id="myiAvatar">🐱</div>
+      <div style="flex:1; min-width:0;">
+        <div class="myi-nick" id="myiNick"></div>
+        <div class="myi-since" id="myiSince" style="display:none;"></div>
+      </div>
+      <button class="myi-edit-btn" id="myiEditBtn" style="display:none;">✏️ 수정</button>
+    </div>
+    <div class="myi-sec">📜 내 기록</div>
+    <div class="myi-grid">
+      <div class="myi-rec"><div class="k">🏆 최고 점수</div><div class="v gold" id="myiBestScore">—</div></div>
+      <div class="myi-rec"><div class="k">🔥 최고 콤보</div><div class="v blue" id="myiBestCombo">—</div></div>
+      <div class="myi-rec"><div class="k">🎮 총 플레이</div><div class="v" id="myiPlayCount">—</div></div>
+      <div class="myi-rec"><div class="k">🐱 만난 고양이</div><div class="v" id="myiTotalCats">—</div></div>
+      <div class="myi-rec wide"><div class="k">⚡ 오늘 목표 연속 달성</div><div class="v gold" id="myiGoalStreak">—</div></div>
+    </div>
+    <div class="myi-privacy">🔒 이 기록은 나에게만 보여요</div>
+    <div class="myi-link" id="myiLink" style="display:none;">
+      <div class="myi-link-head" id="myiLinkHead">
+        <div class="t">📱 다른 기기에서도 이어하기</div>
+        <button class="myi-link-btn" id="myiLinkBtn" type="button">연결 정보 보기</button>
+      </div>
+      <div class="myi-link-body">
+        <div class="myi-pin-row">
+          <span style="font-size:12px; color:var(--muted); font-weight:700;">내 핀번호</span>
+          <span style="display:flex; align-items:center; gap:8px;"><span class="myi-pin" id="myiPin"></span><button class="myi-copy-btn" id="myiCopyBtn" type="button">복사</button></span>
+        </div>
+        <div class="myi-hint">새 기기에서 같은 닉네임으로 시작하고 이 핀번호를 입력하면<br>기록·스트릭이 그대로 이어져요 🐱</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -10194,6 +10278,100 @@ document.getElementById('sideRestartBtn').addEventListener('click', () => {
   startGame();
 });
 document.getElementById('nickChangeWrapBtn').addEventListener('click', changeNickname);
+
+// ══════════════════════════════
+//  👤 내정보 v1 — 메인 프로필 칩 → 내 프로필·내 기록·기기 연결 모달
+//  · 데이터는 기존 로컬 캐시(oeing_local_stats_)와 저장된 PIN(loadMyPin)만 사용 — 서버 추가 읽기 0
+//  · 닉네임 수정은 기존 changeNickname() 재사용 · 게임/점수/랭킹/인증 로직 무변경
+//  · 익명/미연결: 있는 정보만 조용히 표시(연결 영역 숨김, 팝업·강요 없음)
+// ══════════════════════════════
+function refreshMyInfoChip() {
+  const chip = document.getElementById('myInfoChip');
+  if (!chip) return;
+  const nick = loadNickname();
+  const nickEl = chip.querySelector('.mic-nick');
+  const avEl = chip.querySelector('.mic-avatar');
+  if (nickEl) nickEl.textContent = nick || '내정보';
+  if (avEl) avEl.innerHTML = (myCatSkinEnabled && typeof MY_CAT_IMG === 'string') ? `<img src="${MY_CAT_IMG}" alt="">` : '🐱';
+  chip.style.display = 'inline-flex';
+}
+function openMyInfoOverlay() {
+  const nick = loadNickname();
+  let d = {};
+  if (nick) { try { d = JSON.parse(localStorage.getItem('oeing_local_stats_' + nick) || 'null') || {}; } catch {} }
+  const av = document.getElementById('myiAvatar');
+  if (av) av.innerHTML = (myCatSkinEnabled && typeof MY_CAT_IMG === 'string') ? `<img src="${MY_CAT_IMG}" alt="">` : '🐱';
+  const nickEl = document.getElementById('myiNick');
+  if (nickEl) { nickEl.textContent = nick || '아직 닉네임이 없어요'; nickEl.style.color = nick ? '' : 'var(--muted)'; }
+  // "함께한 지 N일" — 기존 firstPlayed(첫 플레이 시각)가 정확히 저장돼 있을 때만 표시, 없으면 문구 자체를 숨김
+  const sinceEl = document.getElementById('myiSince');
+  if (sinceEl) {
+    const fp = d.firstPlayed;
+    if (nick && typeof fp === 'number' && fp > 0 && fp <= Date.now()) {
+      sinceEl.textContent = `오잉게임과 함께한 지 ${(Math.floor((Date.now() - fp) / 86400000) + 1).toLocaleString()}일째 🐾`;
+      sinceEl.style.display = '';
+    } else { sinceEl.style.display = 'none'; }
+  }
+  const editBtn = document.getElementById('myiEditBtn');
+  if (editBtn) editBtn.style.display = nick ? '' : 'none';
+  const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  const okNum = (v) => typeof v === 'number' && v > 0;
+  set('myiBestScore', okNum(d.bestScore) ? d.bestScore.toLocaleString() : '—');
+  set('myiBestCombo', okNum(d.bestCombo) ? '×' + d.bestCombo : '—');
+  set('myiPlayCount', okNum(d.playCount) ? d.playCount.toLocaleString() + '판' : '—');
+  set('myiTotalCats', okNum(d.totalCats) ? d.totalCats.toLocaleString() + '마리' : '—');
+  set('myiGoalStreak', okNum(d.goalStreak) ? d.goalStreak + '일째 🔥' : '—');
+  // 연결 정보 — 닉네임 + 저장된 PIN이 있을 때만, 접힌 상태로 조용히 노출
+  const linkBox = document.getElementById('myiLink');
+  const pin = loadMyPin();
+  if (linkBox) {
+    if (nick && pin && /^\d{4}$/.test(pin)) {
+      linkBox.style.display = '';
+      linkBox.classList.remove('open');
+      const b = document.getElementById('myiLinkBtn');
+      if (b) b.textContent = '연결 정보 보기';
+      const pinEl = document.getElementById('myiPin');
+      if (pinEl) pinEl.textContent = pin.split('').join(' ');
+    } else { linkBox.style.display = 'none'; }
+  }
+  const ov = document.getElementById('myInfoOverlay');
+  if (ov) ov.style.display = 'flex';
+}
+function closeMyInfoOverlay() {
+  const ov = document.getElementById('myInfoOverlay');
+  if (ov) ov.style.display = 'none';
+}
+document.getElementById('myInfoChip')?.addEventListener('click', openMyInfoOverlay);
+document.getElementById('myInfoCloseBtn')?.addEventListener('click', closeMyInfoOverlay);
+document.getElementById('myInfoOverlay')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeMyInfoOverlay(); });
+document.getElementById('myiEditBtn')?.addEventListener('click', () => { closeMyInfoOverlay(); try { changeNickname(); } catch {} });
+document.getElementById('myiLinkHead')?.addEventListener('click', (e) => {
+  if (e.target && e.target.id === 'myiCopyBtn') return; // 복사 버튼 클릭은 접기/펼치기와 무관
+  const box = document.getElementById('myiLink');
+  if (!box) return;
+  box.classList.toggle('open');
+  const b = document.getElementById('myiLinkBtn');
+  if (b) b.textContent = box.classList.contains('open') ? '접기' : '연결 정보 보기';
+});
+document.getElementById('myiCopyBtn')?.addEventListener('click', async () => {
+  const pin = loadMyPin();
+  if (!pin) return;
+  let ok = false;
+  try { await navigator.clipboard.writeText(pin); ok = true; }
+  catch {
+    try { // 클립보드 API 미지원 브라우저 폴백
+      const ta = document.createElement('textarea');
+      ta.value = pin; ta.style.cssText = 'position:fixed;opacity:0;';
+      document.body.appendChild(ta); ta.select();
+      ok = document.execCommand('copy'); ta.remove();
+    } catch {}
+  }
+  const btn = document.getElementById('myiCopyBtn');
+  if (btn) { btn.textContent = ok ? '복사됨!' : '복사 실패'; setTimeout(() => { btn.textContent = '복사'; }, 1400); }
+});
+// 칩 표시: 로드 직후 1회 + 스킨 플래그가 늦게 켜지는 경우 아바타 갱신용 1회
+setTimeout(() => { try { refreshMyInfoChip(); } catch {} }, 350);
+setTimeout(() => { try { refreshMyInfoChip(); } catch {} }, 1800);
 document.getElementById('pinCheckBtn').addEventListener('click', async () => {
   const myNick = loadNickname();
   const display = document.getElementById('pinDisplayValue');
@@ -10439,6 +10617,7 @@ document.getElementById('nickChangeBtn').addEventListener('click', async () => {
         try { invalidateWeeklyRankingsCache(); } catch {}
         document.getElementById('nickOverlay').style.display = 'none';
         alert('닉네임이 "' + nick + '"(으)로 바뀌었어요! 🐾 기존 기록은 그대로예요.');
+        try { refreshMyInfoChip(); } catch {} // 메인 내정보 칩의 닉네임 즉시 갱신
       } else {
         alert('닉네임 변경에 실패했어요. 잠시 후 다시 시도해주세요.');
         clearPendingRename();
@@ -10568,7 +10747,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.2';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784280000; // v4.2 이후 — 메인 리뷰 입구 칩 크기 키우고 캐시 있으면 즉시 노출(2.5초 지연 완화)(조용한 배포)
+const BUILD = 1784290000; // v4.2 이후 — 👤 내정보 화면 v1 (프로필·내 기록·기기 연결 정보를 한곳에)(조용한 배포)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
