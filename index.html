@@ -10398,7 +10398,7 @@ function openMyInfoOverlay() {
           `<span style="display:block; font-size:15.5px; font-weight:900; color:var(--accent-lemon); text-shadow:0 0 10px rgba(218,152,69,0.4); letter-spacing:0.3px; margin:3px 0 2px;">⭐️ 초창기 멤버</span>` +
           `<span style="display:block;">${daysHtml} 🐾</span>`;
       } else {
-        sinceEl.innerHTML = `오잉게임과 ${daysHtml} 🐾`;
+        sinceEl.innerHTML = `${daysHtml} 🐾`; // "오잉게임과"는 길어서 뺌 — 함께한 지 N일째만
       }
       sinceEl.style.display = '';
     } else { sinceEl.style.display = 'none'; }
@@ -10852,7 +10852,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.3';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784350000; // v4.3 — 초창기 멤버 범위 확대(~7/12) + 오늘 목표 연속 달성 글씨 확대
+const BUILD = 1784360000; // v4.3 — 함께한 지 문구 축약(오잉게임과 제거)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
