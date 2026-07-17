@@ -8,10 +8,26 @@
 //  · 명예의전당: champions 컬렉션 상위 50 + meta/currentChampion
 // ══════════════════════════════════════════════════════════════
 import {
-  db, collection, doc, query, orderBy, limit,
-  fetchDocs, fetchDoc, setDoc, makePager,
+  db, collection, doc, query, orderBy, limit, where,
+  fetchDocs, fetchDoc, setDoc, makePager, countQuery,
   fmtDateTime, fmtNum, escapeHtml, cache, humanError,
 } from './firebase.js';
+
+// 💬 새(안 읽은) 피드백 배지 — adminUnread=true 문서 개수만 count 집계(문서 다운로드 0).
+// 글을 펼쳐 읽으면 adminUnread=false로 바뀌므로 배지가 자연히 줄어든다.
+export async function loadFeedbackNewBadge() {
+  const badge = document.getElementById('feedbackNewBadge');
+  const countEl = document.getElementById('feedbackNewCount');
+  if (!badge || !countEl) return;
+  try {
+    const n = await countQuery(query(collection(db, 'feedback'), where('adminUnread', '==', true)));
+    if (n > 0) { countEl.textContent = n >= 50 ? '50+' : String(n); badge.style.display = ''; }
+    else badge.style.display = 'none';
+  } catch (e) {
+    console.warn('새 피드백 배지 로드 실패(무해):', e && (e.code || e.message));
+    badge.style.display = 'none';
+  }
+}
 import { setLoading, setError, setEmpty, guardBtn, resultMsg } from './admin.js';
 
 const PAGE_SIZE = 30;
@@ -105,6 +121,7 @@ function toggleFeedback(id) {
     if (row.adminUnread) {
       row.adminUnread = false; // NEW 즉시 제거
       setDoc(doc(db, 'feedback', id), { adminUnread: false }, { merge: true })
+        .then(() => loadFeedbackNewBadge()) // 상단 배지 개수도 같이 갱신
         .catch(e => console.warn('읽음 처리 실패:', humanError(e)));
     }
   }

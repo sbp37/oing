@@ -12,8 +12,8 @@ import { loadDashboard } from './dashboard.js';
 import { initUsersTab, loadUsers } from './users.js';
 import { initAnalyticsTab, loadAnalytics } from './analytics.js';
 import { initSecurityTab, loadSecurity, loadVerdictBadge, loadReviewPendingBadge } from './security.js';
-import { initRewardsTab, loadRewards } from './rewards.js';
-import { initOperationsTab, loadOperations } from './operations.js';
+import { initRewardsTab, loadRewards, loadDonateNewBadge } from './rewards.js';
+import { initOperationsTab, loadOperations, loadFeedbackNewBadge } from './operations.js';
 
 // ── 탭 레지스트리 ─────────────────────────────────────────────
 // init: 이벤트 바인딩(1회, 조회 없음) / load: 실제 데이터 조회
@@ -104,6 +104,19 @@ function showApp() {
   if (rpBadge && !rpBadge._bound) {
     rpBadge._bound = true;
     rpBadge.addEventListener('click', () => openTab('security'));
+  }
+  // 💬 새 피드백 / 💛 새 입금자명 — 안 읽은(adminUnread) 글 개수 배지 (count 집계 각 1쿼리)
+  loadFeedbackNewBadge();
+  loadDonateNewBadge();
+  const fbBadge = document.getElementById('feedbackNewBadge');
+  if (fbBadge && !fbBadge._bound) {
+    fbBadge._bound = true;
+    fbBadge.addEventListener('click', () => openTab('operations'));
+  }
+  const dnBadge = document.getElementById('donateNewBadge');
+  if (dnBadge && !dnBadge._bound) {
+    dnBadge._bound = true;
+    dnBadge.addEventListener('click', () => openTab('rewards'));
   }
 }
 

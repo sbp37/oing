@@ -33,6 +33,8 @@
     <div class="topbar-right">
       <button id="verdictBadge" class="verdict-badge" style="display:none;" title="서버가 자동 판정한 의심 세션 — 눌러서 확인">🚨 의심 판정 <b id="verdictBadgeCount">0</b>건</button>
       <button id="reviewPendingBadge" class="verdict-badge review-pending-badge" style="display:none;" title="보류된 리뷰 — 눌러서 승인/거부">📝 보류 리뷰 <b id="reviewPendingCount">0</b>건</button>
+      <button id="feedbackNewBadge" class="verdict-badge" style="display:none;" title="아직 안 읽은 문의/피드백 — 눌러서 확인">💬 새 피드백 <b id="feedbackNewCount">0</b>건</button>
+      <button id="donateNewBadge" class="verdict-badge" style="display:none;" title="아직 안 읽은 입금자명(후원 확인) 쪽지 — 눌러서 확인">💛 새 입금자명 <b id="donateNewCount">0</b>건</button>
       <span id="readCounter" class="read-counter" title="이번 세션의 Firestore 조회량 추정치 — 실제 청구 읽기 수와 다소 차이가 있을 수 있어요">추정 읽기 0 · 쿼리 0</span>
       <button id="logoutBtn" class="btn btn-ghost btn-sm">잠금</button>
     </div>
@@ -331,6 +333,7 @@
             <option value="review_prompt_shown">📣 리뷰요청 팝업 노출</option>
             <option value="updatelog_clicks">업데이트로그 클릭</option>
             <option value="thanks_toggle_clicks">감사메시지 열람</option>
+            <option value="myinfo_clicks">👤 내 정보 열람</option>
           </select>
         </div>
         <div id="clickLogList" class="list"></div>
