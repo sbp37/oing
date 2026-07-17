@@ -12458,21 +12458,24 @@ document.getElementById('myFeedbackReplySendBtn').addEventListener('click', asyn
 // ★ 읽기 절감: 표시 전용 한 줄인데 매 앱 오픈마다 주간 전체(~115문서)를 읽던 것을 10분 메모로 전환.
 //   주간 캐시가 이미 따뜻하면(랭킹 탭 직후 등) 그걸 재사용하고, 게임 종료 후에는 캐시 무효화로
 //   자연히 새 값을 읽으므로 내 순위 상승은 다음 결과 화면 복귀 때 반영된다(표시 지연 최대 10분).
-let _startRankMemo = null, _startRankMemoTs = 0, _startRankMemoNick = '';
+let _startRankMemo = null, _startRankMemoTs = 0, _startRankMemoKey = '';
 async function renderStartMyRankLine() {
   try {
     const myNick = loadNickname();
     const line = document.getElementById('startMyRankLine');
     if (!myNick || !line) return;
+    // 메모 키 = UID + 닉네임 + 주차 — 계정 전환(UID/닉)은 물론, 월요일 주간 리셋 직후
+    // 지난주 순위가 최대 10분 남아 보이는 것까지 차단(주차가 바뀌면 즉시 새로 조회).
+    const memoKey = `${MY_UID || 'anon'}|${myNick}|${getWeekId()}`;
     let text = null;
-    if (_startRankMemo && _startRankMemoNick === myNick && Date.now() - _startRankMemoTs < 600000) {
+    if (_startRankMemo && _startRankMemoKey === memoKey && Date.now() - _startRankMemoTs < 600000) {
       text = _startRankMemo;
     } else {
       const list = await loadWeeklyRankings();
       const idx = list.findIndex(e => e.nickname === myNick);
       if (idx === -1) return;
       text = `🐾 이번주 ${idx + 1}위 · ${list[idx].score}pt`;
-      _startRankMemo = text; _startRankMemoTs = Date.now(); _startRankMemoNick = myNick;
+      _startRankMemo = text; _startRankMemoTs = Date.now(); _startRankMemoKey = memoKey;
     }
     line.textContent = text;
     line.style.display = 'block';
