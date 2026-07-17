@@ -4609,7 +4609,9 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pagehide', () => { writeVisitSession('pagehide'); });
 
 let _rankingsCache = null, _rankingsCacheTs = 0;
-const RANKING_CACHE_TTL = 20000; // 20초 — 짧은 시간 안에 탭을 왔다갔다 해도 매번 다시 안 읽게 캐싱
+const RANKING_CACHE_TTL = 60000; // 60초 — 탭을 왔다갔다 해도 매번 다시 안 읽게 캐싱.
+// 내 점수 반영 지연 걱정은 없음: 점수 제출 성공 시 아래 endGame에서 랭킹/주간 캐시를 명시적으로
+// 무효화하므로, 제출 직후 랭킹 화면은 항상 새로 읽는다(기존 20초 TTL 시절의 미세한 staleness도 해소).
 
 function invalidateRankingsCache() { _rankingsCache = null; }
 
@@ -8510,10 +8512,15 @@ async function endGame() {
         // 이 읽기가 실패하면 2점 같은 점수에도 "신기록!"이 뜨던 버그 수정. (실제 랭킹은 서버 max라 안전)
         const isNewRecord = prevBestKnown && (!prevBest || score > prevBest.score);
 
-        // 이전 순위 목록은 병렬로 — 느려도 점수 저장을 막지 않게
-        const prevListPromise = loadRankings().catch(() => []);
+        // 이전 순위 목록은 병렬로 — 느려도 점수 저장을 막지 않게.
+        // ★ 읽기 절감: prevList/prevWeekList는 아래 신기록(isNewRecord) 분기에서만 소비된다
+        //   (추월 알림·직전 순위 캡처). 신기록이 아닌 판(대부분)은 전체 186 + 주간 115문서를
+        //   읽고도 한 번도 안 쓰고 버리던 구조 → 신기록일 때만 로드한다. 타이밍은 기존과 동일
+        //   (점수 제출 전 킥오프라 "제출 직전 순위" 스냅샷 의미 보존).
+        const needPrevLists = isNewRecord && score > 0;
+        const prevListPromise = needPrevLists ? loadRankings().catch(() => []) : Promise.resolve([]);
         // 주간 '내 순위 바'의 "방금 대비"용 — 이 게임 직전의 주간 순위를 같이 캡처(전체와 스케일이 달라 따로 저장)
-        const prevWeekListPromise = loadWeeklyRankings().catch(() => []);
+        const prevWeekListPromise = needPrevLists ? loadWeeklyRankings().catch(() => []) : Promise.resolve([]);
 
         // ★ 점수 저장을 최우선으로 실행 + 일시적 네트워크 오류는 1회 재시도
         //   (기존엔 loadRankings(최대 150개 문서)가 먼저라, 그게 느리거나 실패하면
@@ -8524,6 +8531,10 @@ async function endGame() {
           const subRes = await _shadowSubmitSession(savedNick);
           scoreSaved = true;
           if (subRes && subRes.decision) submitDecision = subRes.decision;
+          // 서버에 점수가 반영됐으니 랭킹 캐시 무효화 — 이후 renderRanking()이 새 목록을 읽는다
+          // (prevList는 제출 "전"에 이미 킥오프돼 직전 순위 스냅샷 의미가 깨지지 않음)
+          try { invalidateRankingsCache(); } catch {}
+          try { invalidateWeeklyRankingsCache(); } catch {}
         } catch (se) {
           scoreSaved = false;
         }
@@ -9528,7 +9539,9 @@ function rankHotHtml(ts) {
 let currentRankMode = 'week'; // 'all' | 'week' — 이번주를 기본으로
 
 let _skinsCacheTs = 0;
-const SKINS_CACHE_TTL = 120000; // 2분 — 스킨은 자주 안 바뀌므로 매 렌더마다 전체 컬렉션을 다시 읽지 않음
+const SKINS_CACHE_TTL = 600000; // 10분 — 스킨 변경(관리자 지급·구매·닉변)은 드물고, 본인 변경 경로는
+// 전부 _skinsCacheTs=0으로 즉시 무효화하므로 남의 새 스킨이 최대 10분 늦게 보이는 것만 감수(표시 전용).
+// 게임 1판(2~5분)마다 nickname_skins 전체(127문서)를 다시 읽던 것을 대부분 캐시 히트로 전환.
 async function loadSkinsCache() {
   if (_skinsCacheTs && Date.now() - _skinsCacheTs < SKINS_CACHE_TTL) return;
   try {
@@ -11247,7 +11260,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.4';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784740000; // v4.4 — 문의/후원 쪽지 양방향 대화(답장) — 유저·운영자 상호 회신
+const BUILD = 1784750000; // v4.4 — Firestore 읽기 절감(게임종료 랭킹 프리로드 조건화·캐시 TTL 조정)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
@@ -12442,15 +12455,35 @@ document.getElementById('myFeedbackReplySendBtn').addEventListener('click', asyn
 // 밸런스 패치 안내 팝업 — v3.2 콤보상한/랭킹초기화를 한 번만 확실히 알려줌 (자동으로 안 사라짐)
 
 // 시작화면에 작게 "이번주 내 순위" 한 줄 표시 — 랭킹 탭 안 눌러도 진행상황이 계속 눈에 들어오게
+// ★ 읽기 절감: 표시 전용 한 줄인데 매 앱 오픈마다 주간 전체(~115문서)를 읽던 것을 10분 메모로 전환.
+//   주간 캐시가 이미 따뜻하면(랭킹 탭 직후 등) 그걸 재사용하고, 게임 종료 후에는 캐시 무효화로
+//   자연히 새 값을 읽으므로 내 순위 상승은 다음 결과 화면 복귀 때 반영된다(표시 지연 최대 10분).
+let _startRankMemo = null, _startRankMemoTs = 0, _startRankMemoKey = '';
 async function renderStartMyRankLine() {
   try {
     const myNick = loadNickname();
     const line = document.getElementById('startMyRankLine');
     if (!myNick || !line) return;
-    const list = await loadWeeklyRankings();
-    const idx = list.findIndex(e => e.nickname === myNick);
-    if (idx === -1) return;
-    line.textContent = `🐾 이번주 ${idx + 1}위 · ${list[idx].score}pt`;
+    // 메모 키 = UID + 닉네임 + 주차 — 계정 전환(UID/닉)은 물론, 월요일 주간 리셋 직후
+    // 지난주 순위가 최대 10분 남아 보이는 것까지 차단(주차가 바뀌면 즉시 새로 조회).
+    const memoKey = `${MY_UID || 'anon'}|${myNick}|${getWeekId()}`;
+    let text = null;
+    if (_startRankMemo && _startRankMemoKey === memoKey && Date.now() - _startRankMemoTs < 600000) {
+      text = _startRankMemo;
+    } else {
+      const list = await loadWeeklyRankings();
+      const idx = list.findIndex(e => e.nickname === myNick);
+      if (idx === -1) {
+        // 이번 주 미참여(주간 리셋 직후 등) — 이전 주 문구가 DOM에 남아 보이지 않게 명시적으로 비우고 숨김.
+        // (기존엔 조기 return이라 자정을 넘겨 켜둔 세션에서 지난주 순위 줄이 그대로 남던 잔존 버그)
+        line.textContent = '';
+        line.style.display = 'none';
+        return;
+      }
+      text = `🐾 이번주 ${idx + 1}위 · ${list[idx].score}pt`;
+      _startRankMemo = text; _startRankMemoTs = Date.now(); _startRankMemoKey = memoKey;
+    }
+    line.textContent = text;
     line.style.display = 'block';
   } catch (e) { console.warn('시작화면 순위 표시 실패:', e); }
 }
