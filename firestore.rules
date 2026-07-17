@@ -30,6 +30,13 @@ service cloud.firestore {
       return request.auth != null
         && request.auth.uid == 'dofesyOMISTSAKEKBEpqAyV2PTr2';
     }
+    // 오너(오잉이)의 게임 계정 uid — 게임 안에서 문의·후원 쪽지 "읽기"만 허용한다.
+    // isAdmin()의 전체 쓰기 권한(점수 조작·삭제 등)과 분리해, 딱 열람 권한만 준다.
+    // Firebase 익명 인증 세션 기반이라 위조 불가(과거 localStorage 플래그 방식과 근본적으로 다름).
+    function isOwnerDevice() {
+      return request.auth != null
+        && request.auth.uid == 'nCNTJnd5GmRlEbRu3e1xPWxB8Og2';
+    }
     function signedIn() { return request.auth != null; }
 
     function validScore() {
@@ -264,7 +271,7 @@ service cloud.firestore {
     //    클라이언트의 update는 messages/reply/lastTs/adminUnread를 절대 바꿀 수 없다
     //    (내가 읽었다는 표시인 userUnread만 끌 수 있음).
     match /feedback/{docId} {
-      allow read: if isAdmin()
+      allow read: if isAdmin() || isOwnerDevice()
         || (signedIn() && ('uid' in resource.data) && resource.data.uid == request.auth.uid);
       allow create: if request.resource.data.nickname is string
         && okStr(request.resource.data.nickname, 20)
@@ -290,7 +297,14 @@ service cloud.firestore {
     // 가능하고, 재조회·수정·삭제는 전부 실제 Firebase Auth 어드민만 가능.
     // (로컬스토리지 플래그는 어떤 경우에도 권한 근거로 쓰지 않음)
     match /feedback_donate/{docId} {
-      allow read, update, delete: if isAdmin();
+      // read: 어드민 · 오너(게임) · 본인(자기가 남긴 후원 쪽지+답장 열람). update는 본인의
+      // userUnread(안읽음 표시) 해제만 허용 — 그 외 필드 위변조나 삭제는 어드민만.
+      allow read: if isAdmin() || isOwnerDevice()
+        || (signedIn() && ('uid' in resource.data) && resource.data.uid == request.auth.uid);
+      allow update: if isAdmin()
+        || (signedIn() && ('uid' in resource.data) && resource.data.uid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userUnread']));
+      allow delete: if isAdmin();
       allow create: if request.resource.data.nickname is string
         && okStr(request.resource.data.nickname, 20)
         && request.resource.data.get('messages', []) is list

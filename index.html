@@ -11247,7 +11247,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.4';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784720000; // v4.4 — 칭호 냥 톤 개편 + 🍯 츄르냥(Lv.3) 신설 + 곡선 압축
+const BUILD = 1784730000; // v4.4 — 오너 문의 원문 열람(게임) + 후원자 본인 쪽지 열람
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
@@ -12563,6 +12563,48 @@ function showReplyNotification(id, data, colName = 'feedback') {
 //  권한 검증이 아니었다(규칙은 항상 공개 read라 실제로는 아무나 원문을 읽어갈
 //  수 있었음). 지금은 원문 자체가 완전히 분리된 컬렉션에 있어서 이 화면에서
 //  다시 전체 목록을 보여줘도 안전하다.
+// 오너(오잉이) 게임 계정 uid — 이 기기에서만 문의 게시판 원문 열람 허용(규칙 isOwnerDevice와 한 쌍).
+const OEING_OWNER_UID = 'nCNTJnd5GmRlEbRu3e1xPWxB8Og2';
+function isOeingOwnerDevice() { try { return !!MY_UID && MY_UID === OEING_OWNER_UID; } catch { return false; } }
+
+// 오너 전용 — 일반 문의(feedback) + 후원 쪽지(feedback_donate) 원문을 게시판에 열람용으로 표시.
+// 규칙(isOwnerDevice)이 배포돼야 조회가 성공한다. 실패하면 false 반환 → 일반 마스킹 목록으로 폴백.
+// 답장은 서버 함수 제약상 어드민에서만 — 여기선 스레드 열람만(readOnly).
+async function renderOwnerFeedbackList(boardEl, pinnedIds) {
+  try {
+    const [fbSnap, dnSnap] = [
+      await getDocs(query(collection(db, 'feedback'), orderBy('ts', 'desc'), limit(40))),
+      await getDocs(query(collection(db, 'feedback_donate'), orderBy('ts', 'desc'), limit(40))),
+    ];
+    const items = [];
+    fbSnap.docs.forEach(d => { if (!pinnedIds.has(d.id)) items.push({ id: d.id, data: d.data(), col: 'feedback' }); });
+    dnSnap.docs.forEach(d => items.push({ id: d.id, data: d.data(), col: 'feedback_donate' }));
+    items.sort((a, b) => (b.data.lastTs || b.data.ts || 0) - (a.data.lastTs || a.data.ts || 0));
+    if (items.length === 0 && pinnedIds.size === 0) {
+      boardEl.innerHTML = '<div style="text-align:center;font-size:13px;color:var(--muted);padding:10px;">아직 등록된 글이 없어요</div>';
+      return true;
+    }
+    boardEl.innerHTML = '';
+    items.forEach(({ id, data, col }) => {
+      const isDonate = col === 'feedback_donate';
+      const hasReply = getFeedbackMessages(data).some(m => m.from === 'admin');
+      const nick = data.nickname || '(닉네임 없음)';
+      const status = data.adminUnread ? ' <span style="color:#fde68a;font-weight:800;">🆕 새 글</span>'
+        : (hasReply ? ' 💬 답변함' : ' <span style="color:var(--muted);">답변 대기</span>');
+      const row = document.createElement('div');
+      row.style.cssText = `display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;border:1px solid ${isDonate ? '#DA984555' : 'var(--border)'};background:${isDonate ? 'rgba(218,152,69,0.08)' : 'var(--surface)'};font-size:13px;cursor:pointer;`;
+      row.innerHTML = `<span style="color:var(--text);">${isDonate ? '💛' : '💬'} ${escapeHtml(nick)}${status}</span>`
+        + `<span style="color:var(--muted);font-size:12px;">${formatFeedbackDate(data.ts)}</span>`;
+      row.addEventListener('click', () => openMyFeedbackDetail(id, data, true, col)); // readOnly 열람
+      boardEl.appendChild(row);
+    });
+    return true;
+  } catch (e) {
+    console.warn('오너 원문 목록 로드 실패(규칙 미배포 시 폴백):', e && e.code);
+    return false;
+  }
+}
+
 async function renderFeedbackBoard() {
   const boardEl = document.getElementById('feedbackBoard');
   if (!boardEl) return;
@@ -12625,6 +12667,13 @@ async function renderFeedbackBoard() {
     }
   } else if (pinnedWrap) {
     pinnedWrap.style.display = 'none';
+  }
+
+  // ── 오너 기기: 원문 열람 목록(일반+후원). 성공 시 아래 마스킹 목록은 건너뜀 ──
+  if (isOeingOwnerDevice()) {
+    const ok = await renderOwnerFeedbackList(boardEl, pinnedIds);
+    if (ok) return;
+    // 실패(규칙 미배포 등)면 아래 일반 마스킹 목록으로 폴백
   }
 
   // ── 전체 목록 — feedback_public(마스킹 요약)에서만 가져옴. 원문은 절대 안 옴 ──
