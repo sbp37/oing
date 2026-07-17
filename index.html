@@ -10425,13 +10425,15 @@ function openMyInfoOverlay() {
   const linkBox = document.getElementById('myiLink');
   const pin = loadMyPin();
   if (linkBox) {
-    if (nick && pin && /^\d{4}$/.test(pin)) {
+    // PIN이 로컬에 없어도(저장소 초기화·레거시) 박스는 노출 — 펼칠 때 recoverMyPin이 회수/발급.
+    // 예전 '🔑 내 핀번호' 버튼의 복구 경로가 내 정보 통합으로 끊겼던 회귀 수정.
+    if (nick && MY_UID) {
       linkBox.style.display = '';
       linkBox.classList.remove('open');
       const b = document.getElementById('myiLinkBtn');
       if (b) b.textContent = '연결 정보 보기';
       const pinEl = document.getElementById('myiPin');
-      if (pinEl) pinEl.textContent = pin.split('').join(' ');
+      if (pinEl) pinEl.textContent = (pin && /^\d{4}$/.test(pin)) ? pin.split('').join(' ') : '';
     } else { linkBox.style.display = 'none'; }
   }
   const ov = document.getElementById('myInfoOverlay');
@@ -10448,7 +10450,7 @@ function logMyInfoOpen(source) {
       nickname: loadNickname() || '익명',
       source: (source === 'rank' || source === 'main') ? source : 'unknown',
       ts: Date.now(), date: getTodayDateStr(),
-    });
+    }).catch(() => {}); // 비동기 거부도 조용히 — unhandled rejection 방지
   } catch (e) { /* 로그 실패는 무해 */ }
 }
 document.getElementById('myInfoChip')?.addEventListener('click', () => { logMyInfoOpen('main'); openMyInfoOverlay(); });
@@ -10456,13 +10458,23 @@ document.getElementById('myInfoOpenRankBtn')?.addEventListener('click', () => { 
 document.getElementById('myInfoCloseBtn')?.addEventListener('click', closeMyInfoOverlay);
 document.getElementById('myInfoOverlay')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeMyInfoOverlay(); });
 document.getElementById('myiEditBtn')?.addEventListener('click', () => { closeMyInfoOverlay(); try { changeNickname(); } catch {} });
-document.getElementById('myiLinkHead')?.addEventListener('click', (e) => {
+document.getElementById('myiLinkHead')?.addEventListener('click', async (e) => {
   if (e.target && e.target.id === 'myiCopyBtn') return; // 복사 버튼 클릭은 접기/펼치기와 무관
   const box = document.getElementById('myiLink');
   if (!box) return;
   box.classList.toggle('open');
   const b = document.getElementById('myiLinkBtn');
   if (b) b.textContent = box.classList.contains('open') ? '접기' : '연결 정보 보기';
+  // 펼쳤는데 로컬에 PIN이 없으면 서버에서 회수/발급해 채움 (실패 시 안내)
+  if (box.classList.contains('open')) {
+    let p = loadMyPin();
+    if (!(p && /^\d{4}$/.test(p))) {
+      const pinEl = document.getElementById('myiPin');
+      if (pinEl) pinEl.textContent = '…';
+      p = await recoverMyPin(loadNickname());
+      if (pinEl) pinEl.textContent = (p && /^\d{4}$/.test(p)) ? p.split('').join(' ') : '불러오기 실패';
+    }
+  }
 });
 document.getElementById('myiCopyBtn')?.addEventListener('click', async () => {
   const pin = loadMyPin();
@@ -10484,26 +10496,18 @@ document.getElementById('myiCopyBtn')?.addEventListener('click', async () => {
 setTimeout(() => { try { refreshMyInfoChip(); } catch {} }, 350);
 setTimeout(() => { try { refreshMyInfoChip(); } catch {} }, 1800);
 // (랭킹탭 '🔑 내 핀번호' 버튼은 👤 내 정보 → 연결 정보 보기로 통합돼 제거 — 옵셔널 체이닝으로 무해화)
-document.getElementById('pinCheckBtn')?.addEventListener('click', async () => {
-  const myNick = loadNickname();
-  const display = document.getElementById('pinDisplayValue');
-  if (!myNick) {
-    display.textContent = '----';
-    document.getElementById('pinShowOverlay').style.display = 'flex';
-    return;
-  }
-  display.textContent = '확인 중...';
-  document.getElementById('pinShowOverlay').style.display = 'flex';
-  // 레거시 예약 닉(핀 유실 상태)이면 자동입양으로 새 핀 발급 후 표시 — 아니면 기존 흐름
-  if (!loadMyPin() && !isUidLinked()) { try { await adoptLegacyIfEligible(); } catch {} }
-  const pin = loadMyPin() || await getOrCreatePin(myNick);
-  if (pin) {
-    saveMyPin(pin);
-    display.textContent = pin;
-  } else {
-    display.textContent = '오류';
-  }
-});
+// 로컬에 PIN이 없을 때(저장소 초기화·레거시) 서버에서 회수/발급 — 예전 랭킹탭
+// '🔑 내 핀번호' 버튼의 복구 흐름을 함수화. 👤 내 정보 → 연결 정보 보기에서 사용.
+async function recoverMyPin(myNick) {
+  try {
+    if (!myNick) return null;
+    // 레거시 예약 닉(핀 유실 상태)이면 자동입양으로 새 핀 발급 — 아니면 기존 회수 흐름
+    if (!loadMyPin() && !isUidLinked()) { try { await adoptLegacyIfEligible(); } catch {} }
+    const pin = loadMyPin() || await getOrCreatePin(myNick);
+    if (pin) { saveMyPin(pin); return pin; }
+  } catch {}
+  return null;
+}
 
 // ── [UID 승격] 계정 연결 ──
 // 로컬 닉네임은 있는데 아직 이 기기가 UID 미연결일 때만 노출. PIN을 사용자가 직접 입력하면
@@ -10611,6 +10615,7 @@ document.getElementById('deleteRankConfirmBtn').addEventListener('click', async 
       try { localStorage.removeItem(PIN_KEY); } catch {}
     }
     document.getElementById('deleteRankOverlay').style.display = 'none';
+    try { closeMyInfoOverlay(); } catch {} // 뒤에 열려있던 내 정보 모달도 닫기 — 지운 기록이 그대로 보이던 잔결함 수정
     alert(`"${nick}" 님의 랭킹 기록을 삭제했어요. 🐱`);
     renderRanking();
   } catch (e) {
@@ -10859,7 +10864,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.3';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784390000; // v4.3 — 공유 링크 문구 교체 + 별점리뷰 칩 살짝 축소
+const BUILD = 1784400000; // v4.3 — 검수 반영: PIN 회수 경로 복원(내 정보) 등 잔결함 수정
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
