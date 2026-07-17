@@ -3780,7 +3780,8 @@ if ('serviceWorker' in navigator) {
       <div class="lv-pop-h">전체 칭호</div>
       <div class="lv-pop-rows" id="lvPopTierRows">
         <div class="lv-pop-row" data-min="1" data-max="1"><span class="ic">🌱</span><span class="lbl">Lv.1 새싹냥</span></div>
-        <div class="lv-pop-row" data-min="2" data-max="3"><span class="ic">🍡</span><span class="lbl">Lv.2~3 말랑냥</span></div>
+        <div class="lv-pop-row" data-min="2" data-max="2"><span class="ic">🍡</span><span class="lbl">Lv.2 말랑냥</span></div>
+        <div class="lv-pop-row" data-min="3" data-max="3"><span class="ic">🍯</span><span class="lbl">Lv.3 츄르냥</span></div>
         <div class="lv-pop-row" data-min="4" data-max="6"><span class="ic">🐾</span><span class="lbl">Lv.4~6 단골냥</span></div>
         <div class="lv-pop-row" data-min="7" data-max="10"><span class="ic">🧶</span><span class="lbl">Lv.7~10 베테랑냥</span></div>
         <div class="lv-pop-row" data-min="11" data-max="15"><span class="ic">💎</span><span class="lbl">Lv.11~15 오잉코어</span></div>
@@ -10553,6 +10554,7 @@ function oingTitleOf(lv) {
   if (lv >= 11) return '💎 오잉코어';
   if (lv >= 7)  return '🧶 베테랑냥';
   if (lv >= 4)  return '🐾 단골냥';
+  if (lv >= 3)  return '🍯 츄르냥';   // 유저가 가장 몰린 초반 구간 세분화 — 말랑냥과 츄르냥 구분
   if (lv >= 2)  return '🍡 말랑냥';
   return '🌱 새싹냥';
 }
@@ -11245,7 +11247,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.4';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784710000; // v4.4 — 칭호 냥 톤 개편(🧶 베테랑냥 등) + 곡선 압축(오잉코어 ~4개월)
+const BUILD = 1784720000; // v4.4 — 칭호 냥 톤 개편 + 🍯 츄르냥(Lv.3) 신설 + 곡선 압축
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
