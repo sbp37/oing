@@ -2392,6 +2392,21 @@ body.light .myinfo-chip { background: rgba(241,230,210,0.55); }
 .myi-pin { font-size: 21px; font-weight: 900; letter-spacing: 5px; color: var(--accent-lemon); font-variant-numeric: tabular-nums; }
 .myi-copy-btn { background: var(--surface); border: 1px solid var(--border2); color: var(--blue-light); border-radius: 8px; padding: 5px 10px; font-size: 11.5px; font-weight: 700; font-family: inherit; cursor: pointer; }
 .myi-hint { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+/* ⭐ 오잉 레벨 — 프로필 카드 바로 아래, 표시 전용 */
+.myi-level { margin-top: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 11px 13px; text-align: left; }
+.myi-lv-name { font-size: 14.5px; font-weight: 900; color: var(--accent-lemon); letter-spacing: -0.2px; }
+.myi-lv-bar { height: 6px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; margin: 8px 0 6px; }
+.myi-lv-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--blue-bright), var(--accent-lemon)); width: 0%; transition: width 0.5s ease; }
+.myi-lv-xp { font-size: 12px; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; gap: 8px; }
+.myi-lv-hint { font-size: 11px; color: var(--muted); opacity: 0.85; margin-top: 6px; white-space: pre-line; line-height: 1.55; }
+.myi-lv-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.myi-lv-info { background: none; border: none; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; padding: 2px 4px; font-family: inherit; opacity: 0.75; flex-shrink: 0; }
+/* 레벨 안내 바텀시트 — 내 정보 모달 위에 살짝 얹히는 작은 시트 */
+.oing-lv-pop { position: fixed; inset: 0; z-index: 420; background: rgba(0,0,0,0.38); display: flex; align-items: flex-end; justify-content: center; }
+.oing-lv-pop-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: 18px 18px 0 0; padding: 17px 20px calc(16px + env(safe-area-inset-bottom, 0px)); text-align: left; box-shadow: 0 -8px 30px rgba(0,0,0,0.35); }
+.oing-lv-pop-card .t { font-size: 14px; font-weight: 900; margin-bottom: 8px; }
+.oing-lv-pop-card .b { font-size: 12.5px; color: var(--muted); line-height: 1.75; }
+.oing-lv-pop-card .c { margin-top: 13px; width: 100%; background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 11px; padding: 9px 0; font-size: 13px; font-weight: 800; font-family: inherit; cursor: pointer; }
 
 /* 보드 — 모바일 네이티브 앱 스타일(좌측 정렬 중심, 정돈된 여백) */
 .rvb-head { position: relative; display: flex; align-items: center; gap: 14px; padding: 6px 2px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -3677,6 +3692,13 @@ if ('serviceWorker' in navigator) {
       </div>
       <button class="myi-edit-btn" id="myiEditBtn" style="display:none;">✏️ 수정</button>
     </div>
+    <!-- ⭐ 오잉 레벨 — XP는 서버에 저장하지 않고 내 기록 누적값에서 즉석 계산하는 표시 전용 -->
+    <div class="myi-level" id="myiLevel" style="display:none;">
+      <div class="myi-lv-head"><div class="myi-lv-name" id="myiLvName"></div><button class="myi-lv-info" id="myiLvInfoBtn" type="button" aria-label="레벨 안내">ⓘ</button></div>
+      <div class="myi-lv-bar"><div class="myi-lv-fill" id="myiLvFill"></div></div>
+      <div class="myi-lv-xp"><span id="myiLvXp"></span><span id="myiLvNext"></span></div>
+      <div class="myi-lv-hint" id="myiLvHint"></div>
+    </div>
     <div class="myi-sec">📜 내 기록</div>
     <div class="myi-grid">
       <div class="myi-rec"><div class="k">🏆 최고 점수</div><div class="v gold" id="myiBestScore">—</div></div>
@@ -3701,6 +3723,15 @@ if ('serviceWorker' in navigator) {
     </div>
     <!-- 내 기록 삭제 — 랭킹탭에서 이곳으로 이동(기존 핸들러 id 그대로 재사용). 조용한 저강조 버튼 -->
     <button class="nick-change-btn" id="deleteMyRankBtn" style="display:block; margin:14px auto 0; border-color:#DD603255; color:#DD6032; opacity:0.7; font-size:11.5px; padding:6px 12px;">🗑️ 내 기록 삭제</button>
+  </div>
+</div>
+
+<!-- ⭐ 오잉 레벨 안내 — 화면을 크게 가리지 않는 작은 바텀시트 (ⓘ 버튼으로 열림) -->
+<div class="oing-lv-pop" id="oingLvPop" style="display:none;">
+  <div class="oing-lv-pop-card">
+    <div class="t">⭐ 오잉 레벨 안내</div>
+    <div class="b">오잉 레벨은 지금까지 쌓은 활동과 기록을 나타내요.<br><br>플레이한 날과 오늘 목표 달성이 가장 크게 반영되고,<br>총 플레이 수와 최고점수·콤보도 함께 XP에 포함돼요.<br><br>베테랑 이후 상위 단계는 일정 점수 또는 콤보를 달성해야 승급할 수 있어요.</div>
+    <button class="c" id="oingLvPopClose" type="button">알겠어요</button>
   </div>
 </div>
 
@@ -4941,6 +4972,18 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
     }
     const newRecentScores = [...prevRecentScores, score].slice(-10);
 
+    // ⭐ 오잉 레벨 재료(표시 전용 누적 카운터) — 점수·랭킹·젤리 로직과 무관
+    // daysPlayed: 서로 다른 날짜에 게임을 완료한 누적 일수 — lastPlayDate 재사용으로 하루 1회만 증가.
+    // 필드가 없던 기존 유저는 여기서 1회 lazy 시드(시드값에 오늘이 이미 포함되므로 +1 하지 않음).
+    const daysPlayed = (typeof d.daysPlayed === 'number' && d.daysPlayed >= 0)
+      ? d.daysPlayed + (prevPlayDate === todayStr ? 0 : 1)
+      : Math.max(1, oingSeedDaysPlayed(d, now));
+    // maxGoalStreak: 역대 최장 오늘 목표 연속 달성일 — 현재 스트릭이 넘어설 때만 갱신, 끊겨도 유지
+    const maxGoalStreak = Math.max(
+      (typeof d.maxGoalStreak === 'number') ? d.maxGoalStreak : 0,
+      d.goalStreak || 0,  // 시드: 기존 유저의 직전 스트릭
+      goalStreak);        // 이번 판까지 반영된 현재 스트릭
+
     statsOut = {
       playCount: (d.playCount || 0) + 1,
       totalPlayTime: (d.totalPlayTime || 0) + playTimeSeconds,
@@ -4962,6 +5005,7 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
       recentScores: newRecentScores,
       dailyGoalDate, dailyGoalScore, dailyGoalType, dailyGoalAchievedToday,
       goalStreak, goalStreakLastDate, goalTotalCount, goalMissStreak,
+      daysPlayed, maxGoalStreak, // ⭐ 오잉 레벨 재료 — setDoc이 전체 덮어쓰기라 매 저장 포함 필수
     };
   } else {
     const newGoal = computeDailyGoal(null, nickname, todayStr);
@@ -4993,6 +5037,8 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
       goalStreakLastDate: goalAchievedNow ? todayStr : '',
       goalTotalCount: goalAchievedNow ? 1 : 0,
       goalMissStreak: 0,
+      daysPlayed: 1,                            // ⭐ 오잉 레벨 재료 — 첫 게임 완료 = 활동 1일차
+      maxGoalStreak: goalAchievedNow ? 1 : 0,
     };
   }
   if (isUidLinked()) {
@@ -10333,6 +10379,18 @@ const EARLY_MEMBER_CUTOFF_MS = new Date('2026-07-13T00:00:00+09:00').getTime();
 const WEEK_0629_MS = new Date('2026-06-29T00:00:00+09:00').getTime();        // 조기리셋 통합 주(6/29~7/12) 시작
 const GAME_OPEN_MS = new Date('2026-06-22T00:00:00+09:00').getTime();        // 게임 오픈일(오너 확인)
 const STUCK_END_MS = new Date('2026-07-07T00:00:00+09:00').getTime();        // 통계 도입 당일 몰림 구간 끝
+// ⭐️ 초창기 멤버 명단 보정(uid 기준) — 오픈 초기부터 함께했지만 닉네임/PIN 연결 과정에서
+//   firstPlayed가 연결 시각(7/13~14)으로 리셋돼 배지가 안 뜨던, 오너가 직접 확인한 멤버들.
+//   weekly 증거는 옛 닉이라 자동 추적이 안 돼(주간랭킹은 닉 기준 저장) uid로 직접 되돌린다.
+//   · 과거로만 낮춤(min 보정) · firstPlayed만 수정 → 점수/랭킹/콤보/젤리 전부 무관
+//   · 본인 기기에서 본인 인증으로 실행되므로 규칙상 본인 문서 수정 허용됨
+const EARLY_MEMBER_FP_OVERRIDE_MS = new Date('2026-07-12T00:00:00+09:00').getTime(); // 초창기 컷 안(안전값)
+const EARLY_MEMBER_FP_OVERRIDE = {
+  'gwgA11IgdzQkqhN7vi6q92XKvWj2': EARLY_MEMBER_FP_OVERRIDE_MS, // 안녕이
+  '0PsSuZccizYH15UX9Kl9E0Yfz0m1': EARLY_MEMBER_FP_OVERRIDE_MS, // 보노1
+  're2bi25UYRbcxVSZRG2odL7ZeDk1': EARLY_MEMBER_FP_OVERRIDE_MS, // 와하하
+  'MUBnb7sSCGPRDF5l51Z5UAHwbIM2': EARLY_MEMBER_FP_OVERRIDE_MS, // 지니
+};
 // "확실한" 증거만 인정 — 초창기 멤버/날짜 오판 방지 (게임이 6/22 오픈이라 그 이전 주는 검색 불필요):
 //  · 6/22 주: 존재 자체가 7/6 이전 플레이 증거 (그 주는 그 주에만 기록됨)
 //  · 6/29 주: 조기리셋으로 6/29~7/12 두 주를 포괄해 7/6 이후 신규도 여기 찍힘 —
@@ -10350,9 +10408,12 @@ async function findStrictPreEpochEvidence(nick) {
 }
 async function healFirstPlayedFromWeekly() {
   try {
-    if (localStorage.getItem('oeing_firstplayed_heal_v4')) return;
     const nick = loadNickname();
     if (!nick || !MY_UID || !isUidLinked()) return; // 연결 후에 다시 시도(가드 안 씀)
+    const overrideMs = EARLY_MEMBER_FP_OVERRIDE[MY_UID] || null;
+    const v4done = !!localStorage.getItem('oeing_firstplayed_heal_v4');
+    const ovDone = !!localStorage.getItem('oeing_fp_override_v1');
+    if (v4done && (ovDone || !overrideMs)) return; // 할 일 없으면 조회 없이 종료(읽기 아낌)
     const { ref, data } = await getMyDoc('user_stats');
     const fp = data && data.firstPlayed;
     const writeFp = async (ms) => {
@@ -10364,6 +10425,12 @@ async function healFirstPlayedFromWeekly() {
         localStorage.setItem(k, JSON.stringify(d2));
       } catch {}
     };
+    // ⭐️ 명단 보정(우선·v4와 독립) — 확인된 초창기 멤버의 firstPlayed를 과거로만 되돌림
+    if (overrideMs && !ovDone) {
+      if (typeof fp !== 'number' || overrideMs < fp) await writeFp(overrideMs);
+      localStorage.setItem('oeing_fp_override_v1', '1');
+    }
+    if (v4done) return;
     if (typeof fp === 'number' && fp >= STATS_EPOCH_MS && fp < STUCK_END_MS) {
       // ① 통계 도입 당일(7/3~7/6)에 몰린 값 = 도입 전부터 하던 유저가 확실 —
       //    주간랭킹 증거가 있으면 그 주로, 없으면(주간 도입 전 멤버) 게임 오픈일(6/22)로 세팅.
@@ -10396,6 +10463,141 @@ function refreshMyInfoChip() {
   if (avEl) avEl.innerHTML = (myCatSkinEnabled && typeof MY_CAT_IMG === 'string') ? `<img src="${MY_CAT_IMG}" alt="">` : '🐱';
   chip.style.display = 'inline-flex';
 }
+// ══════════════════════════════
+//  ⭐ 오잉 레벨 v1 — XP를 지급·저장하지 않고 user_stats의 누적값에서 매번 계산 (표시 전용)
+//  · 입력 6개(daysPlayed·goalTotalCount·maxGoalStreak·playCount·bestScore·bestCombo)가
+//    전부 누적(비감소) 값이라 레벨은 구조적으로 내려가지 않는다
+//  · 본인만 보는 v1 — 랭킹·보상·타 유저 노출 없음, 서버 추가 읽기/쓰기 0
+// ══════════════════════════════
+// Lv.5 이후 완화 곡선(2차 조정) — 매일 유저 기준 단골 ~1개월 · 베테랑 2~3개월 ·
+// 오잉코어 5~6개월 · 전설 10~12개월 · 오잉신 16~18개월. 요구치는 낮추는 방향만 안전(올리면 강등 발생).
+const OING_LEVEL_REQ = [0, 80, 300, 600, 850, 1150, 1500, 1900, 2350, 2850, 3400, 4000, 4650, 5350, 6100, 6900, 7750, 8650, 9600, 10600];
+const OING_PLAY_MS   = [[10,20],[30,30],[60,40],[100,50],[200,70],[400,90],[700,120],[1000,150]]; // 판수 마일스톤(누적)
+const OING_STREAK_MS = [[3,20],[7,30],[14,40],[30,60],[60,80],[100,120]];                          // 최장 목표 스트릭(누적)
+const OING_SCORE_TIER = [[40000,60],[25000,55],[12000,45],[6000,30],[3000,20],[1000,10]];          // 최고 단계 하나만
+const OING_COMBO_TIER = [[250,45],[150,35],[100,25],[50,16],[20,8]];                               // 최고 단계 하나만
+function oingTitleOf(lv) {
+  if (lv >= 20) return '🌟 오잉신';
+  if (lv >= 16) return '👑 전설의 오잉러';
+  if (lv >= 11) return '💎 오잉코어';
+  if (lv >= 7)  return '🔥 베테랑 오잉러';
+  if (lv >= 4)  return '🐾 단골 오잉러';
+  if (lv >= 2)  return '🍮 말랑 오잉러';
+  return '🌱 새싹 오잉러';
+}
+// 필드가 없는 기존 유저의 daysPlayed 보수 보정 — firstPlayed가 폴백값(6/22 정각)인 구 유저가
+// 있어 "첫 플레이 후 일수"만으로는 뻥튀기됨 → 실측 기반인 goalTotalCount+3 캡으로 묶는다.
+// 반환값에는 오늘이 이미 포함된다(일수 계산이 오늘 기준이므로 시드 시 +1 금지).
+function oingSeedDaysPlayed(d, nowMs) {
+  const pc = d.playCount || 0;
+  if (pc <= 0) return 0;
+  const fp = (typeof d.firstPlayed === 'number' && d.firstPlayed > 0 && d.firstPlayed <= nowMs) ? d.firstPlayed : nowMs;
+  const daysSince = Math.floor((nowMs - fp) / 86400000) + 1;
+  return Math.max(1, Math.min(daysSince, pc, (d.goalTotalCount || 0) + 3));
+}
+function oingComputeXp(d) {
+  if (!d || !(d.playCount > 0)) return 0;
+  // 아직 시드가 저장되지 않은 유저도 같은 보정식으로 즉석 계산 → 도입 즉시 전원 표시 가능
+  const days = (typeof d.daysPlayed === 'number' && d.daysPlayed >= 0) ? d.daysPlayed : oingSeedDaysPlayed(d, Date.now());
+  const mgs = Math.max((typeof d.maxGoalStreak === 'number') ? d.maxGoalStreak : 0, d.goalStreak || 0);
+  let xp = days * 10 + (d.goalTotalCount || 0) * 10;
+  for (const [t, b] of OING_PLAY_MS)   if ((d.playCount || 0) >= t) xp += b;
+  for (const [t, b] of OING_STREAK_MS) if (mgs >= t) xp += b;
+  for (const [t, b] of OING_SCORE_TIER) if ((d.bestScore || 0) >= t) { xp += b; break; }
+  for (const [t, b] of OING_COMBO_TIER) if ((d.bestCombo || 0) >= t) { xp += b; break; }
+  return xp;
+}
+function oingLevelOf(xp) {
+  let lv = 1;
+  for (let i = 0; i < OING_LEVEL_REQ.length; i++) if (xp >= OING_LEVEL_REQ[i]) lv = i + 1;
+  return lv;
+}
+// 상위 승급 게이트 — 베테랑 이후는 XP + 최소 실력 조건(점수 또는 콤보 중 하나) 필요.
+// XP는 계속 누적되고, 조건 달성 순간 누적 XP에 맞는 레벨까지 즉시 반영된다.
+// bestScore·bestCombo도 비감소 값이라 한번 통과한 게이트는 다시 닫히지 않는다.
+const OING_GATES = [
+  { lv: 11, score: 6000,  combo: 100, to: '오잉코어로' },
+  { lv: 16, score: 12000, combo: 200, to: '전설의 오잉러로' },
+  { lv: 20, score: 25000, combo: 400, to: '오잉신으로' },
+];
+// XP 레벨에 게이트를 적용한 표시 레벨 반환. 막힌 경우 { blockedBy } 로 어느 게이트인지 알림.
+function oingGatedLevel(xpLv, d) {
+  const bs = (d && d.bestScore) || 0;
+  const bc = (d && d.bestCombo) || 0;
+  for (const g of OING_GATES) {
+    if (xpLv >= g.lv && !(bs >= g.score || bc >= g.combo)) {
+      return { lv: g.lv - 1, blockedBy: g };
+    }
+  }
+  return { lv: xpLv, blockedBy: null };
+}
+// 표시용 max-hold — 다중 기기 저장 경합으로 계산값이 순간 낮아져도 화면 레벨이 후퇴해 보이지
+// 않게, 이 기기에서 확인한 최고 XP를 UID별 로컬에만 기억한다(서버 저장 없음).
+function oingHeldXp(computedXp) {
+  let key = 'oeing_xp_hold_';
+  try { key += (MY_UID || loadNickname() || 'anon'); } catch { key += 'anon'; }
+  let held = 0;
+  try { held = parseInt(localStorage.getItem(key) || '0', 10) || 0; } catch {}
+  const shown = Math.max(computedXp, held);
+  if (shown > held) { try { localStorage.setItem(key, String(shown)); } catch {} }
+  return shown;
+}
+// 가까운 성장 목표 한 줄 — 우선순위: ① 오늘 플레이 ② 오늘 목표 ③ 가까운 판수 마일스톤
+// ④ 가까운 최장 스트릭 마일스톤 (⑤ 승급 조건은 게이트에 막힌 경우 gateMsg가 대신 안내)
+function oingNextHint(d) {
+  const today = getLocalDateStr();
+  if (d.lastPlayDate !== today) return '오늘 한 판 플레이하면 +10 XP';
+  if (!(d.dailyGoalDate === today && d.dailyGoalAchievedToday)) return '오늘 목표를 달성하면 +10 XP';
+  const pc = d.playCount || 0;
+  for (const [t, b] of OING_PLAY_MS) {
+    if (pc < t) {
+      if (t - pc <= 15) return `${t}판까지 ${t - pc}판 남았어요 · 달성 시 +${b} XP`;
+      break;
+    }
+  }
+  const mgs = Math.max((typeof d.maxGoalStreak === 'number') ? d.maxGoalStreak : 0, d.goalStreak || 0);
+  for (const [t, b] of OING_STREAK_MS) {
+    if (mgs < t) {
+      if (t - mgs <= 7) return `최장 연속 ${t}일까지 ${t - mgs}일 남았어요 · 달성 시 +${b} XP`;
+      break;
+    }
+  }
+  return '내일 또 한 판 플레이하면 +10 XP';
+}
+function renderMyOingLevel(nick, d) {
+  const box = document.getElementById('myiLevel');
+  if (!box) return;
+  if (!nick || !d || !(d.playCount > 0)) { box.style.display = 'none'; return; }
+  const xp = oingHeldXp(oingComputeXp(d));
+  const xpLv = oingLevelOf(xp);              // XP만으로 계산한 레벨
+  const gated = oingGatedLevel(xpLv, d);     // 상위 게이트 적용 — 막히면 직전 레벨에 유지
+  const lv = gated.lv;
+  const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  set('myiLvName', `Lv.${lv} ${oingTitleOf(lv)}`);
+  const fill = document.getElementById('myiLvFill');
+  const hintEl = document.getElementById('myiLvHint');
+  // 게이트에 막힌 동안의 승급 안내 — 필요한 조건만 짧게 (Lv.11 게이트는 "XP는 충분해요!" 문구 포함)
+  const g = gated.blockedBy;
+  const gateMsg = g ? ((g.lv === 11 ? 'XP는 충분해요!\n' : '')
+    + `${g.score.toLocaleString()}점 또는 ${g.combo}콤보를 달성하면 ${g.to} 승급해요.`) : null;
+  // 진행 바·누적 XP는 게이트와 무관하게 XP 기준 그대로 표시 (막혀 있어도 계속 누적·표시)
+  if (xpLv >= 20) {
+    if (fill) fill.style.width = '100%';
+    set('myiLvXp', `${xp.toLocaleString()} XP`);
+    set('myiLvNext', g ? '승급 대기 중' : '최고 레벨 🏆');
+    set('myiLvHint', gateMsg || '오잉게임의 정점이에요. 최고다냥!');
+  } else {
+    const cur = OING_LEVEL_REQ[xpLv - 1];
+    const next = OING_LEVEL_REQ[xpLv];
+    const pct = Math.max(0, Math.min(100, Math.round(((xp - cur) / (next - cur)) * 100)));
+    if (fill) fill.style.width = pct + '%';
+    set('myiLvXp', `${xp.toLocaleString()} / ${next.toLocaleString()} XP`);
+    set('myiLvNext', `다음 레벨까지 ${(next - xp).toLocaleString()} XP`);
+    set('myiLvHint', gateMsg || oingNextHint(d));
+  }
+  if (hintEl) hintEl.style.color = g ? 'var(--blue-light)' : '';
+  box.style.display = '';
+}
 function openMyInfoOverlay() {
   const nick = loadNickname();
   let d = {};
@@ -10424,6 +10626,8 @@ function openMyInfoOverlay() {
       sinceEl.style.display = '';
     } else { sinceEl.style.display = 'none'; }
   }
+  // ⭐ 오잉 레벨 — 로컬 캐시의 누적값에서 즉석 계산 (서버 추가 읽기 0)
+  try { renderMyOingLevel(nick, d); } catch (e) { const b = document.getElementById('myiLevel'); if (b) b.style.display = 'none'; }
   const editBtn = document.getElementById('myiEditBtn');
   if (editBtn) editBtn.style.display = nick ? '' : 'none';
   const delBtn = document.getElementById('deleteMyRankBtn');
@@ -10456,6 +10660,8 @@ function openMyInfoOverlay() {
 function closeMyInfoOverlay() {
   const ov = document.getElementById('myInfoOverlay');
   if (ov) ov.style.display = 'none';
+  const pop = document.getElementById('oingLvPop'); // 레벨 안내 시트도 같이 정리
+  if (pop) pop.style.display = 'none';
 }
 // 내 정보 열람 기록 — 다른 클릭 로그(review_entry_clicks)와 동일 패턴, 어디서 열었는지(source)만 추가
 function logMyInfoOpen(source) {
@@ -10468,6 +10674,10 @@ function logMyInfoOpen(source) {
   } catch (e) { /* 로그 실패는 무해 */ }
 }
 document.getElementById('myInfoChip')?.addEventListener('click', () => { logMyInfoOpen('main'); openMyInfoOverlay(); });
+// ⭐ 오잉 레벨 ⓘ 안내 바텀시트 — 열기/배경 탭/버튼으로 닫기
+document.getElementById('myiLvInfoBtn')?.addEventListener('click', () => { const p = document.getElementById('oingLvPop'); if (p) p.style.display = 'flex'; });
+document.getElementById('oingLvPop')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.style.display = 'none'; });
+document.getElementById('oingLvPopClose')?.addEventListener('click', () => { const p = document.getElementById('oingLvPop'); if (p) p.style.display = 'none'; });
 document.getElementById('myInfoOpenRankBtn')?.addEventListener('click', () => { logMyInfoOpen('rank'); openMyInfoOverlay(); });
 document.getElementById('myInfoCloseBtn')?.addEventListener('click', closeMyInfoOverlay);
 document.getElementById('myInfoOverlay')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeMyInfoOverlay(); });
@@ -10878,7 +11088,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.3';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784430000; // v4.3 — 리뷰 카드 초창기 뱃지 제거(유저 늘면 재검토) · 내 정보 뱃지는 유지
+const BUILD = 1784690000; // v4.4 — ⭐ 오잉 레벨 v1 (내 정보에서 본인만 확인, XP 무저장 계산식)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
