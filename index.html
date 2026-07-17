@@ -10294,6 +10294,49 @@ document.getElementById('sideRestartBtn').addEventListener('click', () => {
 // (랭킹탭 '닉네임 변경' 버튼은 👤 내 정보로 통합돼 제거 — changeNickname은 내 정보의 ✏️수정에서 재사용)
 
 // ══════════════════════════════
+//  🐾 "함께한 지 N일" 보정 — user_stats(통계 시스템)는 2026-07-06에 도입돼서, 그 전부터 하던
+//  유저들의 firstPlayed가 전부 7/6 언저리로 찍혀 "12일째"처럼 실제보다 짧게 나오는 문제.
+//  7/6 이전의 진짜 증거인 과거 주간랭킹(weekly_rankings/{주}/scores/{닉})에서 이 닉네임이
+//  가장 처음 등장한 주를 찾아 firstPlayed를 그 주 월요일로 되돌린다(과거로만, min 보정).
+//  · 기기당 1회(localStorage 가드) · 읽기 ≤7건 · 표시용 필드만 수정(점수/랭킹/젤리 무관)
+// ══════════════════════════════
+const STATS_EPOCH_MS = new Date('2026-07-06T00:00:00+09:00').getTime();     // 통계 도입일
+const STATS_EPOCH_END_MS = new Date('2026-07-09T00:00:00+09:00').getTime(); // 도입 직후 창(보정 대상 판별)
+// 통계 도입 전 주차들(월요일 키) — 이른 주부터. 6/29 주는 조기리셋으로 6/29~7/12를 포괄.
+const PRE_EPOCH_WEEK_IDS = ['2026-05-25', '2026-06-01', '2026-06-08', '2026-06-15', '2026-06-22', '2026-06-29'];
+async function healFirstPlayedFromWeekly() {
+  try {
+    if (localStorage.getItem('oeing_firstplayed_heal_v1')) return;
+    const nick = loadNickname();
+    if (!nick || !MY_UID || !isUidLinked()) return; // 연결 후에 다시 시도(가드 안 씀)
+    const { ref, data } = await getMyDoc('user_stats');
+    const fp = data && data.firstPlayed;
+    // 보정 대상: firstPlayed가 통계 도입 직후 창(7/6~7/8)에 몰려 있는 경우만
+    if (typeof fp !== 'number' || fp < STATS_EPOCH_MS || fp >= STATS_EPOCH_END_MS) {
+      localStorage.setItem('oeing_firstplayed_heal_v1', '1'); return;
+    }
+    let earliestMs = null;
+    for (const w of PRE_EPOCH_WEEK_IDS) { // 이른 주부터 — 첫 히트가 가장 이른 증거
+      try {
+        const s = await getDoc(doc(db, 'weekly_rankings', w, 'scores', nick));
+        if (s.exists()) { earliestMs = new Date(w + 'T00:00:00+09:00').getTime(); break; }
+      } catch {}
+    }
+    if (earliestMs && earliestMs < fp) {
+      await setDoc(ref, { firstPlayed: earliestMs }, { merge: true });
+      try { // 로컬 캐시도 같이 — 내정보를 바로 열어도 보정된 날짜가 보이게
+        const k = 'oeing_local_stats_' + nick;
+        const d2 = JSON.parse(localStorage.getItem(k) || 'null') || {};
+        d2.firstPlayed = earliestMs;
+        localStorage.setItem(k, JSON.stringify(d2));
+      } catch {}
+    }
+    localStorage.setItem('oeing_firstplayed_heal_v1', '1');
+  } catch { /* 다음 접속에 재시도 */ }
+}
+setTimeout(() => { healFirstPlayedFromWeekly(); }, 4000); // 계정 준비 뒤 여유 있게 1회
+
+// ══════════════════════════════
 //  👤 내정보 v1 — 메인 프로필 칩 → 내 프로필·내 기록·기기 연결 모달
 //  · 데이터는 기존 로컬 캐시(oeing_local_stats_)와 저장된 PIN(loadMyPin)만 사용 — 서버 추가 읽기 0
 //  · 닉네임 수정은 기존 changeNickname() 재사용 · 게임/점수/랭킹/인증 로직 무변경
@@ -10322,7 +10365,11 @@ function openMyInfoOverlay() {
   if (sinceEl) {
     const fp = d.firstPlayed;
     if (nick && typeof fp === 'number' && fp > 0 && fp <= Date.now()) {
-      sinceEl.textContent = `오잉게임과 함께한 지 ${(Math.floor((Date.now() - fp) / 86400000) + 1).toLocaleString()}일째 🐾`;
+      const days = (Math.floor((Date.now() - fp) / 86400000) + 1).toLocaleString();
+      // 통계 도입일(7/6) 이전부터 함께한 게 확인된 유저 = 초창기 멤버 (닫힌 클럽 — 이후 유입은 불가)
+      sinceEl.textContent = (fp < STATS_EPOCH_MS)
+        ? `🐾 초창기 멤버 · 함께한 지 ${days}일째`
+        : `오잉게임과 함께한 지 ${days}일째 🐾`;
       sinceEl.style.display = '';
     } else { sinceEl.style.display = 'none'; }
   }
@@ -10775,7 +10822,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.3';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784300000; // v4.3 — 내 정보 통합(랭킹탭 버튼 정리·클릭 기록)·업데이트 내역 v4.3 반영
+const BUILD = 1784310000; // v4.3 — 초창기 멤버 뱃지 + 함께한 지 날짜를 과거 주간랭킹 증거로 보정
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
