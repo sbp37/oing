@@ -2398,7 +2398,15 @@ body.light .myinfo-chip { background: rgba(241,230,210,0.55); }
 .myi-lv-bar { height: 6px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; margin: 8px 0 6px; }
 .myi-lv-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--blue-bright), var(--accent-lemon)); width: 0%; transition: width 0.5s ease; }
 .myi-lv-xp { font-size: 12px; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; gap: 8px; }
-.myi-lv-hint { font-size: 11px; color: var(--muted); opacity: 0.85; margin-top: 6px; }
+.myi-lv-hint { font-size: 11px; color: var(--muted); opacity: 0.85; margin-top: 6px; white-space: pre-line; line-height: 1.55; }
+.myi-lv-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.myi-lv-info { background: none; border: none; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; padding: 2px 4px; font-family: inherit; opacity: 0.75; flex-shrink: 0; }
+/* 레벨 안내 바텀시트 — 내 정보 모달 위에 살짝 얹히는 작은 시트 */
+.oing-lv-pop { position: fixed; inset: 0; z-index: 420; background: rgba(0,0,0,0.38); display: flex; align-items: flex-end; justify-content: center; }
+.oing-lv-pop-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: 18px 18px 0 0; padding: 17px 20px calc(16px + env(safe-area-inset-bottom, 0px)); text-align: left; box-shadow: 0 -8px 30px rgba(0,0,0,0.35); }
+.oing-lv-pop-card .t { font-size: 14px; font-weight: 900; margin-bottom: 8px; }
+.oing-lv-pop-card .b { font-size: 12.5px; color: var(--muted); line-height: 1.75; }
+.oing-lv-pop-card .c { margin-top: 13px; width: 100%; background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 11px; padding: 9px 0; font-size: 13px; font-weight: 800; font-family: inherit; cursor: pointer; }
 
 /* 보드 — 모바일 네이티브 앱 스타일(좌측 정렬 중심, 정돈된 여백) */
 .rvb-head { position: relative; display: flex; align-items: center; gap: 14px; padding: 6px 2px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -3686,7 +3694,7 @@ if ('serviceWorker' in navigator) {
     </div>
     <!-- ⭐ 오잉 레벨 — XP는 서버에 저장하지 않고 내 기록 누적값에서 즉석 계산하는 표시 전용 -->
     <div class="myi-level" id="myiLevel" style="display:none;">
-      <div class="myi-lv-name" id="myiLvName"></div>
+      <div class="myi-lv-head"><div class="myi-lv-name" id="myiLvName"></div><button class="myi-lv-info" id="myiLvInfoBtn" type="button" aria-label="레벨 안내">ⓘ</button></div>
       <div class="myi-lv-bar"><div class="myi-lv-fill" id="myiLvFill"></div></div>
       <div class="myi-lv-xp"><span id="myiLvXp"></span><span id="myiLvNext"></span></div>
       <div class="myi-lv-hint" id="myiLvHint"></div>
@@ -3715,6 +3723,15 @@ if ('serviceWorker' in navigator) {
     </div>
     <!-- 내 기록 삭제 — 랭킹탭에서 이곳으로 이동(기존 핸들러 id 그대로 재사용). 조용한 저강조 버튼 -->
     <button class="nick-change-btn" id="deleteMyRankBtn" style="display:block; margin:14px auto 0; border-color:#DD603255; color:#DD6032; opacity:0.7; font-size:11.5px; padding:6px 12px;">🗑️ 내 기록 삭제</button>
+  </div>
+</div>
+
+<!-- ⭐ 오잉 레벨 안내 — 화면을 크게 가리지 않는 작은 바텀시트 (ⓘ 버튼으로 열림) -->
+<div class="oing-lv-pop" id="oingLvPop" style="display:none;">
+  <div class="oing-lv-pop-card">
+    <div class="t">⭐ 오잉 레벨 안내</div>
+    <div class="b">오잉 레벨은 꾸준한 플레이와 오늘 목표 달성으로 올라가요.<br>총 플레이 수와 최고점수·콤보도 함께 반영돼요.<br>베테랑 이후 상위 단계는 일정 점수 또는 콤보를 달성해야 승급할 수 있어요.</div>
+    <button class="c" id="oingLvPopClose" type="button">알겠어요</button>
   </div>
 </div>
 
@@ -10492,6 +10509,25 @@ function oingLevelOf(xp) {
   for (let i = 0; i < OING_LEVEL_REQ.length; i++) if (xp >= OING_LEVEL_REQ[i]) lv = i + 1;
   return lv;
 }
+// 상위 승급 게이트 — 베테랑 이후는 XP + 최소 실력 조건(점수 또는 콤보 중 하나) 필요.
+// XP는 계속 누적되고, 조건 달성 순간 누적 XP에 맞는 레벨까지 즉시 반영된다.
+// bestScore·bestCombo도 비감소 값이라 한번 통과한 게이트는 다시 닫히지 않는다.
+const OING_GATES = [
+  { lv: 11, score: 6000,  combo: 100, name: '코어 오잉러' },
+  { lv: 16, score: 12000, combo: 200, name: '오잉코어' },
+  { lv: 20, score: 25000, combo: 400, name: '최종 단계' },
+];
+// XP 레벨에 게이트를 적용한 표시 레벨 반환. 막힌 경우 { blockedBy } 로 어느 게이트인지 알림.
+function oingGatedLevel(xpLv, d) {
+  const bs = (d && d.bestScore) || 0;
+  const bc = (d && d.bestCombo) || 0;
+  for (const g of OING_GATES) {
+    if (xpLv >= g.lv && !(bs >= g.score || bc >= g.combo)) {
+      return { lv: g.lv - 1, blockedBy: g };
+    }
+  }
+  return { lv: xpLv, blockedBy: null };
+}
 // 표시용 max-hold — 다중 기기 저장 경합으로 계산값이 순간 낮아져도 화면 레벨이 후퇴해 보이지
 // 않게, 이 기기에서 확인한 최고 XP를 UID별 로컬에만 기억한다(서버 저장 없음).
 function oingHeldXp(computedXp) {
@@ -10521,24 +10557,33 @@ function renderMyOingLevel(nick, d) {
   if (!box) return;
   if (!nick || !d || !(d.playCount > 0)) { box.style.display = 'none'; return; }
   const xp = oingHeldXp(oingComputeXp(d));
-  const lv = oingLevelOf(xp);
+  const xpLv = oingLevelOf(xp);              // XP만으로 계산한 레벨
+  const gated = oingGatedLevel(xpLv, d);     // 상위 게이트 적용 — 막히면 직전 레벨에 유지
+  const lv = gated.lv;
   const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
   set('myiLvName', `Lv.${lv} ${oingTitleOf(lv)}`);
   const fill = document.getElementById('myiLvFill');
-  if (lv >= 20) {
+  const hintEl = document.getElementById('myiLvHint');
+  // 게이트에 막힌 동안의 승급 안내 — 필요한 조건만 짧게 (Lv.11 게이트는 "XP는 충분해요!" 문구 포함)
+  const g = gated.blockedBy;
+  const gateMsg = g ? ((g.lv === 11 ? 'XP는 충분해요!\n' : '')
+    + `${g.score.toLocaleString()}점 또는 ${g.combo}콤보를 달성하면 ${g.name}로 승급해요.`) : null;
+  // 진행 바·누적 XP는 게이트와 무관하게 XP 기준 그대로 표시 (막혀 있어도 계속 누적·표시)
+  if (xpLv >= 20) {
     if (fill) fill.style.width = '100%';
     set('myiLvXp', `${xp.toLocaleString()} XP`);
-    set('myiLvNext', '최고 레벨 🏆');
-    set('myiLvHint', '오잉게임의 정점이에요. 최고다냥!');
+    set('myiLvNext', g ? '승급 대기 중' : '최고 레벨 🏆');
+    set('myiLvHint', gateMsg || '오잉게임의 정점이에요. 최고다냥!');
   } else {
-    const cur = OING_LEVEL_REQ[lv - 1];
-    const next = OING_LEVEL_REQ[lv];
+    const cur = OING_LEVEL_REQ[xpLv - 1];
+    const next = OING_LEVEL_REQ[xpLv];
     const pct = Math.max(0, Math.min(100, Math.round(((xp - cur) / (next - cur)) * 100)));
     if (fill) fill.style.width = pct + '%';
     set('myiLvXp', `${xp.toLocaleString()} / ${next.toLocaleString()} XP`);
     set('myiLvNext', `다음 레벨까지 ${(next - xp).toLocaleString()} XP`);
-    set('myiLvHint', oingNextHint(d));
+    set('myiLvHint', gateMsg || oingNextHint(d));
   }
+  if (hintEl) hintEl.style.color = g ? 'var(--blue-light)' : '';
   box.style.display = '';
 }
 function openMyInfoOverlay() {
@@ -10603,6 +10648,8 @@ function openMyInfoOverlay() {
 function closeMyInfoOverlay() {
   const ov = document.getElementById('myInfoOverlay');
   if (ov) ov.style.display = 'none';
+  const pop = document.getElementById('oingLvPop'); // 레벨 안내 시트도 같이 정리
+  if (pop) pop.style.display = 'none';
 }
 // 내 정보 열람 기록 — 다른 클릭 로그(review_entry_clicks)와 동일 패턴, 어디서 열었는지(source)만 추가
 function logMyInfoOpen(source) {
@@ -10615,6 +10662,10 @@ function logMyInfoOpen(source) {
   } catch (e) { /* 로그 실패는 무해 */ }
 }
 document.getElementById('myInfoChip')?.addEventListener('click', () => { logMyInfoOpen('main'); openMyInfoOverlay(); });
+// ⭐ 오잉 레벨 ⓘ 안내 바텀시트 — 열기/배경 탭/버튼으로 닫기
+document.getElementById('myiLvInfoBtn')?.addEventListener('click', () => { const p = document.getElementById('oingLvPop'); if (p) p.style.display = 'flex'; });
+document.getElementById('oingLvPop')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.style.display = 'none'; });
+document.getElementById('oingLvPopClose')?.addEventListener('click', () => { const p = document.getElementById('oingLvPop'); if (p) p.style.display = 'none'; });
 document.getElementById('myInfoOpenRankBtn')?.addEventListener('click', () => { logMyInfoOpen('rank'); openMyInfoOverlay(); });
 document.getElementById('myInfoCloseBtn')?.addEventListener('click', closeMyInfoOverlay);
 document.getElementById('myInfoOverlay')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeMyInfoOverlay(); });
