@@ -2400,13 +2400,32 @@ body.light .myinfo-chip { background: rgba(241,230,210,0.55); }
 .myi-lv-xp { font-size: 12px; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; gap: 8px; }
 .myi-lv-hint { font-size: 11px; color: var(--muted); opacity: 0.85; margin-top: 6px; white-space: pre-line; line-height: 1.55; }
 .myi-lv-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.myi-lv-info { background: none; border: none; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; padding: 2px 4px; font-family: inherit; opacity: 0.75; flex-shrink: 0; }
+.myi-lv-info { background: none; border: none; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; padding: 2px 4px; font-family: inherit; opacity: 0.75; flex-shrink: 0; min-width: 34px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; }
 /* 레벨 안내 바텀시트 — 내 정보 모달 위에 살짝 얹히는 작은 시트 */
 .oing-lv-pop { position: fixed; inset: 0; z-index: 420; background: rgba(0,0,0,0.38); display: flex; align-items: flex-end; justify-content: center; }
-.oing-lv-pop-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: 18px 18px 0 0; padding: 17px 20px calc(16px + env(safe-area-inset-bottom, 0px)); text-align: left; box-shadow: 0 -8px 30px rgba(0,0,0,0.35); }
-.oing-lv-pop-card .t { font-size: 14px; font-weight: 900; margin-bottom: 8px; }
-.oing-lv-pop-card .b { font-size: 12.5px; color: var(--muted); line-height: 1.75; }
-.oing-lv-pop-card .c { margin-top: 13px; width: 100%; background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 11px; padding: 9px 0; font-size: 13px; font-weight: 800; font-family: inherit; cursor: pointer; }
+.oing-lv-pop-card { width: 100%; max-width: 400px; max-height: 80vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: 18px 18px 0 0; padding: 18px 20px calc(16px + env(safe-area-inset-bottom, 0px)); text-align: left; box-shadow: 0 -8px 30px rgba(0,0,0,0.35); }
+.oing-lv-pop-card .t { font-size: 17px; font-weight: 900; margin-bottom: 10px; }
+.lv-pop-intro { font-size: 15px; color: var(--text); opacity: 0.92; line-height: 1.65; margin-bottom: 4px; }
+.lv-pop-intro-sm { font-size: 13px; opacity: 0.75; margin-bottom: 6px; }
+.lv-pop-h { font-size: 13.5px; font-weight: 800; color: var(--muted); margin: 16px 0 7px; }
+.lv-pop-rows { display: flex; flex-direction: column; gap: 2px; }
+.lv-pop-row { display: flex; align-items: center; gap: 10px; padding: 8px 6px; font-size: 15px; font-weight: 700; border-radius: 10px; }
+.lv-pop-row .ic { font-size: 17px; flex-shrink: 0; width: 22px; text-align: center; }
+.lv-pop-row .lbl { flex: 1; color: var(--text); }
+.lv-pop-row .val { color: var(--accent-lemon); font-weight: 800; font-size: 14px; flex-shrink: 0; text-align: right; }
+/* 전체 칭호 목록 — 현재 구간(강조색·배경) / 다음 구간(은은한 테두리) / 나머지(기본) */
+.lv-pop-row.cur { color: var(--accent-lemon); background: rgba(218,152,69,0.12); }
+.lv-pop-row.cur .lbl { color: var(--accent-lemon); font-weight: 900; }
+.lv-pop-row.next-tier { border: 1px solid var(--border2); opacity: 0.95; }
+.lv-pop-row2 { display: flex; align-items: flex-start; gap: 10px; padding: 8px 6px; }
+.lv-pop-row2 .ic { font-size: 17px; flex-shrink: 0; width: 22px; text-align: center; margin-top: 1px; }
+.lv-pop-row2-txt .nm { font-size: 14.5px; font-weight: 800; color: var(--text); }
+.lv-pop-row2-txt .cond { font-size: 12.5px; color: var(--muted); margin-top: 2px; font-weight: 700; }
+.lv-pop-next { margin-top: 14px; padding: 11px 13px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; font-size: 14px; font-weight: 700; line-height: 1.6; color: var(--text); }
+.lv-pop-next b { color: var(--accent-lemon); font-weight: 900; }
+.lv-pop-toggle { display: block; width: 100%; margin-top: 14px; background: none; border: none; color: var(--blue-light); font-size: 13.5px; font-weight: 800; font-family: inherit; cursor: pointer; padding: 6px 0; text-align: center; }
+.lv-pop-detail { margin-top: 2px; }
+.oing-lv-pop-card .c { margin-top: 16px; width: 100%; background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 11px; padding: 11px 0; font-size: 14.5px; font-weight: 800; font-family: inherit; cursor: pointer; }
 
 /* 보드 — 모바일 네이티브 앱 스타일(좌측 정렬 중심, 정돈된 여백) */
 .rvb-head { position: relative; display: flex; align-items: center; gap: 14px; padding: 6px 2px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -3730,7 +3749,42 @@ if ('serviceWorker' in navigator) {
 <div class="oing-lv-pop" id="oingLvPop" style="display:none;">
   <div class="oing-lv-pop-card">
     <div class="t">⭐ 오잉 레벨 안내</div>
-    <div class="b">오잉 레벨은 지금까지 쌓은 활동과 기록을 나타내요.<br><br>플레이한 날과 오늘 목표 달성이 가장 크게 반영되고,<br>총 플레이 수와 최고점수·콤보도 함께 XP에 포함돼요.<br><br>베테랑 이후 상위 단계는 일정 점수 또는 콤보를 달성해야 승급할 수 있어요.</div>
+    <div class="lv-pop-intro">오잉 레벨은 지금까지 쌓은 활동과 기록을 나타내요.</div>
+
+    <div class="lv-pop-h">XP는 이렇게 쌓여요</div>
+    <div class="lv-pop-rows">
+      <div class="lv-pop-row"><span class="ic">🎮</span><span class="lbl">하루 첫 플레이</span><span class="val">+10 XP</span></div>
+      <div class="lv-pop-row"><span class="ic">⚡</span><span class="lbl">오늘 목표 달성</span><span class="val">+10 XP</span></div>
+      <div class="lv-pop-row"><span class="ic">📚</span><span class="lbl">총 플레이 기록</span><span class="val">단계별 보너스</span></div>
+      <div class="lv-pop-row"><span class="ic">🔥</span><span class="lbl">최장 연속 달성</span><span class="val">단계별 보너스</span></div>
+      <div class="lv-pop-row"><span class="ic">🏆</span><span class="lbl">최고점수·최고콤보</span><span class="val">소량 보너스</span></div>
+    </div>
+
+    <div class="lv-pop-next" id="lvPopNext" style="display:none;"></div>
+
+    <button class="lv-pop-toggle" id="lvPopToggleBtn" type="button">전체 레벨과 상위 승급 조건 보기 ︾</button>
+
+    <div class="lv-pop-detail" id="lvPopDetail" style="display:none;">
+      <div class="lv-pop-h">전체 칭호</div>
+      <div class="lv-pop-rows" id="lvPopTierRows">
+        <div class="lv-pop-row" data-min="1" data-max="1"><span class="ic">🌱</span><span class="lbl">Lv.1 새싹</span></div>
+        <div class="lv-pop-row" data-min="2" data-max="3"><span class="ic">🍮</span><span class="lbl">Lv.2~3 말랑</span></div>
+        <div class="lv-pop-row" data-min="4" data-max="6"><span class="ic">🐾</span><span class="lbl">Lv.4~6 단골</span></div>
+        <div class="lv-pop-row" data-min="7" data-max="10"><span class="ic">🔥</span><span class="lbl">Lv.7~10 베테랑</span></div>
+        <div class="lv-pop-row" data-min="11" data-max="15"><span class="ic">💎</span><span class="lbl">Lv.11~15 오잉코어</span></div>
+        <div class="lv-pop-row" data-min="16" data-max="19"><span class="ic">👑</span><span class="lbl">Lv.16~19 전설의 오잉러</span></div>
+        <div class="lv-pop-row" data-min="20" data-max="20"><span class="ic">🌟</span><span class="lbl">Lv.20 오잉신</span></div>
+      </div>
+
+      <div class="lv-pop-h">상위 칭호 승급</div>
+      <div class="lv-pop-intro lv-pop-intro-sm">상위 칭호는 누적 XP와 실력 조건을 모두 달성해야 해요.</div>
+      <div class="lv-pop-rows">
+        <div class="lv-pop-row2"><span class="ic">💎</span><div class="lv-pop-row2-txt"><div class="nm">오잉코어</div><div class="cond">Lv.11 XP + 8,000점 또는 150콤보</div></div></div>
+        <div class="lv-pop-row2"><span class="ic">👑</span><div class="lv-pop-row2-txt"><div class="nm">전설의 오잉러</div><div class="cond">Lv.16 XP + 25,000점 또는 350콤보</div></div></div>
+        <div class="lv-pop-row2"><span class="ic">🌟</span><div class="lv-pop-row2-txt"><div class="nm">오잉신</div><div class="cond">Lv.20 XP + 50,000점 또는 600콤보</div></div></div>
+      </div>
+    </div>
+
     <button class="c" id="oingLvPopClose" type="button">알겠어요</button>
   </div>
 </div>
@@ -10480,10 +10534,26 @@ function oingTitleOf(lv) {
   if (lv >= 20) return '🌟 오잉신';
   if (lv >= 16) return '👑 전설의 오잉러';
   if (lv >= 11) return '💎 오잉코어';
-  if (lv >= 7)  return '🔥 베테랑 오잉러';
-  if (lv >= 4)  return '🐾 단골 오잉러';
-  if (lv >= 2)  return '🍮 말랑 오잉러';
-  return '🌱 새싹 오잉러';
+  if (lv >= 7)  return '🔥 베테랑';
+  if (lv >= 4)  return '🐾 단골';
+  if (lv >= 2)  return '🍮 말랑';
+  return '🌱 새싹';
+}
+// 전체 칭호 목록(팝업 표시용) — 레벨 구간·이름을 한곳에서 관리, oingTitleOf와 경계 동기화
+const OING_TIER_DEFS = [
+  { min: 1,  max: 1,  ic: '🌱', label: 'Lv.1 새싹' },
+  { min: 2,  max: 3,  ic: '🍮', label: 'Lv.2~3 말랑' },
+  { min: 4,  max: 6,  ic: '🐾', label: 'Lv.4~6 단골' },
+  { min: 7,  max: 10, ic: '🔥', label: 'Lv.7~10 베테랑' },
+  { min: 11, max: 15, ic: '💎', label: 'Lv.11~15 오잉코어' },
+  { min: 16, max: 19, ic: '👑', label: 'Lv.16~19 전설의 오잉러' },
+  { min: 20, max: 20, ic: '🌟', label: 'Lv.20 오잉신' },
+];
+// 표시 레벨보다 높은 레벨 중 "칭호가 바뀌는" 가장 가까운 레벨(다음 칭호 시작 레벨) — 없으면 null(이미 최고 칭호)
+function oingNextTitleLevel(lv) {
+  const curTitle = oingTitleOf(lv);
+  for (let l = lv + 1; l <= 20; l++) if (oingTitleOf(l) !== curTitle) return l;
+  return null;
 }
 // 필드가 없는 기존 유저의 daysPlayed 보수 보정 — firstPlayed가 폴백값(6/22 정각)인 구 유저가
 // 있어 "첫 플레이 후 일수"만으로는 뻥튀기됨 → 실측 기반인 goalTotalCount+3 캡으로 묶는다.
@@ -10516,9 +10586,9 @@ function oingLevelOf(xp) {
 // XP는 계속 누적되고, 조건 달성 순간 누적 XP에 맞는 레벨까지 즉시 반영된다.
 // bestScore·bestCombo도 비감소 값이라 한번 통과한 게이트는 다시 닫히지 않는다.
 const OING_GATES = [
-  { lv: 11, score: 6000,  combo: 100, to: '오잉코어로' },
-  { lv: 16, score: 12000, combo: 200, to: '전설의 오잉러로' },
-  { lv: 20, score: 25000, combo: 400, to: '오잉신으로' },
+  { lv: 11, score: 8000,  combo: 150, to: '오잉코어로' },
+  { lv: 16, score: 25000, combo: 350, to: '전설의 오잉러로' },
+  { lv: 20, score: 50000, combo: 600, to: '오잉신으로' },
 ];
 // XP 레벨에 게이트를 적용한 표시 레벨 반환. 막힌 경우 { blockedBy } 로 어느 게이트인지 알림.
 function oingGatedLevel(xpLv, d) {
@@ -10573,7 +10643,7 @@ function renderMyOingLevel(nick, d) {
   const gated = oingGatedLevel(xpLv, d);     // 상위 게이트 적용 — 막히면 직전 레벨에 유지
   const lv = gated.lv;
   const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
-  set('myiLvName', `Lv.${lv} ${oingTitleOf(lv)}`);
+  set('myiLvName', `Lv.${lv} · ${oingTitleOf(lv)}`);
   const fill = document.getElementById('myiLvFill');
   const hintEl = document.getElementById('myiLvHint');
   // 게이트에 막힌 동안의 승급 안내 — 필요한 조건만 짧게 (Lv.11 게이트는 "XP는 충분해요!" 문구 포함)
@@ -10597,6 +10667,37 @@ function renderMyOingLevel(nick, d) {
   }
   if (hintEl) hintEl.style.color = g ? 'var(--blue-light)' : '';
   box.style.display = '';
+  renderOingLevelPopupContent(lv, xp, gated);
+}
+// ⓘ 팝업의 개인화 영역 — "다음 칭호" 안내 + 전체 칭호 목록의 현재/다음 구간 강조
+function renderOingLevelPopupContent(lv, xp, gated) {
+  const nextBox = document.getElementById('lvPopNext');
+  if (nextBox) {
+    const g = gated.blockedBy;
+    if (g) {
+      const nextTitle = oingTitleOf(g.lv);
+      nextBox.innerHTML = `다음 칭호는 <b>${nextTitle}</b>이에요.<br>${g.score.toLocaleString()}점 또는 ${g.combo}콤보를 달성하면 승급해요.`;
+      nextBox.style.display = '';
+    } else {
+      const nextLv = oingNextTitleLevel(lv);
+      if (nextLv) {
+        const remain = Math.max(0, OING_LEVEL_REQ[nextLv - 1] - xp);
+        nextBox.innerHTML = `다음 칭호는 <b>${oingTitleOf(nextLv)}</b>이에요.<br>Lv.${nextLv}까지 ${remain.toLocaleString()} XP 남았어요.`;
+        nextBox.style.display = '';
+      } else {
+        nextBox.style.display = 'none'; // 이미 최고 칭호(오잉신)
+      }
+    }
+  }
+  // 전체 칭호 목록 — 현재 구간 강조색, 다음 구간 은은한 테두리, 나머지 기본
+  const rows = document.querySelectorAll('#lvPopTierRows .lv-pop-row');
+  let curIdx = -1;
+  rows.forEach((row, i) => {
+    row.classList.remove('cur', 'next-tier');
+    const min = parseInt(row.dataset.min, 10), max = parseInt(row.dataset.max, 10);
+    if (lv >= min && lv <= max) { row.classList.add('cur'); curIdx = i; }
+  });
+  if (curIdx >= 0 && curIdx + 1 < rows.length) rows[curIdx + 1].classList.add('next-tier');
 }
 function openMyInfoOverlay() {
   const nick = loadNickname();
@@ -10675,9 +10776,25 @@ function logMyInfoOpen(source) {
 }
 document.getElementById('myInfoChip')?.addEventListener('click', () => { logMyInfoOpen('main'); openMyInfoOverlay(); });
 // ⭐ 오잉 레벨 ⓘ 안내 바텀시트 — 열기/배경 탭/버튼으로 닫기
-document.getElementById('myiLvInfoBtn')?.addEventListener('click', () => { const p = document.getElementById('oingLvPop'); if (p) p.style.display = 'flex'; });
+document.getElementById('myiLvInfoBtn')?.addEventListener('click', () => {
+  const p = document.getElementById('oingLvPop');
+  if (p) p.style.display = 'flex';
+  // 열 때마다 상세 토글은 접힌 기본 상태로 — 핵심 안내가 먼저 보이게
+  const detail = document.getElementById('lvPopDetail');
+  const toggleBtn = document.getElementById('lvPopToggleBtn');
+  if (detail) detail.style.display = 'none';
+  if (toggleBtn) toggleBtn.textContent = '전체 레벨과 상위 승급 조건 보기 ︾';
+});
 document.getElementById('oingLvPop')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.style.display = 'none'; });
 document.getElementById('oingLvPopClose')?.addEventListener('click', () => { const p = document.getElementById('oingLvPop'); if (p) p.style.display = 'none'; });
+document.getElementById('lvPopToggleBtn')?.addEventListener('click', () => {
+  const detail = document.getElementById('lvPopDetail');
+  const btn = document.getElementById('lvPopToggleBtn');
+  if (!detail || !btn) return;
+  const opening = detail.style.display === 'none';
+  detail.style.display = opening ? '' : 'none';
+  btn.textContent = opening ? '상세 안내 접기 ︿' : '전체 레벨과 상위 승급 조건 보기 ︾';
+});
 document.getElementById('myInfoOpenRankBtn')?.addEventListener('click', () => { logMyInfoOpen('rank'); openMyInfoOverlay(); });
 document.getElementById('myInfoCloseBtn')?.addEventListener('click', closeMyInfoOverlay);
 document.getElementById('myInfoOverlay')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeMyInfoOverlay(); });
