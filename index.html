@@ -3730,7 +3730,7 @@ if ('serviceWorker' in navigator) {
 <div class="oing-lv-pop" id="oingLvPop" style="display:none;">
   <div class="oing-lv-pop-card">
     <div class="t">⭐ 오잉 레벨 안내</div>
-    <div class="b">오잉 레벨은 꾸준한 플레이와 오늘 목표 달성으로 올라가요.<br>총 플레이 수와 최고점수·콤보도 함께 반영돼요.<br>베테랑 이후 상위 단계는 일정 점수 또는 콤보를 달성해야 승급할 수 있어요.</div>
+    <div class="b">오잉 레벨은 지금까지 쌓은 활동과 기록을 나타내요.<br><br>플레이한 날과 오늘 목표 달성이 가장 크게 반영되고,<br>총 플레이 수와 최고점수·콤보도 함께 XP에 포함돼요.<br><br>베테랑 이후 상위 단계는 일정 점수 또는 콤보를 달성해야 승급할 수 있어요.</div>
     <button class="c" id="oingLvPopClose" type="button">알겠어요</button>
   </div>
 </div>
@@ -10469,18 +10469,21 @@ function refreshMyInfoChip() {
 //    전부 누적(비감소) 값이라 레벨은 구조적으로 내려가지 않는다
 //  · 본인만 보는 v1 — 랭킹·보상·타 유저 노출 없음, 서버 추가 읽기/쓰기 0
 // ══════════════════════════════
-const OING_LEVEL_REQ = [0, 80, 300, 600, 950, 1350, 1800, 2300, 2850, 3450, 4100, 4800, 5550, 6350, 7200, 8100, 9050, 10050, 11100, 12200];
+// Lv.5 이후 완화 곡선(2차 조정) — 매일 유저 기준 단골 ~1개월 · 베테랑 2~3개월 ·
+// 오잉코어 5~6개월 · 전설 10~12개월 · 오잉신 16~18개월. 요구치는 낮추는 방향만 안전(올리면 강등 발생).
+const OING_LEVEL_REQ = [0, 80, 300, 600, 850, 1150, 1500, 1900, 2350, 2850, 3400, 4000, 4650, 5350, 6100, 6900, 7750, 8650, 9600, 10600];
 const OING_PLAY_MS   = [[10,20],[30,30],[60,40],[100,50],[200,70],[400,90],[700,120],[1000,150]]; // 판수 마일스톤(누적)
 const OING_STREAK_MS = [[3,20],[7,30],[14,40],[30,60],[60,80],[100,120]];                          // 최장 목표 스트릭(누적)
 const OING_SCORE_TIER = [[40000,60],[25000,55],[12000,45],[6000,30],[3000,20],[1000,10]];          // 최고 단계 하나만
 const OING_COMBO_TIER = [[250,45],[150,35],[100,25],[50,16],[20,8]];                               // 최고 단계 하나만
 function oingTitleOf(lv) {
-  if (lv >= 16) return '오잉코어';
-  if (lv >= 11) return '코어 오잉러';
-  if (lv >= 7)  return '베테랑 오잉러';
-  if (lv >= 4)  return '단골 오잉러';
-  if (lv >= 2)  return '초보 오잉러';
-  return '새싹 오잉러';
+  if (lv >= 20) return '🌟 오잉신';
+  if (lv >= 16) return '👑 전설의 오잉러';
+  if (lv >= 11) return '💎 오잉코어';
+  if (lv >= 7)  return '🔥 베테랑 오잉러';
+  if (lv >= 4)  return '🐾 단골 오잉러';
+  if (lv >= 2)  return '🍮 말랑 오잉러';
+  return '🌱 새싹 오잉러';
 }
 // 필드가 없는 기존 유저의 daysPlayed 보수 보정 — firstPlayed가 폴백값(6/22 정각)인 구 유저가
 // 있어 "첫 플레이 후 일수"만으로는 뻥튀기됨 → 실측 기반인 goalTotalCount+3 캡으로 묶는다.
@@ -10513,9 +10516,9 @@ function oingLevelOf(xp) {
 // XP는 계속 누적되고, 조건 달성 순간 누적 XP에 맞는 레벨까지 즉시 반영된다.
 // bestScore·bestCombo도 비감소 값이라 한번 통과한 게이트는 다시 닫히지 않는다.
 const OING_GATES = [
-  { lv: 11, score: 6000,  combo: 100, name: '코어 오잉러' },
-  { lv: 16, score: 12000, combo: 200, name: '오잉코어' },
-  { lv: 20, score: 25000, combo: 400, name: '최종 단계' },
+  { lv: 11, score: 6000,  combo: 100, to: '오잉코어로' },
+  { lv: 16, score: 12000, combo: 200, to: '전설의 오잉러로' },
+  { lv: 20, score: 25000, combo: 400, to: '오잉신으로' },
 ];
 // XP 레벨에 게이트를 적용한 표시 레벨 반환. 막힌 경우 { blockedBy } 로 어느 게이트인지 알림.
 function oingGatedLevel(xpLv, d) {
@@ -10539,18 +10542,27 @@ function oingHeldXp(computedXp) {
   if (shown > held) { try { localStorage.setItem(key, String(shown)); } catch {} }
   return shown;
 }
-// XP를 올릴 수 있는 가장 가까운 행동 한 줄 안내
+// 가까운 성장 목표 한 줄 — 우선순위: ① 오늘 플레이 ② 오늘 목표 ③ 가까운 판수 마일스톤
+// ④ 가까운 최장 스트릭 마일스톤 (⑤ 승급 조건은 게이트에 막힌 경우 gateMsg가 대신 안내)
 function oingNextHint(d) {
+  const today = getLocalDateStr();
+  if (d.lastPlayDate !== today) return '오늘 한 판 플레이하면 +10 XP';
+  if (!(d.dailyGoalDate === today && d.dailyGoalAchievedToday)) return '오늘 목표를 달성하면 +10 XP';
   const pc = d.playCount || 0;
   for (const [t, b] of OING_PLAY_MS) {
     if (pc < t) {
-      if (t - pc <= 5) return `${t}판 보너스까지 ${t - pc}판 남았어요 (+${b} XP) 🎮`;
+      if (t - pc <= 15) return `${t}판까지 ${t - pc}판 남았어요 · 달성 시 +${b} XP`;
       break;
     }
   }
-  const today = getLocalDateStr();
-  if (!(d.dailyGoalDate === today && d.dailyGoalAchievedToday)) return '오늘 목표를 달성하면 +10 XP 🎯';
-  return '내일 또 한 판 놀러 오면 +10 XP 🐾';
+  const mgs = Math.max((typeof d.maxGoalStreak === 'number') ? d.maxGoalStreak : 0, d.goalStreak || 0);
+  for (const [t, b] of OING_STREAK_MS) {
+    if (mgs < t) {
+      if (t - mgs <= 7) return `최장 연속 ${t}일까지 ${t - mgs}일 남았어요 · 달성 시 +${b} XP`;
+      break;
+    }
+  }
+  return '내일 또 한 판 플레이하면 +10 XP';
 }
 function renderMyOingLevel(nick, d) {
   const box = document.getElementById('myiLevel');
@@ -10567,7 +10579,7 @@ function renderMyOingLevel(nick, d) {
   // 게이트에 막힌 동안의 승급 안내 — 필요한 조건만 짧게 (Lv.11 게이트는 "XP는 충분해요!" 문구 포함)
   const g = gated.blockedBy;
   const gateMsg = g ? ((g.lv === 11 ? 'XP는 충분해요!\n' : '')
-    + `${g.score.toLocaleString()}점 또는 ${g.combo}콤보를 달성하면 ${g.name}로 승급해요.`) : null;
+    + `${g.score.toLocaleString()}점 또는 ${g.combo}콤보를 달성하면 ${g.to} 승급해요.`) : null;
   // 진행 바·누적 XP는 게이트와 무관하게 XP 기준 그대로 표시 (막혀 있어도 계속 누적·표시)
   if (xpLv >= 20) {
     if (fill) fill.style.width = '100%';
