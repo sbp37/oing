@@ -3338,7 +3338,7 @@ if ('serviceWorker' in navigator) {
       </div>
       <div style="font-size:13px;font-weight:700;color:#DA9845;margin-bottom:5px;">🎉 새 기능 · 개선</div>
       <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
-        <li>▫️ ⭐ <b>오잉 레벨</b> — 꾸준히 플레이할수록 올라가는 나만의 레벨과 칭호가 생겼어요! 👤 내 정보에서 확인해보세요 (🌱새싹부터 🌟오잉신까지)</li>
+        <li>▫️ ⭐ <b>오잉 레벨</b> — 꾸준히 플레이할수록 올라가는 나만의 레벨과 칭호가 생겼어요! 👤 내 정보에서 확인해보세요 (🌱새싹냥부터 🌟오잉신까지)</li>
         <li>▫️ 🎉 <b>레벨 업 축하</b> — 레벨이 오르면 게임이 끝날 때 축하 알림이 떠요</li>
       </ul>
       <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
@@ -3779,13 +3779,13 @@ if ('serviceWorker' in navigator) {
     <div class="lv-pop-detail" id="lvPopDetail" style="display:none;">
       <div class="lv-pop-h">전체 칭호</div>
       <div class="lv-pop-rows" id="lvPopTierRows">
-        <div class="lv-pop-row" data-min="1" data-max="1"><span class="ic">🌱</span><span class="lbl">Lv.1 새싹</span></div>
-        <div class="lv-pop-row" data-min="2" data-max="3"><span class="ic">🍮</span><span class="lbl">Lv.2~3 말랑</span></div>
-        <div class="lv-pop-row" data-min="4" data-max="6"><span class="ic">🐾</span><span class="lbl">Lv.4~6 단골</span></div>
-        <div class="lv-pop-row" data-min="7" data-max="10"><span class="ic">🔥</span><span class="lbl">Lv.7~10 베테랑</span></div>
+        <div class="lv-pop-row" data-min="1" data-max="1"><span class="ic">🌱</span><span class="lbl">Lv.1 새싹냥</span></div>
+        <div class="lv-pop-row" data-min="2" data-max="3"><span class="ic">🍡</span><span class="lbl">Lv.2~3 말랑냥</span></div>
+        <div class="lv-pop-row" data-min="4" data-max="6"><span class="ic">🐾</span><span class="lbl">Lv.4~6 단골냥</span></div>
+        <div class="lv-pop-row" data-min="7" data-max="10"><span class="ic">🧶</span><span class="lbl">Lv.7~10 베테랑냥</span></div>
         <div class="lv-pop-row" data-min="11" data-max="15"><span class="ic">💎</span><span class="lbl">Lv.11~15 오잉코어</span></div>
         <div class="lv-pop-row" data-min="16" data-max="19"><span class="ic">👑</span><span class="lbl">Lv.16~19 전설의 오잉러</span></div>
-        <div class="lv-pop-row" data-min="20" data-max="20"><span class="ic">🌟</span><span class="lbl">Lv.20 오잉신</span></div>
+        <div class="lv-pop-row" data-min="20" data-max="20"><span class="ic">🌟</span><span class="lbl">Lv.20 오잉신(神)</span></div>
       </div>
 
       <div class="lv-pop-h">상위 칭호 승급</div>
@@ -10537,32 +10537,25 @@ function refreshMyInfoChip() {
 //    전부 누적(비감소) 값이라 레벨은 구조적으로 내려가지 않는다
 //  · 본인만 보는 v1 — 랭킹·보상·타 유저 노출 없음, 서버 추가 읽기/쓰기 0
 // ══════════════════════════════
-// Lv.5 이후 완화 곡선(2차 조정) — 매일 유저 기준 단골 ~1개월 · 베테랑 2~3개월 ·
-// 오잉코어 5~6개월 · 전설 10~12개월 · 오잉신 16~18개월. 요구치는 낮추는 방향만 안전(올리면 강등 발생).
-const OING_LEVEL_REQ = [0, 80, 300, 600, 850, 1150, 1500, 1900, 2350, 2850, 3400, 4000, 4650, 5350, 6100, 6900, 7750, 8650, 9600, 10600];
+// Lv.5 이후 압축 곡선(3차 조정, 오너 확정) — 매일 유저 기준 단골냥 ~1개월 · 베테랑냥 ~2개월 ·
+// 오잉코어 ~4개월 · 전설 ~8개월 · 오잉신 ~12개월(1주년). XP 표는 비공개라 조정이 유저에게 안 보이며,
+// 요구치는 낮추는 방향만 안전(올리면 강등 발생). 조정 시점(7/17) Lv.5+ 유저 0명 → 급점프 없음 확인.
+const OING_LEVEL_REQ = [0, 80, 300, 600, 850, 1100, 1350, 1600, 1900, 2200, 2500, 2900, 3300, 3750, 4250, 4800, 5350, 5900, 6450, 7000];
 const OING_PLAY_MS   = [[10,20],[30,30],[60,40],[100,50],[200,70],[400,90],[700,120],[1000,150]]; // 판수 마일스톤(누적)
 const OING_STREAK_MS = [[3,20],[7,30],[14,40],[30,60],[60,80],[100,120]];                          // 최장 목표 스트릭(누적)
 const OING_SCORE_TIER = [[40000,60],[25000,55],[12000,45],[6000,30],[3000,20],[1000,10]];          // 최고 단계 하나만
 const OING_COMBO_TIER = [[250,45],[150,35],[100,25],[50,16],[20,8]];                               // 최고 단계 하나만
+// 칭호 — 하위 구간은 게임 말투에 맞춘 '냥' 톤, 오잉코어부터 톤 전환(상위 무게감).
+// 🧶 털실 = 고양이 게임의 베테랑 상징 (🔥는 신기록·콤보·스트릭 표시와 겹쳐서 교체)
 function oingTitleOf(lv) {
-  if (lv >= 20) return '🌟 오잉신';
+  if (lv >= 20) return '🌟 오잉신(神)';
   if (lv >= 16) return '👑 전설의 오잉러';
   if (lv >= 11) return '💎 오잉코어';
-  if (lv >= 7)  return '🔥 베테랑';
-  if (lv >= 4)  return '🐾 단골';
-  if (lv >= 2)  return '🍮 말랑';
-  return '🌱 새싹';
+  if (lv >= 7)  return '🧶 베테랑냥';
+  if (lv >= 4)  return '🐾 단골냥';
+  if (lv >= 2)  return '🍡 말랑냥';
+  return '🌱 새싹냥';
 }
-// 전체 칭호 목록(팝업 표시용) — 레벨 구간·이름을 한곳에서 관리, oingTitleOf와 경계 동기화
-const OING_TIER_DEFS = [
-  { min: 1,  max: 1,  ic: '🌱', label: 'Lv.1 새싹' },
-  { min: 2,  max: 3,  ic: '🍮', label: 'Lv.2~3 말랑' },
-  { min: 4,  max: 6,  ic: '🐾', label: 'Lv.4~6 단골' },
-  { min: 7,  max: 10, ic: '🔥', label: 'Lv.7~10 베테랑' },
-  { min: 11, max: 15, ic: '💎', label: 'Lv.11~15 오잉코어' },
-  { min: 16, max: 19, ic: '👑', label: 'Lv.16~19 전설의 오잉러' },
-  { min: 20, max: 20, ic: '🌟', label: 'Lv.20 오잉신' },
-];
 // 표시 레벨보다 높은 레벨 중 "칭호가 바뀌는" 가장 가까운 레벨(다음 칭호 시작 레벨) — 없으면 null(이미 최고 칭호)
 function oingNextTitleLevel(lv) {
   const curTitle = oingTitleOf(lv);
@@ -11252,7 +11245,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.4';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784700000; // v4.4 — ⭐ 오잉 레벨 + 🎉 레벨업 축하 + 업데이트 내역 v4.4
+const BUILD = 1784710000; // v4.4 — 칭호 냥 톤 개편(🧶 베테랑냥 등) + 곡선 압축(오잉코어 ~4개월)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
