@@ -3331,6 +3331,18 @@ if ('serviceWorker' in navigator) {
     </div>
     <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
 
+      <!-- v4.4 -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v4.4</div>
+        <span id="newBadge44" style="display:none;background:#DD6032;color:white;font-size:11px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:#DA9845;margin-bottom:5px;">🎉 새 기능 · 개선</div>
+      <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
+        <li>▫️ ⭐ <b>오잉 레벨</b> — 꾸준히 플레이할수록 올라가는 나만의 레벨과 칭호가 생겼어요! 👤 내 정보에서 확인해보세요 (🌱새싹부터 🌟오잉신까지)</li>
+        <li>▫️ 🎉 <b>레벨 업 축하</b> — 레벨이 오르면 게임이 끝날 때 축하 알림이 떠요</li>
+      </ul>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
+
       <!-- v4.3 -->
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
         <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v4.3</div>
@@ -8549,6 +8561,7 @@ async function endGame() {
           updateJellyDisplay(stats.jelly);
           const prevBestCombo = prev ? (prev.bestCombo || 0) : 0;
           if (maxCombo > prevBestCombo && maxCombo > 0) showComboRecordPop(maxCombo);
+          maybeCelebrateOingLevelUp(stats); // 🎉 레벨업이면 1.4초 뒤 축하 토스트 (내부에서 자체 판정)
           if (ENABLE_DAILY_GOAL) renderDailyGoalResult(stats, prev, score);
           renderStartScreenGoal();
           // ⭐ 리뷰 요청 카드 — 6판+·연결·미작성·미노출 시 결과화면에서 2.5초 뒤 1회
@@ -9179,6 +9192,7 @@ document.getElementById('submitScore').addEventListener('click', async () => {
     updateJellyDisplay(stats.jelly);
     const prevBestCombo2 = prev ? (prev.bestCombo || 0) : 0;
     if (maxCombo > prevBestCombo2 && maxCombo > 0) showComboRecordPop(maxCombo);
+    maybeCelebrateOingLevelUp(stats); // 🎉 최초 등록 경로에서도 동일하게
     if (ENABLE_DAILY_GOAL) {
       renderStartScreenGoal();
       firstGoalMsg = true;
@@ -10699,6 +10713,39 @@ function renderOingLevelPopupContent(lv, xp, gated) {
   });
   if (curIdx >= 0 && curIdx + 1 < rows.length) rows[curIdx + 1].classList.add('next-tier');
 }
+// 🎉 레벨업 축하 토스트 — 게임 종료 저장 직후, 이 기기에서 마지막으로 축하한 레벨보다 오르면 1회.
+// 서버 저장 없음(로컬 키만). 키가 없는 최초 실행은 조용히 기준만 기록 — 기존 유저 전원에게
+// 이미 갖고 있던 레벨을 "달성!"이라고 축하하지 않기 위함. 게이트 해제로 여러 레벨을 한 번에
+// 건너뛰어도 최종 레벨로 한 번만 축하한다.
+function maybeCelebrateOingLevelUp(stats) {
+  try {
+    if (!stats || !(stats.playCount > 0)) return;
+    const xp = oingComputeXp(stats);
+    const lv = oingGatedLevel(oingLevelOf(xp), stats).lv;
+    let key = 'oeing_lv_celebrated_';
+    try { key += (MY_UID || loadNickname() || 'anon'); } catch { key += 'anon'; }
+    const seen = parseInt(localStorage.getItem(key) || '0', 10) || 0;
+    if (!seen) { localStorage.setItem(key, String(lv)); return; }
+    if (lv <= seen) return;
+    localStorage.setItem(key, String(lv));
+    // 콤보 신기록 팝(top 12%, 즉시)과 겹치지 않게 살짝 늦게 · 조금 아래에서
+    setTimeout(() => {
+      const pop = document.createElement('div');
+      pop.style.cssText = `
+        position:fixed; top:24%; left:50%; transform:translate(-50%,-50%) scale(0.9);
+        font-size:14px; font-weight:900; color:#FFF3D6; text-align:center; line-height:1.5;
+        background:rgba(20,28,42,0.94); border:1px solid rgba(218,152,69,0.55);
+        box-shadow:0 4px 24px rgba(218,152,69,0.25);
+        padding:12px 22px; border-radius:16px; pointer-events:none; z-index:330;
+        white-space:nowrap; opacity:0; transition:opacity 0.35s ease, transform 0.35s ease;`;
+      pop.innerHTML = `🎉 레벨 업!<br><span style="font-size:17px; color:var(--accent-lemon);">Lv.${lv} · ${escapeHtml(oingTitleOf(lv))}</span>`;
+      document.body.appendChild(pop);
+      requestAnimationFrame(() => { pop.style.opacity = '1'; pop.style.transform = 'translate(-50%,-50%) scale(1)'; });
+      setTimeout(() => { pop.style.opacity = '0'; }, 3200);
+      setTimeout(() => { pop.remove(); }, 3700);
+    }, 1400);
+  } catch {}
+}
 function openMyInfoOverlay() {
   const nick = loadNickname();
   let d = {};
@@ -11203,19 +11250,19 @@ document.addEventListener('mouseup', () => {
 });
 
 // 업데이트 내역 팝업
-const UPDATE_VERSION = 'v4.3';
+const UPDATE_VERSION = 'v4.4';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784690000; // v4.4 — ⭐ 오잉 레벨 v1 (내 정보에서 본인만 확인, XP 무저장 계산식)
+const BUILD = 1784700000; // v4.4 — ⭐ 오잉 레벨 + 🎉 레벨업 축하 + 업데이트 내역 v4.4
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
-const SEEN_KEY = 'seenUpdate_v4.3';
+const SEEN_KEY = 'seenUpdate_v4.4';
 
 function openUpdateLog() {
   document.getElementById('updateLog').style.display = 'flex';
   // NEW 뱃지 숨기기 + 본 것으로 저장
   localStorage.setItem(SEEN_KEY, '1');
-  const badge = document.getElementById('newBadge43');
+  const badge = document.getElementById('newBadge44');
   if (badge) badge.style.display = 'none';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'none';
@@ -11228,7 +11275,7 @@ document.getElementById('updateLogBtn').addEventListener('click', openUpdateLog)
 
 // 최초 방문 시 NEW 뱃지 표시
 if (!localStorage.getItem(SEEN_KEY)) {
-  const badge = document.getElementById('newBadge43');
+  const badge = document.getElementById('newBadge44');
   if (badge) badge.style.display = 'inline';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'inline';
