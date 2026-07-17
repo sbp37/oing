@@ -16,8 +16,10 @@
 
 <!-- 카톡 등 SNS 공유 시 링크 미리보기 썸네일 -->
 <meta property="og:type" content="website">
-<meta property="og:title" content="오잉게임 — 2분 안에 나이길 수 있겠냥?">
-<meta property="og:description" content="합 10 만들기 퍼즐게임 오잉게임">
+<!-- 링크 미리보기 — 썸네일 이미지가 이미 "2분 안에 나 이길 수 있겠냥? · 합 10 퍼즐"을 말하고 있어
+     제목·설명은 겹치지 않는 다른 후킹 문구로 (중복 노출 방지, 오너 확정) -->
+<meta property="og:title" content="오잉게임 🐱 자꾸 생각나는 합10 퍼즐">
+<meta property="og:description" content="친구들과 랭킹 대결! 지금 바로 도전해보라냥 🐾">
 <meta property="og:image" content="https://sbp37.github.io/oing/share-thumbnail.jpg">
 <meta property="og:url" content="https://sbp37.github.io/oing/">
 <meta name="twitter:card" content="summary_large_image">
@@ -2336,14 +2338,14 @@ body.game-active #kakaoInstallHint {
 /* 리뷰 평점 칩 — "버튼"이 아니라 "클릭 가능한 작은 평점 정보"로 (금색 은은하게) */
 .review-entry-chip {
   display: none; align-items: center; justify-content: center; gap: 6px;
-  margin: 12px auto 0; padding: 7px 17px; width: fit-content;
+  margin: 12px auto 0; padding: 6px 14px; width: fit-content;
   border-radius: 999px; cursor: pointer; font-family: inherit;
   background: rgba(24,34,51,0.55);
   border: 1px solid rgba(246,196,83,0.13);
-  font-size: 15px; font-weight: 700; color: rgba(217,193,132,0.85);
+  font-size: 14px; font-weight: 700; color: rgba(217,193,132,0.85);
 }
 .review-entry-chip .rv-chip-avg { font-weight: 800; color: rgba(234,194,117,0.9); }
-.review-entry-chip .cnt { font-weight: 600; color: var(--muted); font-size: 13px; }
+.review-entry-chip .cnt { font-weight: 600; color: var(--muted); font-size: 12px; }
 body.light .review-entry-chip { background: rgba(246,196,83,0.10); color: #8a6a2a; border-color: rgba(200,150,40,0.30); }
 
 /* ── 👤 내정보 v1 — 메인의 조용한 프로필 칩 + 내정보 모달 ──
@@ -10857,7 +10859,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.3';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784380000; // v4.3 — 메인 프로필 칩 아바타 스킨 동기화
+const BUILD = 1784390000; // v4.3 — 공유 링크 문구 교체 + 별점리뷰 칩 살짝 축소
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
