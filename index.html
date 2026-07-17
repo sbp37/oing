@@ -7067,6 +7067,7 @@ function onCellTap(e) {
           for (let cc = Math.max(0,c-2); cc <= Math.min(COLS-1,c+2); cc++)
             if (!board[rr][cc].empty) targets.push({rr,cc});
         let bombScore = 0;
+        const prevCB = combo; // 폭발에 낀 사탕/클로버(+2)까지 포함해 콤보 7 경계 통과를 판정
         targets.slice(0,6).forEach(({rr,cc}) => {
           const bd = board[rr][cc];
           if (bd.cat) bombScore += 5;
@@ -7083,8 +7084,10 @@ function onCellTap(e) {
         const bonus = 20;
         bombScore += bonus;
         if (bombScore > 0) { score += bombScore; updateStats(); showScorePop(r, c, '+' + bombScore + ' 💣', false, 'bomb'); }
-        updateComboUI(combo % 7 === 0);
-        if (combo % 7 === 0) spawnRandomItem();
+        // ±2 점프로 7의 배수를 건너뛰어도(예: 5→8) 아이템을 놓치지 않게 '경계 통과'로 판정
+        const crossedB = Math.floor(combo / 7) > Math.floor(prevCB / 7);
+        updateComboUI(crossedB);
+        if (crossedB) spawnRandomItem();
         setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350); }, 380);
       }, 150);
     }
@@ -7099,6 +7102,7 @@ function onCellTap(e) {
           for (let cc = Math.max(0,c-3); cc <= Math.min(COLS-1,c+3); cc++)
             if (!board[rr][cc].empty) targets.push({rr,cc});
         let bombScore = 0;
+        const prevCB = combo; // 폭발에 낀 사탕/클로버(+2)까지 포함해 콤보 7 경계 통과를 판정
         targets.slice(0,12).forEach(({rr,cc}) => {
           const bd = board[rr][cc];
           if (bd.cat) bombScore += 5;
@@ -7117,8 +7121,9 @@ function onCellTap(e) {
         score += 40;
         updateStats();
         showScorePop(r, c, '+' + bombScore + ' 💥', false, 'megabomb');
-        updateComboUI(combo % 7 === 0);
-        if (combo % 7 === 0) spawnRandomItem();
+        const crossedB = Math.floor(combo / 7) > Math.floor(prevCB / 7);
+        updateComboUI(crossedB);
+        if (crossedB) spawnRandomItem();
         setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350); }, 380);
       }, 150);
     }
@@ -7337,6 +7342,7 @@ function tryRemove(sel2) {
           targets.push({r,c});
       const toExplode = targets.filter(({r,c}) => !board[r][c].empty).slice(0,6);
       let bombScore = 0;
+      const prevCB = combo; // 폭발에 낀 사탕/클로버(+2)로 콤보 7 경계를 넘는지 판정용
       toExplode.forEach(({r,c}) => {
         const bd = board[r][c];
         if (bd.cat) bombScore += 5;
@@ -7356,6 +7362,11 @@ function tryRemove(sel2) {
           showScorePop(rMin, cMin, '+' + bombScore + ' 💣', false, 'bomb');
         }
       }
+      // 폭발에 낀 사탕/클로버(+2)로 7 경계를 넘었으면 아이템 지급 — 예전엔 이 경로에
+      // 체크 자체가 없어 아이템을 통째로 놓쳤음. (메인 매치의 crossed7은 이 setTimeout
+      // 이전에 이미 판정 끝난 상태라 여기와 중복 지급되지 않음)
+      const crossedB = Math.floor(combo / 7) > Math.floor(prevCB / 7);
+      if (crossedB) { updateComboUI(true); spawnRandomItem(); }
     }, 150);
   }
 
@@ -7391,6 +7402,7 @@ function tryRemove(sel2) {
         for (let c = Math.max(0,cMin-3); c <= Math.min(COLS-1,cMax+3); c++)
           if (!board[r][c].empty) targets.push({r,c});
       let bombScore = 0;
+      const prevCB2 = combo; // 폭발에 낀 사탕/클로버(+2)까지 포함해 콤보 7 경계 통과를 판정
       targets.slice(0,12).forEach(({r,c}) => {
         const bd = board[r][c];
         if (bd.cat) bombScore += 5;
@@ -7406,8 +7418,10 @@ function tryRemove(sel2) {
       updateStats();
       showScorePop(rMin, cMin, '+' + bombScore + ' 💥', false, 'megabomb');
       combo++; if (combo > maxCombo) maxCombo = combo;
-      updateComboUI(combo % 7 === 0);
-      if (combo % 7 === 0) spawnRandomItem();
+      // 폭발에 낀 사탕/클로버(+2)로 7의 배수를 건너뛰어도 아이템을 놓치지 않게 '경계 통과'로 판정
+      const crossedB = Math.floor(combo / 7) > Math.floor(prevCB2 / 7);
+      updateComboUI(crossedB);
+      if (crossedB) spawnRandomItem();
       setTimeout(() => { renderGrid(); if (!hasValidMove()) setTimeout(() => { triggerBoardReset(); }, 350); }, 380);
     }, 150);
   }
@@ -10864,7 +10878,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.3';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784400000; // v4.3 — 검수 반영: PIN 회수 경로 복원(내 정보) 등 잔결함 수정
+const BUILD = 1784410000; // v4.3 — 폭발에 낀 사탕/클로버 +2로 콤보 7 건너뛸 때 아이템 안 나오던 버그 수정
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
