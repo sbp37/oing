@@ -2398,7 +2398,7 @@ body.light .myinfo-chip { background: rgba(241,230,210,0.55); }
 .myi-lv-bar { height: 6px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; margin: 8px 0 6px; }
 .myi-lv-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--blue-bright), var(--accent-lemon)); width: 0%; transition: width 0.5s ease; }
 .myi-lv-xp { font-size: 12px; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; gap: 8px; }
-.myi-lv-hint { font-size: 11px; color: var(--muted); opacity: 0.85; margin-top: 6px; white-space: pre-line; line-height: 1.55; }
+.myi-lv-hint { font-size: 12.5px; color: var(--muted); opacity: 0.85; margin-top: 6px; white-space: pre-line; line-height: 1.55; }
 .myi-lv-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .myi-lv-info { background: none; border: none; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; padding: 2px 4px; font-family: inherit; opacity: 0.75; flex-shrink: 0; min-width: 34px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; }
 /* 레벨 안내 바텀시트 — 내 정보 모달 위에 살짝 얹히는 작은 시트 */
@@ -2406,7 +2406,7 @@ body.light .myinfo-chip { background: rgba(241,230,210,0.55); }
 .oing-lv-pop-card { width: 100%; max-width: 400px; max-height: 80vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: 18px 18px 0 0; padding: 18px 20px calc(16px + env(safe-area-inset-bottom, 0px)); text-align: left; box-shadow: 0 -8px 30px rgba(0,0,0,0.35); }
 .oing-lv-pop-card .t { font-size: 17px; font-weight: 900; margin-bottom: 10px; }
 .lv-pop-intro { font-size: 15px; color: var(--text); opacity: 0.92; line-height: 1.65; margin-bottom: 4px; }
-.lv-pop-intro-sm { font-size: 13px; opacity: 0.75; margin-bottom: 6px; }
+.lv-pop-intro-sm { font-size: 14px; opacity: 0.75; margin-bottom: 6px; }
 .lv-pop-h { font-size: 13.5px; font-weight: 800; color: var(--muted); margin: 16px 0 7px; }
 .lv-pop-rows { display: flex; flex-direction: column; gap: 2px; }
 .lv-pop-row { display: flex; align-items: center; gap: 10px; padding: 8px 6px; font-size: 15px; font-weight: 700; border-radius: 10px; }
@@ -2420,7 +2420,7 @@ body.light .myinfo-chip { background: rgba(241,230,210,0.55); }
 .lv-pop-row2 { display: flex; align-items: flex-start; gap: 10px; padding: 8px 6px; }
 .lv-pop-row2 .ic { font-size: 17px; flex-shrink: 0; width: 22px; text-align: center; margin-top: 1px; }
 .lv-pop-row2-txt .nm { font-size: 14.5px; font-weight: 800; color: var(--text); }
-.lv-pop-row2-txt .cond { font-size: 12.5px; color: var(--muted); margin-top: 2px; font-weight: 700; }
+.lv-pop-row2-txt .cond { font-size: 13.5px; color: var(--muted); margin-top: 2px; font-weight: 700; }
 .lv-pop-next { margin-top: 14px; padding: 11px 13px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; font-size: 14px; font-weight: 700; line-height: 1.6; color: var(--text); }
 .lv-pop-next b { color: var(--accent-lemon); font-weight: 900; }
 .lv-pop-toggle { display: block; width: 100%; margin-top: 14px; background: none; border: none; color: var(--blue-light); font-size: 13.5px; font-weight: 800; font-family: inherit; cursor: pointer; padding: 6px 0; text-align: center; }
@@ -3753,7 +3753,7 @@ if ('serviceWorker' in navigator) {
       </div>
     </div>
     <!-- 내 기록 삭제 — 랭킹탭에서 이곳으로 이동(기존 핸들러 id 그대로 재사용). 조용한 저강조 버튼 -->
-    <button class="nick-change-btn" id="deleteMyRankBtn" style="display:block; margin:14px auto 0; border-color:#DD603255; color:#DD6032; opacity:0.7; font-size:11.5px; padding:6px 12px;">🗑️ 내 기록 삭제</button>
+    <button class="nick-change-btn" id="deleteMyRankBtn" style="display:block; margin:14px auto 0; border-color:#DD603255; color:#DD6032; opacity:0.65; font-size:10px; padding:4px 9px;">🗑️ 내 기록 삭제</button>
   </div>
 </div>
 
@@ -3761,9 +3761,9 @@ if ('serviceWorker' in navigator) {
 <div class="oing-lv-pop" id="oingLvPop" style="display:none;">
   <div class="oing-lv-pop-card">
     <div class="t">⭐ 오잉 레벨 안내</div>
-    <div class="lv-pop-intro">오잉 레벨은 지금까지 쌓은 활동과 기록을 나타내요.</div>
+    <div class="lv-pop-intro">오잉 레벨은 지금까지 쌓은 활동과 기록을 보여준다냥!</div>
 
-    <div class="lv-pop-h">XP는 이렇게 쌓여요</div>
+    <div class="lv-pop-h">XP는 이렇게 쌓인다냥!</div>
     <div class="lv-pop-rows">
       <div class="lv-pop-row"><span class="ic">🎮</span><span class="lbl">하루 첫 플레이</span><span class="val">+10 XP</span></div>
       <div class="lv-pop-row"><span class="ic">⚡</span><span class="lbl">오늘 목표 달성</span><span class="val">+10 XP</span></div>
@@ -3790,7 +3790,7 @@ if ('serviceWorker' in navigator) {
       </div>
 
       <div class="lv-pop-h">상위 칭호 승급</div>
-      <div class="lv-pop-intro lv-pop-intro-sm">상위 칭호는 누적 XP와 실력 조건을 모두 달성해야 해요.</div>
+      <div class="lv-pop-intro lv-pop-intro-sm">상위 칭호는 누적 XP와 실력 조건을 모두 채워야 한다냥!</div>
       <div class="lv-pop-rows">
         <div class="lv-pop-row2"><span class="ic">💎</span><div class="lv-pop-row2-txt"><div class="nm">오잉코어</div><div class="cond">Lv.11 XP + 8,000점 또는 150콤보</div></div></div>
         <div class="lv-pop-row2"><span class="ic">👑</span><div class="lv-pop-row2-txt"><div class="nm">전설의 오잉러</div><div class="cond">Lv.16 XP + 25,000점 또는 350콤보</div></div></div>
@@ -3798,7 +3798,7 @@ if ('serviceWorker' in navigator) {
       </div>
     </div>
 
-    <button class="c" id="oingLvPopClose" type="button">알겠어요</button>
+    <button class="c" id="oingLvPopClose" type="button">알겠다냥!</button>
   </div>
 </div>
 
@@ -10685,13 +10685,13 @@ function renderOingLevelPopupContent(lv, xp, gated) {
     const g = gated.blockedBy;
     if (g) {
       const nextTitle = oingTitleOf(g.lv);
-      nextBox.innerHTML = `다음 칭호는 <b>${nextTitle}</b>이에요.<br>${g.score.toLocaleString()}점 또는 ${g.combo}콤보를 달성하면 승급해요.`;
+      nextBox.innerHTML = `다음 칭호는 <b>${nextTitle}</b>이에요!<br>${g.score.toLocaleString()}점 또는 ${g.combo}콤보를 달성하면 승급한다냥! 힘내자냥~😽`;
       nextBox.style.display = '';
     } else {
       const nextLv = oingNextTitleLevel(lv);
       if (nextLv) {
         const remain = Math.max(0, OING_LEVEL_REQ[nextLv - 1] - xp);
-        nextBox.innerHTML = `다음 칭호는 <b>${oingTitleOf(nextLv)}</b>이에요.<br>Lv.${nextLv}까지 ${remain.toLocaleString()} XP 남았어요.`;
+        nextBox.innerHTML = `다음 칭호는 <b>${oingTitleOf(nextLv)}</b>이에요!<br>Lv.${nextLv}까지 ${remain.toLocaleString()} XP 남았다냥! 힘내자냥~😽`;
         nextBox.style.display = '';
       } else {
         nextBox.style.display = 'none'; // 이미 최고 칭호(오잉신)
