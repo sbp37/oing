@@ -10310,17 +10310,17 @@ const STATS_LAUNCH_MS = new Date('2026-07-06T00:00:00+09:00').getTime();     // 
 //    7/6 이후 시작자는 firstPlayed가 정확히 기록되므로 별도 증거 검증 없이 이 컷만으로 판정.
 const EARLY_MEMBER_CUTOFF_MS = new Date('2026-07-13T00:00:00+09:00').getTime();
 const WEEK_0629_MS = new Date('2026-06-29T00:00:00+09:00').getTime();        // 조기리셋 통합 주(6/29~7/12) 시작
-// "확실한" 증거만 인정 — 초창기 멤버 오판(신규 유저 승급) 방지:
-//  · 6/22 이전 주들: 존재 자체가 7/6 이전 플레이 증거 (그 주는 그 주에만 기록됨)
+const GAME_OPEN_MS = new Date('2026-06-22T00:00:00+09:00').getTime();        // 게임 오픈일(오너 확인)
+const STUCK_END_MS = new Date('2026-07-07T00:00:00+09:00').getTime();        // 통계 도입 당일 몰림 구간 끝
+// "확실한" 증거만 인정 — 초창기 멤버/날짜 오판 방지 (게임이 6/22 오픈이라 그 이전 주는 검색 불필요):
+//  · 6/22 주: 존재 자체가 7/6 이전 플레이 증거 (그 주는 그 주에만 기록됨)
 //  · 6/29 주: 조기리셋으로 6/29~7/12 두 주를 포괄해 7/6 이후 신규도 여기 찍힘 —
 //    기록의 ts(마지막 갱신 시각)가 7/6 이전일 때만 증거로 인정
 async function findStrictPreEpochEvidence(nick) {
-  for (const w of ['2026-05-25', '2026-06-01', '2026-06-08', '2026-06-15', '2026-06-22']) {
-    try {
-      const s = await getDoc(doc(db, 'weekly_rankings', w, 'scores', nick));
-      if (s.exists()) return new Date(w + 'T00:00:00+09:00').getTime();
-    } catch {}
-  }
+  try {
+    const s = await getDoc(doc(db, 'weekly_rankings', '2026-06-22', 'scores', nick));
+    if (s.exists()) return GAME_OPEN_MS;
+  } catch {}
   try {
     const s = await getDoc(doc(db, 'weekly_rankings', '2026-06-29', 'scores', nick));
     if (s.exists() && typeof s.data().ts === 'number' && s.data().ts < STATS_LAUNCH_MS) return WEEK_0629_MS;
@@ -10329,7 +10329,7 @@ async function findStrictPreEpochEvidence(nick) {
 }
 async function healFirstPlayedFromWeekly() {
   try {
-    if (localStorage.getItem('oeing_firstplayed_heal_v3')) return;
+    if (localStorage.getItem('oeing_firstplayed_heal_v4')) return;
     const nick = loadNickname();
     if (!nick || !MY_UID || !isUidLinked()) return; // 연결 후에 다시 시도(가드 안 씀)
     const { ref, data } = await getMyDoc('user_stats');
@@ -10343,18 +10343,18 @@ async function healFirstPlayedFromWeekly() {
         localStorage.setItem(k, JSON.stringify(d2));
       } catch {}
     };
-    if (typeof fp === 'number' && fp >= STATS_EPOCH_MS && fp < STATS_EPOCH_END_MS) {
-      // ① 도입 창(7/3~7/8)에 몰린 값 — 확실한 증거가 있으면 그 주 월요일로(과거로만) 보정
+    if (typeof fp === 'number' && fp >= STATS_EPOCH_MS && fp < STUCK_END_MS) {
+      // ① 통계 도입 당일(7/3~7/6)에 몰린 값 = 도입 전부터 하던 유저가 확실 —
+      //    주간랭킹 증거가 있으면 그 주로, 없으면(주간 도입 전 멤버) 게임 오픈일(6/22)로 세팅.
+      const ev = await findStrictPreEpochEvidence(nick);
+      const target = ev || GAME_OPEN_MS;
+      if (target < fp) await writeFp(target);
+    } else if (typeof fp === 'number' && fp >= STUCK_END_MS && fp < STATS_EPOCH_END_MS) {
+      // ② 7/7~7/8 값 — 진짜 신규일 수도 있어 확실한 증거가 있을 때만 보정
       const ev = await findStrictPreEpochEvidence(nick);
       if (ev && ev < fp) await writeFp(ev);
-    } else if (fp === WEEK_0629_MS) {
-      // ② 직전(느슨한 기준) 배포가 6/29로 보정해둔 값 — 엄격 기준으로 재검증.
-      //    통과하면 그대로(또는 더 이른 주로), 실패하면 7/6(도입일)로 복원해 초창기 오판을 되돌린다.
-      const ev = await findStrictPreEpochEvidence(nick);
-      if (ev && ev < fp) await writeFp(ev);
-      else if (!ev) await writeFp(STATS_LAUNCH_MS);
     }
-    localStorage.setItem('oeing_firstplayed_heal_v3', '1');
+    localStorage.setItem('oeing_firstplayed_heal_v4', '1');
   } catch { /* 다음 접속에 재시도 */ }
 }
 setTimeout(() => { healFirstPlayedFromWeekly(); }, 4000); // 계정 준비 뒤 여유 있게 1회
@@ -10852,7 +10852,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.3';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784360000; // v4.3 — 함께한 지 문구 축약(오잉게임과 제거)
+const BUILD = 1784370000; // v4.3 — 함께한 지: 오픈일(6/22) 기준 초창기 날짜 복원(v4)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
