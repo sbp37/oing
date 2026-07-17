@@ -10300,20 +10300,22 @@ document.getElementById('sideRestartBtn').addEventListener('click', () => {
 //  가장 처음 등장한 주를 찾아 firstPlayed를 그 주 월요일로 되돌린다(과거로만, min 보정).
 //  · 기기당 1회(localStorage 가드) · 읽기 ≤7건 · 표시용 필드만 수정(점수/랭킹/젤리 무관)
 // ══════════════════════════════
-const STATS_EPOCH_MS = new Date('2026-07-06T00:00:00+09:00').getTime();     // 통계 도입일
+// 통계 도입 시점 — 실측상 7/5 밤부터 기록이 시작된 유저가 있어(배포 시각/시간대), 창을 7/3부터 넉넉히 잡는다.
+// (통계 시스템 이전엔 firstPlayed 자체가 없었으므로 7/3~7/8 값은 전부 "도입 때 몰린" 값이 확실함)
+const STATS_EPOCH_MS = new Date('2026-07-03T00:00:00+09:00').getTime();     // 이 이전이 확인되면 초창기 멤버
 const STATS_EPOCH_END_MS = new Date('2026-07-09T00:00:00+09:00').getTime(); // 도입 직후 창(보정 대상 판별)
 // 통계 도입 전 주차들(월요일 키) — 이른 주부터. 6/29 주는 조기리셋으로 6/29~7/12를 포괄.
 const PRE_EPOCH_WEEK_IDS = ['2026-05-25', '2026-06-01', '2026-06-08', '2026-06-15', '2026-06-22', '2026-06-29'];
 async function healFirstPlayedFromWeekly() {
   try {
-    if (localStorage.getItem('oeing_firstplayed_heal_v1')) return;
+    if (localStorage.getItem('oeing_firstplayed_heal_v2')) return;
     const nick = loadNickname();
     if (!nick || !MY_UID || !isUidLinked()) return; // 연결 후에 다시 시도(가드 안 씀)
     const { ref, data } = await getMyDoc('user_stats');
     const fp = data && data.firstPlayed;
     // 보정 대상: firstPlayed가 통계 도입 직후 창(7/6~7/8)에 몰려 있는 경우만
     if (typeof fp !== 'number' || fp < STATS_EPOCH_MS || fp >= STATS_EPOCH_END_MS) {
-      localStorage.setItem('oeing_firstplayed_heal_v1', '1'); return;
+      localStorage.setItem('oeing_firstplayed_heal_v2', '1'); return;
     }
     let earliestMs = null;
     for (const w of PRE_EPOCH_WEEK_IDS) { // 이른 주부터 — 첫 히트가 가장 이른 증거
@@ -10331,7 +10333,7 @@ async function healFirstPlayedFromWeekly() {
         localStorage.setItem(k, JSON.stringify(d2));
       } catch {}
     }
-    localStorage.setItem('oeing_firstplayed_heal_v1', '1');
+    localStorage.setItem('oeing_firstplayed_heal_v2', '1');
   } catch { /* 다음 접속에 재시도 */ }
 }
 setTimeout(() => { healFirstPlayedFromWeekly(); }, 4000); // 계정 준비 뒤 여유 있게 1회
@@ -10366,10 +10368,15 @@ function openMyInfoOverlay() {
     const fp = d.firstPlayed;
     if (nick && typeof fp === 'number' && fp > 0 && fp <= Date.now()) {
       const days = (Math.floor((Date.now() - fp) / 86400000) + 1).toLocaleString();
-      // 통계 도입일(7/6) 이전부터 함께한 게 확인된 유저 = 초창기 멤버 (닫힌 클럽 — 이후 유입은 불가)
-      sinceEl.textContent = (fp < STATS_EPOCH_MS)
-        ? `🐾 초창기 멤버 · 함께한 지 ${days}일째`
-        : `오잉게임과 함께한 지 ${days}일째 🐾`;
+      // 통계 도입 전부터 함께한 게 확인된 유저 = 초창기 멤버 (닫힌 클럽 — 이후 유입은 불가)
+      // 뱃지는 특별하게(금색·크게), "함께한 지"는 아랫줄에 따로 — 두 줄 표기
+      if (fp < STATS_EPOCH_MS) {
+        sinceEl.innerHTML =
+          `<span style="display:block; font-size:14.5px; font-weight:900; color:var(--accent-lemon); text-shadow:0 0 10px rgba(218,152,69,0.4); letter-spacing:0.3px; margin:3px 0 2px;">⭐️ 초창기 멤버</span>` +
+          `<span style="display:block;">함께한 지 ${days}일째 🐾</span>`;
+      } else {
+        sinceEl.textContent = `오잉게임과 함께한 지 ${days}일째 🐾`;
+      }
       sinceEl.style.display = '';
     } else { sinceEl.style.display = 'none'; }
   }
@@ -10822,7 +10829,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.3';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784310000; // v4.3 — 초창기 멤버 뱃지 + 함께한 지 날짜를 과거 주간랭킹 증거로 보정
+const BUILD = 1784320000; // v4.3 — 초창기 멤버 뱃지 강조(두 줄) + 보정 대상 창 확대(7/5 밤 기록 유저 포함)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
