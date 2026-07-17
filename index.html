@@ -10302,38 +10302,55 @@ document.getElementById('sideRestartBtn').addEventListener('click', () => {
 // ══════════════════════════════
 // 통계 도입 시점 — 실측상 7/5 밤부터 기록이 시작된 유저가 있어(배포 시각/시간대), 창을 7/3부터 넉넉히 잡는다.
 // (통계 시스템 이전엔 firstPlayed 자체가 없었으므로 7/3~7/8 값은 전부 "도입 때 몰린" 값이 확실함)
-const STATS_EPOCH_MS = new Date('2026-07-03T00:00:00+09:00').getTime();     // 이 이전이 확인되면 초창기 멤버
-const STATS_EPOCH_END_MS = new Date('2026-07-09T00:00:00+09:00').getTime(); // 도입 직후 창(보정 대상 판별)
-// 통계 도입 전 주차들(월요일 키) — 이른 주부터. 6/29 주는 조기리셋으로 6/29~7/12를 포괄.
-const PRE_EPOCH_WEEK_IDS = ['2026-05-25', '2026-06-01', '2026-06-08', '2026-06-15', '2026-06-22', '2026-06-29'];
+const STATS_EPOCH_MS = new Date('2026-07-03T00:00:00+09:00').getTime();      // 이 이전이 확인되면 초창기 멤버
+const STATS_EPOCH_END_MS = new Date('2026-07-09T00:00:00+09:00').getTime();  // 도입 직후 창(보정 대상 판별)
+const STATS_LAUNCH_MS = new Date('2026-07-06T00:00:00+09:00').getTime();     // 실제 도입일(증거 시각 판정용)
+const WEEK_0629_MS = new Date('2026-06-29T00:00:00+09:00').getTime();        // 조기리셋 통합 주(6/29~7/12) 시작
+// "확실한" 증거만 인정 — 초창기 멤버 오판(신규 유저 승급) 방지:
+//  · 6/22 이전 주들: 존재 자체가 7/6 이전 플레이 증거 (그 주는 그 주에만 기록됨)
+//  · 6/29 주: 조기리셋으로 6/29~7/12 두 주를 포괄해 7/6 이후 신규도 여기 찍힘 —
+//    기록의 ts(마지막 갱신 시각)가 7/6 이전일 때만 증거로 인정
+async function findStrictPreEpochEvidence(nick) {
+  for (const w of ['2026-05-25', '2026-06-01', '2026-06-08', '2026-06-15', '2026-06-22']) {
+    try {
+      const s = await getDoc(doc(db, 'weekly_rankings', w, 'scores', nick));
+      if (s.exists()) return new Date(w + 'T00:00:00+09:00').getTime();
+    } catch {}
+  }
+  try {
+    const s = await getDoc(doc(db, 'weekly_rankings', '2026-06-29', 'scores', nick));
+    if (s.exists() && typeof s.data().ts === 'number' && s.data().ts < STATS_LAUNCH_MS) return WEEK_0629_MS;
+  } catch {}
+  return null;
+}
 async function healFirstPlayedFromWeekly() {
   try {
-    if (localStorage.getItem('oeing_firstplayed_heal_v2')) return;
+    if (localStorage.getItem('oeing_firstplayed_heal_v3')) return;
     const nick = loadNickname();
     if (!nick || !MY_UID || !isUidLinked()) return; // 연결 후에 다시 시도(가드 안 씀)
     const { ref, data } = await getMyDoc('user_stats');
     const fp = data && data.firstPlayed;
-    // 보정 대상: firstPlayed가 통계 도입 직후 창(7/6~7/8)에 몰려 있는 경우만
-    if (typeof fp !== 'number' || fp < STATS_EPOCH_MS || fp >= STATS_EPOCH_END_MS) {
-      localStorage.setItem('oeing_firstplayed_heal_v2', '1'); return;
-    }
-    let earliestMs = null;
-    for (const w of PRE_EPOCH_WEEK_IDS) { // 이른 주부터 — 첫 히트가 가장 이른 증거
-      try {
-        const s = await getDoc(doc(db, 'weekly_rankings', w, 'scores', nick));
-        if (s.exists()) { earliestMs = new Date(w + 'T00:00:00+09:00').getTime(); break; }
-      } catch {}
-    }
-    if (earliestMs && earliestMs < fp) {
-      await setDoc(ref, { firstPlayed: earliestMs }, { merge: true });
+    const writeFp = async (ms) => {
+      await setDoc(ref, { firstPlayed: ms }, { merge: true });
       try { // 로컬 캐시도 같이 — 내정보를 바로 열어도 보정된 날짜가 보이게
         const k = 'oeing_local_stats_' + nick;
         const d2 = JSON.parse(localStorage.getItem(k) || 'null') || {};
-        d2.firstPlayed = earliestMs;
+        d2.firstPlayed = ms;
         localStorage.setItem(k, JSON.stringify(d2));
       } catch {}
+    };
+    if (typeof fp === 'number' && fp >= STATS_EPOCH_MS && fp < STATS_EPOCH_END_MS) {
+      // ① 도입 창(7/3~7/8)에 몰린 값 — 확실한 증거가 있으면 그 주 월요일로(과거로만) 보정
+      const ev = await findStrictPreEpochEvidence(nick);
+      if (ev && ev < fp) await writeFp(ev);
+    } else if (fp === WEEK_0629_MS) {
+      // ② 직전(느슨한 기준) 배포가 6/29로 보정해둔 값 — 엄격 기준으로 재검증.
+      //    통과하면 그대로(또는 더 이른 주로), 실패하면 7/6(도입일)로 복원해 초창기 오판을 되돌린다.
+      const ev = await findStrictPreEpochEvidence(nick);
+      if (ev && ev < fp) await writeFp(ev);
+      else if (!ev) await writeFp(STATS_LAUNCH_MS);
     }
-    localStorage.setItem('oeing_firstplayed_heal_v2', '1');
+    localStorage.setItem('oeing_firstplayed_heal_v3', '1');
   } catch { /* 다음 접속에 재시도 */ }
 }
 setTimeout(() => { healFirstPlayedFromWeekly(); }, 4000); // 계정 준비 뒤 여유 있게 1회
@@ -10829,7 +10846,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.3';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784320000; // v4.3 — 초창기 멤버 뱃지 강조(두 줄) + 보정 대상 창 확대(7/5 밤 기록 유저 포함)
+const BUILD = 1784330000; // v4.3 — 초창기 멤버 판정 엄격화(통합주 오판 방지·오보정 자동 원복)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
