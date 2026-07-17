@@ -12473,7 +12473,13 @@ async function renderStartMyRankLine() {
     } else {
       const list = await loadWeeklyRankings();
       const idx = list.findIndex(e => e.nickname === myNick);
-      if (idx === -1) return;
+      if (idx === -1) {
+        // 이번 주 미참여(주간 리셋 직후 등) — 이전 주 문구가 DOM에 남아 보이지 않게 명시적으로 비우고 숨김.
+        // (기존엔 조기 return이라 자정을 넘겨 켜둔 세션에서 지난주 순위 줄이 그대로 남던 잔존 버그)
+        line.textContent = '';
+        line.style.display = 'none';
+        return;
+      }
       text = `🐾 이번주 ${idx + 1}위 · ${list[idx].score}pt`;
       _startRankMemo = text; _startRankMemoTs = Date.now(); _startRankMemoKey = memoKey;
     }
