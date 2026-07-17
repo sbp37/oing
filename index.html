@@ -2373,9 +2373,9 @@ body.light .myinfo-chip { background: rgba(241,230,210,0.55); }
 .myi-rec { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 11px 12px; text-align: left; }
 .myi-rec.wide { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; }
 .myi-rec .k { font-size: 10.5px; color: var(--muted); font-weight: 700; margin-bottom: 3px; }
-.myi-rec.wide .k { margin-bottom: 0; }
+.myi-rec.wide .k { margin-bottom: 0; font-size: 13px; }
 .myi-rec .v { font-size: 18px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
-.myi-rec.wide .v { font-size: 16px; }
+.myi-rec.wide .v { font-size: 19px; }
 .myi-rec .v.gold { color: var(--accent-lemon); }
 .myi-rec .v.blue { color: var(--blue-light); }
 .myi-privacy { text-align: center; font-size: 11px; color: var(--muted); margin-top: 8px; opacity: 0.85; }
@@ -10306,6 +10306,9 @@ document.getElementById('sideRestartBtn').addEventListener('click', () => {
 const STATS_EPOCH_MS = new Date('2026-07-03T00:00:00+09:00').getTime();      // 이 이전이 확인되면 초창기 멤버
 const STATS_EPOCH_END_MS = new Date('2026-07-09T00:00:00+09:00').getTime();  // 도입 직후 창(보정 대상 판별)
 const STATS_LAUNCH_MS = new Date('2026-07-06T00:00:00+09:00').getTime();     // 실제 도입일(증거 시각 판정용)
+// ⭐️ 초창기 멤버 컷 — 게임 오픈 ~ 7/12에 시작한 유저까지(첫 통합주 끝, 오너 확정).
+//    7/6 이후 시작자는 firstPlayed가 정확히 기록되므로 별도 증거 검증 없이 이 컷만으로 판정.
+const EARLY_MEMBER_CUTOFF_MS = new Date('2026-07-13T00:00:00+09:00').getTime();
 const WEEK_0629_MS = new Date('2026-06-29T00:00:00+09:00').getTime();        // 조기리셋 통합 주(6/29~7/12) 시작
 // "확실한" 증거만 인정 — 초창기 멤버 오판(신규 유저 승급) 방지:
 //  · 6/22 이전 주들: 존재 자체가 7/6 이전 플레이 증거 (그 주는 그 주에만 기록됨)
@@ -10388,9 +10391,9 @@ function openMyInfoOverlay() {
       const days = (Math.floor((Date.now() - fp) / 86400000) + 1).toLocaleString();
       // 날짜 숫자는 금색·크게 강조 (days는 숫자 유래 문자열이라 안전)
       const daysHtml = `함께한 지 <b class="myi-days">${days}</b>일째`;
-      // 통계 도입 전부터 함께한 게 확인된 유저 = 초창기 멤버 (닫힌 클럽 — 이후 유입은 불가)
+      // 7/12까지 시작한 유저 = 초창기 멤버 (닫힌 클럽 — 이후 유입은 불가)
       // 뱃지는 특별하게(금색·크게), "함께한 지"는 아랫줄에 따로 — 두 줄 표기
-      if (fp < STATS_EPOCH_MS) {
+      if (fp < EARLY_MEMBER_CUTOFF_MS) {
         sinceEl.innerHTML =
           `<span style="display:block; font-size:15.5px; font-weight:900; color:var(--accent-lemon); text-shadow:0 0 10px rgba(218,152,69,0.4); letter-spacing:0.3px; margin:3px 0 2px;">⭐️ 초창기 멤버</span>` +
           `<span style="display:block;">${daysHtml} 🐾</span>`;
@@ -10849,7 +10852,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.3';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784340000; // v4.3 — 함께한 지 표기 확대(숫자 금색 강조·글씨 키움)
+const BUILD = 1784350000; // v4.3 — 초창기 멤버 범위 확대(~7/12) + 오늘 목표 연속 달성 글씨 확대
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
