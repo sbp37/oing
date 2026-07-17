@@ -2431,9 +2431,6 @@ body.light .rv-item { background: #F4ECDC; }
 /* 별점·하트를 오른쪽 세로로 모아 헤더에 올림 → 카드 세로폭 축소(하트 전용 하단줄 제거) */
 .rv-top-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
 .rv-best { flex-shrink: 0; font-size: 9.5px; font-weight: 800; color: #ff9ab5; border: 1px solid rgba(255,154,181,0.45); background: rgba(255,154,181,0.1); border-radius: 7px; padding: 1.5px 6px; }
-/* ⭐️ 초창기 멤버 뱃지 — 금색, 리뷰 카드에서 은은하게 */
-.rv-early { flex-shrink: 0; font-size: 9.5px; font-weight: 800; color: var(--accent-lemon); border: 1px solid rgba(218,152,69,0.5); background: rgba(218,152,69,0.13); border-radius: 7px; padding: 1.5px 6px; white-space: nowrap; }
-body.light .rv-early { color: #a9730f; border-color: rgba(184,122,32,0.5); background: rgba(218,152,69,0.16); }
 .rv-item.best { border-color: rgba(255,154,181,0.42); }
 body.light .rv-item { border-color: rgba(90,70,40,0.14); box-shadow: 0 2px 6px rgba(90,70,40,0.08); }
 .rv-item.mine { border-color: rgba(126,194,240,0.35); box-shadow: inset 0 0 0 1px rgba(126,194,240,0.14), 0 2px 6px rgba(0,0,0,0.14); }
@@ -10881,7 +10878,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.3';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784420000; // v4.3 — 리뷰 카드에 ⭐️ 초창기 멤버 뱃지(프론트 전용, 추가 읽기 캐시로 최소화)
+const BUILD = 1784430000; // v4.3 — 리뷰 카드 초창기 뱃지 제거(유저 늘면 재검토) · 내 정보 뱃지는 유지
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
@@ -11560,25 +11557,6 @@ async function loadReviews(force) {
   _reviewsCache = list; _reviewsCacheTs = Date.now();
   return list;
 }
-// ⭐️ 리뷰 작성자가 초창기 멤버인지 표시 — user_stats(공개 read)의 firstPlayed를 작성자 uid로
-//    읽어 판정한다. firstPlayed는 사실상 불변이라 uid당 1회만 읽고 세션 캐시에 담아 재사용
-//    (리뷰 보드를 여러 번 열어도 추가 읽기 거의 0). 리뷰 문서 자체는 안 건드림.
-const _earlyMemberByUid = new Map(); // uid -> bool
-async function enrichReviewEarlyMembers(list) {
-  const need = [...new Set(list.map(r => r.uid).filter(u => u && !_earlyMemberByUid.has(u)))];
-  if (need.length) {
-    await Promise.all(need.map(async (uid) => {
-      let early = false;
-      try {
-        const s = await getDoc(doc(db, 'user_stats', uid));
-        const fp = s.exists() ? s.data().firstPlayed : null;
-        early = (typeof fp === 'number' && fp > 0 && fp < EARLY_MEMBER_CUTOFF_MS);
-      } catch {}
-      _earlyMemberByUid.set(uid, early);
-    }));
-  }
-  list.forEach(r => { r.earlyMember = !!_earlyMemberByUid.get(r.uid); });
-}
 
 function reviewStarsHtml(r) {
   const n = Math.max(1, Math.min(5, r | 0));
@@ -11628,7 +11606,6 @@ async function openReviewBoard(forceReload) {
     listEl.innerHTML = '<div class="rvb-empty">리뷰를 불러오지 못했다냥 🙏<br>잠시 후 다시 열어달라냥</div>';
     return;
   }
-  try { await enrichReviewEarlyMembers(list); } catch {} // ⭐️ 초창기 뱃지용 — 실패해도 그냥 뱃지 없이 진행
   // 평균 헤더 (목록 기준 — meta와 순간적으로 어긋나도 화면 내 일관성 우선)
   const n = list.length;
   const sum = list.reduce((a, r) => a + (r.rating || 0), 0);
@@ -11674,7 +11651,6 @@ async function openReviewBoard(forceReload) {
           <div class="rv-id">
             <div class="rv-nick-row">
               <span class="rv-nick">${escapeHtml(r.nickname || '')}</span>
-              ${r.earlyMember ? '<span class="rv-early">⭐️ 초창기</span>' : ''}
               ${isBest ? '<span class="rv-best">❤️ 인기</span>' : ''}
               ${isMine ? '<span class="rv-mine-tag">내 리뷰</span>' : ''}
             </div>
