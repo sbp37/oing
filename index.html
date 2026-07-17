@@ -11247,7 +11247,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.4';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784730000; // v4.4 — 오너 문의 원문 열람(게임) + 후원자 본인 쪽지 열람
+const BUILD = 1784740000; // v4.4 — 문의/후원 쪽지 양방향 대화(답장) — 유저·운영자 상호 회신
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
@@ -12384,11 +12384,13 @@ function getFeedbackMessages(data) {
 }
 
 let currentOpenFeedbackId = null;
-// colName: 'feedback'(일반 문의) 또는 'feedback_donate'(후원 확인 쪽지 — 본인 것만 uid로 조회됨).
-// 후원 쪽지는 열람 전용(추가 회신은 일반 문의로) — appendFeedbackMessage 서버 함수는 feedback 전용이므로.
+let currentOpenFeedbackCol = 'feedback'; // 답장 전송 시 어느 게시판인지 서버에 알려줌
+// colName: 'feedback'(일반 문의) 또는 'feedback_donate'(후원 확인 쪽지).
+// 양방향 대화: 글쓴이 본인은 'user'로, 운영자(오너/어드민)는 'admin'으로 답장(서버가 from 고정).
 function openMyFeedbackDetail(id, data, readOnly, colName = 'feedback') {
-  const isDonate = colName === 'feedback_donate';
-  currentOpenFeedbackId = (readOnly || isDonate) ? null : id;
+  currentOpenFeedbackId = readOnly ? null : id;
+  currentOpenFeedbackCol = colName;
+  const isMine = !!(data && data.uid) && data.uid === MY_UID; // 열람자가 글쓴이 본인인지
   const threadEl = document.getElementById('myFeedbackThread');
   const messages = getFeedbackMessages(data);
   threadEl.innerHTML = messages.map(m => `
@@ -12398,13 +12400,13 @@ function openMyFeedbackDetail(id, data, readOnly, colName = 'feedback') {
     </div>
   `).join('');
   document.getElementById('myFeedbackReplyInput').value = '';
-  const hideReply = readOnly || isDonate; // 후원 쪽지는 열람 전용
+  const hideReply = readOnly; // 읽기 전용일 때만 답장칸 숨김 (후원 쪽지·오너 열람도 이제 답장 가능)
   document.getElementById('myFeedbackReplyInput').style.display = hideReply ? 'none' : '';
   const replySendBtn = document.getElementById('myFeedbackReplySendBtn');
   if (replySendBtn) replySendBtn.style.display = hideReply ? 'none' : '';
   document.getElementById('myFeedbackOverlay').style.display = 'flex';
-  // 열어봤으니 안읽음 표시 해제 (본인 문서 — 규칙이 소유자 update를 허용해야 동작, 실패해도 무해)
-  if (!readOnly && data.userUnread) {
+  // 안읽음 표시 해제는 "글쓴이 본인이 열었을 때"만 — 운영자가 열어도 유저 대신 읽음처리하면 안 됨
+  if (isMine && data.userUnread) {
     setDoc(doc(db, colName, id), { userUnread: false }, { merge: true }).catch(() => {});
   }
 }
@@ -12416,15 +12418,15 @@ document.getElementById('myFeedbackReplySendBtn').addEventListener('click', asyn
   if (!currentOpenFeedbackId) return;
   const sendBtn = document.getElementById('myFeedbackReplySendBtn');
   sendBtn.disabled = true;
+  const col = currentOpenFeedbackCol;
   try {
-    // 서버 함수가 처리 — from:'user'는 서버가 고정해서 붙이므로 클라이언트가 위조 불가
+    // 서버 함수가 처리 — from은 서버가 고정(운영자면 admin, 아니면 user)해서 위조 불가
     const callFn = httpsCallable(fns, 'appendFeedbackMessage');
-    await callFn({ docId: currentOpenFeedbackId, text });
-    const docRef = doc(db, 'feedback', currentOpenFeedbackId);
-    const snap = await getDoc(docRef);
+    await callFn({ docId: currentOpenFeedbackId, text, col });
+    const snap = await getDoc(doc(db, col, currentOpenFeedbackId));
     const data = snap.exists() ? snap.data() : {};
     const messages = getFeedbackMessages(data);
-    openMyFeedbackDetail(currentOpenFeedbackId, { ...data, messages });
+    openMyFeedbackDetail(currentOpenFeedbackId, { ...data, messages }, false, col);
   } catch (e) {
     alert('전송 실패: ' + (e && e.message ? e.message : '오류가 발생했어요.'));
   } finally {
@@ -12595,7 +12597,7 @@ async function renderOwnerFeedbackList(boardEl, pinnedIds) {
       row.style.cssText = `display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;border:1px solid ${isDonate ? '#DA984555' : 'var(--border)'};background:${isDonate ? 'rgba(218,152,69,0.08)' : 'var(--surface)'};font-size:13px;cursor:pointer;`;
       row.innerHTML = `<span style="color:var(--text);">${isDonate ? '💛' : '💬'} ${escapeHtml(nick)}${status}</span>`
         + `<span style="color:var(--muted);font-size:12px;">${formatFeedbackDate(data.ts)}</span>`;
-      row.addEventListener('click', () => openMyFeedbackDetail(id, data, true, col)); // readOnly 열람
+      row.addEventListener('click', () => openMyFeedbackDetail(id, data, false, col)); // 열람 + 답장(운영자→admin)
       boardEl.appendChild(row);
     });
     return true;
