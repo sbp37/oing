@@ -2403,10 +2403,16 @@ body.light .myinfo-chip { background: rgba(241,230,210,0.55); }
 .myi-lv-info { background: none; border: none; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; padding: 2px 4px; font-family: inherit; opacity: 0.75; flex-shrink: 0; }
 /* 레벨 안내 바텀시트 — 내 정보 모달 위에 살짝 얹히는 작은 시트 */
 .oing-lv-pop { position: fixed; inset: 0; z-index: 420; background: rgba(0,0,0,0.38); display: flex; align-items: flex-end; justify-content: center; }
-.oing-lv-pop-card { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: 18px 18px 0 0; padding: 17px 20px calc(16px + env(safe-area-inset-bottom, 0px)); text-align: left; box-shadow: 0 -8px 30px rgba(0,0,0,0.35); }
-.oing-lv-pop-card .t { font-size: 14px; font-weight: 900; margin-bottom: 8px; }
-.oing-lv-pop-card .b { font-size: 12.5px; color: var(--muted); line-height: 1.75; }
-.oing-lv-pop-card .c { margin-top: 13px; width: 100%; background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 11px; padding: 9px 0; font-size: 13px; font-weight: 800; font-family: inherit; cursor: pointer; }
+.oing-lv-pop-card { width: 100%; max-width: 400px; max-height: 80vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: 18px 18px 0 0; padding: 18px 20px calc(16px + env(safe-area-inset-bottom, 0px)); text-align: left; box-shadow: 0 -8px 30px rgba(0,0,0,0.35); }
+.oing-lv-pop-card .t { font-size: 17px; font-weight: 900; margin-bottom: 10px; }
+.lv-pop-intro { font-size: 14.5px; color: var(--text); opacity: 0.9; line-height: 1.6; margin-bottom: 4px; }
+.lv-pop-h { font-size: 13.5px; font-weight: 800; color: var(--muted); margin: 16px 0 7px; }
+.lv-pop-rows { display: flex; flex-direction: column; gap: 2px; }
+.lv-pop-row { display: flex; align-items: center; gap: 10px; padding: 7px 2px; font-size: 14.5px; font-weight: 700; }
+.lv-pop-row .ic { font-size: 17px; flex-shrink: 0; width: 22px; text-align: center; }
+.lv-pop-row .lbl { flex: 1; color: var(--text); }
+.lv-pop-row .val { color: var(--accent-lemon); font-weight: 800; font-size: 13.5px; flex-shrink: 0; text-align: right; }
+.oing-lv-pop-card .c { margin-top: 16px; width: 100%; background: var(--surface2); border: 1px solid var(--border2); color: var(--text); border-radius: 11px; padding: 11px 0; font-size: 14.5px; font-weight: 800; font-family: inherit; cursor: pointer; }
 
 /* 보드 — 모바일 네이티브 앱 스타일(좌측 정렬 중심, 정돈된 여백) */
 .rvb-head { position: relative; display: flex; align-items: center; gap: 14px; padding: 6px 2px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -3730,7 +3736,35 @@ if ('serviceWorker' in navigator) {
 <div class="oing-lv-pop" id="oingLvPop" style="display:none;">
   <div class="oing-lv-pop-card">
     <div class="t">⭐ 오잉 레벨 안내</div>
-    <div class="b">오잉 레벨은 지금까지 쌓은 활동과 기록을 나타내요.<br><br>플레이한 날과 오늘 목표 달성이 가장 크게 반영되고,<br>총 플레이 수와 최고점수·콤보도 함께 XP에 포함돼요.<br><br>베테랑 이후 상위 단계는 일정 점수 또는 콤보를 달성해야 승급할 수 있어요.</div>
+    <div class="lv-pop-intro">오잉 레벨은 지금까지 쌓은 활동과 기록을 나타내요.</div>
+
+    <div class="lv-pop-h">XP는 이렇게 쌓여요</div>
+    <div class="lv-pop-rows">
+      <div class="lv-pop-row"><span class="ic">🎮</span><span class="lbl">하루 첫 플레이</span><span class="val">+10 XP</span></div>
+      <div class="lv-pop-row"><span class="ic">⚡</span><span class="lbl">오늘 목표 달성</span><span class="val">+10 XP</span></div>
+      <div class="lv-pop-row"><span class="ic">📚</span><span class="lbl">총 플레이 기록</span><span class="val">단계별 보너스</span></div>
+      <div class="lv-pop-row"><span class="ic">🔥</span><span class="lbl">최장 연속 달성</span><span class="val">단계별 보너스</span></div>
+      <div class="lv-pop-row"><span class="ic">🏆</span><span class="lbl">최고점수·최고콤보</span><span class="val">소량 보너스</span></div>
+    </div>
+
+    <div class="lv-pop-h">상위 단계 승급</div>
+    <div class="lv-pop-rows">
+      <div class="lv-pop-row"><span class="ic">💎</span><span class="lbl">오잉코어</span><span class="val">6,000점 또는 100콤보</span></div>
+      <div class="lv-pop-row"><span class="ic">👑</span><span class="lbl">전설의 오잉러</span><span class="val">12,000점 또는 200콤보</span></div>
+      <div class="lv-pop-row"><span class="ic">🌟</span><span class="lbl">오잉신</span><span class="val">25,000점 또는 400콤보</span></div>
+    </div>
+
+    <div class="lv-pop-h">전체 레벨</div>
+    <div class="lv-pop-rows">
+      <div class="lv-pop-row"><span class="ic">🌱</span><span class="lbl">Lv.1 새싹</span></div>
+      <div class="lv-pop-row"><span class="ic">🍮</span><span class="lbl">Lv.2~3 말랑</span></div>
+      <div class="lv-pop-row"><span class="ic">🐾</span><span class="lbl">Lv.4~6 단골</span></div>
+      <div class="lv-pop-row"><span class="ic">🔥</span><span class="lbl">Lv.7~10 베테랑</span></div>
+      <div class="lv-pop-row"><span class="ic">💎</span><span class="lbl">Lv.11~15 오잉코어</span></div>
+      <div class="lv-pop-row"><span class="ic">👑</span><span class="lbl">Lv.16~19 전설의 오잉러</span></div>
+      <div class="lv-pop-row"><span class="ic">🌟</span><span class="lbl">Lv.20 오잉신</span></div>
+    </div>
+
     <button class="c" id="oingLvPopClose" type="button">알겠어요</button>
   </div>
 </div>
@@ -10480,10 +10514,10 @@ function oingTitleOf(lv) {
   if (lv >= 20) return '🌟 오잉신';
   if (lv >= 16) return '👑 전설의 오잉러';
   if (lv >= 11) return '💎 오잉코어';
-  if (lv >= 7)  return '🔥 베테랑 오잉러';
-  if (lv >= 4)  return '🐾 단골 오잉러';
-  if (lv >= 2)  return '🍮 말랑 오잉러';
-  return '🌱 새싹 오잉러';
+  if (lv >= 7)  return '🔥 베테랑';
+  if (lv >= 4)  return '🐾 단골';
+  if (lv >= 2)  return '🍮 말랑';
+  return '🌱 새싹';
 }
 // 필드가 없는 기존 유저의 daysPlayed 보수 보정 — firstPlayed가 폴백값(6/22 정각)인 구 유저가
 // 있어 "첫 플레이 후 일수"만으로는 뻥튀기됨 → 실측 기반인 goalTotalCount+3 캡으로 묶는다.
