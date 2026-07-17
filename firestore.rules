@@ -325,6 +325,8 @@ service cloud.firestore {
     match /thanks_toggle_clicks/{d}  { allow read: if true; allow create: if validLog(); }
     // ⭐ 게임 리뷰 입구 버튼 클릭 (랭킹탭/메인 어디서 눌렀는지 source로 구분)
     match /review_entry_clicks/{d}   { allow read: if true; allow create: if validReviewClickLog(); }
+    // 👤 내 정보 열람 기록 — 필드 구성이 리뷰 클릭과 동일(nickname/ts/date/source)이라 같은 검증 재사용
+    match /myinfo_clicks/{d}         { allow read: if true; allow create: if validReviewClickLog(); }
 
     // ⭐ 리뷰 요청 카드 "본 사람" 기록 — 문서 id = uid. 사람당 1회 노출 판정 + 어드민 추적.
     //  본인만 자기 문서 생성/수정/조회. action: 노출('shown')·리뷰남기기('write')·그냥계속('dismiss').

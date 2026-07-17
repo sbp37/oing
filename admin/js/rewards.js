@@ -45,6 +45,22 @@ async function grantJelly(nick, amount) {
   resultMsg('rwResult', `🍬 '${escapeHtml(nick)}' 님에게 젤리 ${fmtNum(amount)}개를 지급했어요. (기존 ${fmtNum(data.jelly || 0)}개)`);
 }
 
+// 💛 새(안 읽은) 입금자명 쪽지 배지 — adminUnread=true 개수 count 집계(문서 다운로드 0).
+// 답장을 보내면 adminUnread=false로 바뀌어 배지가 자연히 줄어든다.
+export async function loadDonateNewBadge() {
+  const badge = document.getElementById('donateNewBadge');
+  const countEl = document.getElementById('donateNewCount');
+  if (!badge || !countEl) return;
+  try {
+    const n = await countQuery(query(collection(db, 'feedback_donate'), where('adminUnread', '==', true)));
+    if (n > 0) { countEl.textContent = n >= 50 ? '50+' : String(n); badge.style.display = ''; }
+    else badge.style.display = 'none';
+  } catch (e) {
+    console.warn('새 입금자명 배지 로드 실패(무해):', e && (e.code || e.message));
+    badge.style.display = 'none';
+  }
+}
+
 // ── 후원 확인 쪽지함 (feedback_donate) ──
 // 답장은 일반 피드백과 완전히 동일한 구조 재사용: messages 배열에 {from:'admin'} 추가 +
 // userUnread:true (유저 접속 시 "새 답변" 배너·지난 글 보기 NEW 표시) + adminUnread:false.
@@ -217,6 +233,7 @@ function renderDonateFeedback() {
         await setDoc(doc(db, 'feedback_donate', id), { messages, lastTs: ts, userUnread: true, adminUnread: false }, { merge: true });
         Object.assign(row, { messages, lastTs: ts, userUnread: true, adminUnread: false });
         renderDonateFeedback();
+        loadDonateNewBadge(); // 상단 배지 개수 갱신
       } catch (e) {
         alert('답장 전송 실패: ' + humanError(e));
       }
@@ -257,6 +274,7 @@ const CLICK_LABELS = {
   review_prompt_shown: '📣 리뷰요청 노출',
   updatelog_clicks: '업데이트로그',
   thanks_toggle_clicks: '감사메시지 열람',
+  myinfo_clicks: '👤 내 정보 열람',
 };
 const REVIEW_SOURCE_LABEL = { rank: '랭킹탭', main: '메인' };
 // 컬렉션별 pager/rows/오늘 카운트를 세션 내 캐시 — 로그 종류를 오가도 재조회 없음
@@ -277,8 +295,8 @@ function clickRowHtml(colName, r) {
         ${pending ? `<button class="btn btn-primary btn-sm skinreq-fulfill" data-reqid="${escapeHtml(r.id)}">처리 완료</button>` : ''}
       </div>`;
   }
-  // ⭐ 리뷰 버튼 클릭 — 랭킹탭/메인 어디서 눌렀는지 배지로 구분 표시
-  if (colName === 'review_entry_clicks') {
+  // ⭐ 리뷰 버튼 / 👤 내 정보 클릭 — 랭킹탭/메인 어디서 눌렀는지 배지로 구분 표시 (같은 필드 구조)
+  if (colName === 'review_entry_clicks' || colName === 'myinfo_clicks') {
     const srcLabel = REVIEW_SOURCE_LABEL[r.source] || '알 수 없음';
     return `
       <div class="list-row">

@@ -2831,10 +2831,10 @@ if ('serviceWorker' in navigator) {
 
         <div class="my-rank-info" id="myRankInfo"></div>
         <div class="nick-change-wrap" style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
-          <button class="nick-change-btn" id="nickChangeWrapBtn">닉네임 변경</button>
-          <button class="nick-change-btn" id="pinCheckBtn">🔑 내 핀번호</button>
+          <!-- 닉네임 변경·🔑 내 핀번호·🗑️ 내 기록 삭제는 👤 내 정보 화면으로 통합됨(삭제 버튼은 내 정보 하단으로 이동).
+               🔗 계정 연결·🎨 닉네임 꾸미기는 조건부 노출 기능이라 그대로 유지. -->
+          <button class="nick-change-btn" id="myInfoOpenRankBtn">👤 내 정보 보기</button>
           <button class="nick-change-btn" id="accountLinkBtn" style="display:none; border-color:#3b82f655; color:#60a5fa;">🔗 계정 연결</button>
-          <button class="nick-change-btn" id="deleteMyRankBtn" style="border-color:#DD603255; color:#DD6032;">🗑️ 내 기록 삭제</button>
           <button class="nick-change-btn" id="skinOpenBtn" style="display:none; border-color:#fbbf2455; color:#fbbf24;">🎨 닉네임 꾸미기</button>
         </div>
         <div style="text-align:center; margin:22px 0 6px; font-size:11px; color:var(--muted); line-height:1.9;">
@@ -3294,6 +3294,18 @@ if ('serviceWorker' in navigator) {
     </div>
     <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
 
+      <!-- v4.3 -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v4.3</div>
+        <span id="newBadge43" style="display:none;background:#DD6032;color:white;font-size:11px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:#DA9845;margin-bottom:5px;">🎉 새 기능 · 개선</div>
+      <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
+        <li>▫️ 👤 <b>내 정보</b> — 메인의 프로필 칩을 누르면 내 기록(최고점수·콤보·만난 고양이 등)과 닉네임 변경, 핀번호를 한곳에서 볼 수 있어요</li>
+        <li>▫️ 💡 <b>힌트 개선</b> — 힌트로 표시된 칸을 누르면 파란 선택 표시가 바로 보이고, 나머지 정답 칸은 초록으로 남아있어요 (힌트도 조금 더 오래 보여요)</li>
+      </ul>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
+
       <!-- v4.2 -->
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
         <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v4.2</div>
@@ -3651,9 +3663,9 @@ if ('serviceWorker' in navigator) {
 
 <!-- 👤 내정보 오버레이 (v1) — 기존 로컬 캐시 데이터만 표시(서버 추가 읽기 0) -->
 <div id="myInfoOverlay" class="overlay" style="display:none;">
-  <div class="overlay-card" style="position:relative; max-width:370px;">
+  <div class="overlay-card" style="position:relative; max-width:370px; max-height:86vh; overflow-y:auto;">
     <button id="myInfoCloseBtn" style="position:absolute; top:10px; right:10px; width:30px; height:30px; border-radius:10px; background:var(--surface2); border:1px solid var(--border); color:var(--muted); font-size:14px; font-weight:800; font-family:inherit; cursor:pointer;">✕</button>
-    <div class="overlay-title" style="font-size:17px; margin-bottom:12px;">👤 내정보</div>
+    <div class="overlay-title" style="font-size:17px; margin-bottom:12px;">👤 내 정보</div>
     <div class="myi-profile">
       <div class="myi-avatar" id="myiAvatar">🐱</div>
       <div style="flex:1; min-width:0;">
@@ -3684,6 +3696,8 @@ if ('serviceWorker' in navigator) {
         <div class="myi-hint">새 기기에서 같은 닉네임으로 시작하고 이 핀번호를 입력하면<br>기록·스트릭이 그대로 이어져요 🐱</div>
       </div>
     </div>
+    <!-- 내 기록 삭제 — 랭킹탭에서 이곳으로 이동(기존 핸들러 id 그대로 재사용). 조용한 저강조 버튼 -->
+    <button class="nick-change-btn" id="deleteMyRankBtn" style="display:block; margin:14px auto 0; border-color:#DD603255; color:#DD6032; opacity:0.7; font-size:11.5px; padding:6px 12px;">🗑️ 내 기록 삭제</button>
   </div>
 </div>
 
@@ -8950,7 +8964,7 @@ function askPinVerification(nickname) {
     const cancelBtn = document.getElementById('pinVerifyCancelBtn');
     const descEl = document.getElementById('pinVerifyDesc');
 
-    descEl.innerHTML = `'<b style="color:var(--blue-light)">${escapeHtml(nickname)}</b>'은 이미 주인이 있는 닉네임이다냥!<br>본인 계정이 맞다면 — 쓰던 기기의 <b>랭킹 탭 맨 아래<br>🔑 내 핀번호</b>에서 4자리를 보고 입력해달라냥.<br><span style="font-size:12px; color:var(--muted);">다른 사람 닉네임이라면 취소하고 새 이름을 골라달라냥 🐾</span>`;
+    descEl.innerHTML = `'<b style="color:var(--blue-light)">${escapeHtml(nickname)}</b>'은 이미 주인이 있는 닉네임이다냥!<br>본인 계정이 맞다면 — 쓰던 기기의 <b>메인 화면 👤 내 정보<br>→ 연결 정보 보기</b>에서 4자리를 보고 입력해달라냥.<br><span style="font-size:12px; color:var(--muted);">다른 사람 닉네임이라면 취소하고 새 이름을 골라달라냥 🐾</span>`;
     input.value = '';
     errorEl.style.display = 'none';
     overlay.style.display = 'flex';
@@ -9076,7 +9090,7 @@ function maybeShowPinIntro(el) {
     el.innerHTML += `
       <div style="margin-top:10px; padding:11px 13px; border-radius:12px; background:var(--surface2); border:1px solid var(--blue-bright); line-height:1.65; text-align:center;">
         <div style="font-size:13px; color:var(--blue-light); font-weight:800;">🔑 내 핀번호 &nbsp;<b style="font-size:19px; letter-spacing:4px; color:var(--text);">${escapeHtml(pin)}</b></div>
-        <div style="font-size:12px; color:var(--muted); margin-top:5px;">폰 바꾸거나 새 기기에서 이어할 때 이 번호가 필요하다냥! 📸 캡처해두면 좋다냥~<br>랭킹 탭 맨 아래 <b>"🔑 내 핀번호"</b>에서 언제든 다시 볼 수 있다냥</div>
+        <div style="font-size:12px; color:var(--muted); margin-top:5px;">폰 바꾸거나 새 기기에서 이어할 때 이 번호가 필요하다냥! 📸 캡처해두면 좋다냥~<br>메인 화면 <b>👤 내 정보 → 연결 정보 보기</b>에서 언제든 다시 볼 수 있다냥</div>
       </div>`;
   } catch (e) { /* 안내 실패는 무시 — 등록 자체엔 영향 없음 */ }
 }
@@ -10277,7 +10291,7 @@ document.getElementById('freeModeEndBtn').addEventListener('click', () => {
 document.getElementById('sideRestartBtn').addEventListener('click', () => {
   startGame();
 });
-document.getElementById('nickChangeWrapBtn').addEventListener('click', changeNickname);
+// (랭킹탭 '닉네임 변경' 버튼은 👤 내 정보로 통합돼 제거 — changeNickname은 내 정보의 ✏️수정에서 재사용)
 
 // ══════════════════════════════
 //  👤 내정보 v1 — 메인 프로필 칩 → 내 프로필·내 기록·기기 연결 모달
@@ -10291,7 +10305,7 @@ function refreshMyInfoChip() {
   const nick = loadNickname();
   const nickEl = chip.querySelector('.mic-nick');
   const avEl = chip.querySelector('.mic-avatar');
-  if (nickEl) nickEl.textContent = nick || '내정보';
+  if (nickEl) nickEl.textContent = nick || '내 정보';
   if (avEl) avEl.innerHTML = (myCatSkinEnabled && typeof MY_CAT_IMG === 'string') ? `<img src="${MY_CAT_IMG}" alt="">` : '🐱';
   chip.style.display = 'inline-flex';
 }
@@ -10314,6 +10328,8 @@ function openMyInfoOverlay() {
   }
   const editBtn = document.getElementById('myiEditBtn');
   if (editBtn) editBtn.style.display = nick ? '' : 'none';
+  const delBtn = document.getElementById('deleteMyRankBtn');
+  if (delBtn) delBtn.style.display = nick ? 'block' : 'none'; // 익명은 지울 기록이 없으니 숨김
   const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
   const okNum = (v) => typeof v === 'number' && v > 0;
   set('myiBestScore', okNum(d.bestScore) ? d.bestScore.toLocaleString() : '—');
@@ -10341,7 +10357,18 @@ function closeMyInfoOverlay() {
   const ov = document.getElementById('myInfoOverlay');
   if (ov) ov.style.display = 'none';
 }
-document.getElementById('myInfoChip')?.addEventListener('click', openMyInfoOverlay);
+// 내 정보 열람 기록 — 다른 클릭 로그(review_entry_clicks)와 동일 패턴, 어디서 열었는지(source)만 추가
+function logMyInfoOpen(source) {
+  try {
+    addDoc(collection(db, 'myinfo_clicks'), {
+      nickname: loadNickname() || '익명',
+      source: (source === 'rank' || source === 'main') ? source : 'unknown',
+      ts: Date.now(), date: getTodayDateStr(),
+    });
+  } catch (e) { /* 로그 실패는 무해 */ }
+}
+document.getElementById('myInfoChip')?.addEventListener('click', () => { logMyInfoOpen('main'); openMyInfoOverlay(); });
+document.getElementById('myInfoOpenRankBtn')?.addEventListener('click', () => { logMyInfoOpen('rank'); openMyInfoOverlay(); });
 document.getElementById('myInfoCloseBtn')?.addEventListener('click', closeMyInfoOverlay);
 document.getElementById('myInfoOverlay')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeMyInfoOverlay(); });
 document.getElementById('myiEditBtn')?.addEventListener('click', () => { closeMyInfoOverlay(); try { changeNickname(); } catch {} });
@@ -10372,7 +10399,8 @@ document.getElementById('myiCopyBtn')?.addEventListener('click', async () => {
 // 칩 표시: 로드 직후 1회 + 스킨 플래그가 늦게 켜지는 경우 아바타 갱신용 1회
 setTimeout(() => { try { refreshMyInfoChip(); } catch {} }, 350);
 setTimeout(() => { try { refreshMyInfoChip(); } catch {} }, 1800);
-document.getElementById('pinCheckBtn').addEventListener('click', async () => {
+// (랭킹탭 '🔑 내 핀번호' 버튼은 👤 내 정보 → 연결 정보 보기로 통합돼 제거 — 옵셔널 체이닝으로 무해화)
+document.getElementById('pinCheckBtn')?.addEventListener('click', async () => {
   const myNick = loadNickname();
   const display = document.getElementById('pinDisplayValue');
   if (!myNick) {
@@ -10745,19 +10773,19 @@ document.addEventListener('mouseup', () => {
 });
 
 // 업데이트 내역 팝업
-const UPDATE_VERSION = 'v4.2';
+const UPDATE_VERSION = 'v4.3';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784290000; // v4.2 이후 — 👤 내정보 화면 v1 (프로필·내 기록·기기 연결 정보를 한곳에)(조용한 배포)
+const BUILD = 1784300000; // v4.3 — 내 정보 통합(랭킹탭 버튼 정리·클릭 기록)·업데이트 내역 v4.3 반영
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
-const SEEN_KEY = 'seenUpdate_v4.2';
+const SEEN_KEY = 'seenUpdate_v4.3';
 
 function openUpdateLog() {
   document.getElementById('updateLog').style.display = 'flex';
   // NEW 뱃지 숨기기 + 본 것으로 저장
   localStorage.setItem(SEEN_KEY, '1');
-  const badge = document.getElementById('newBadge42');
+  const badge = document.getElementById('newBadge43');
   if (badge) badge.style.display = 'none';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'none';
@@ -10770,7 +10798,7 @@ document.getElementById('updateLogBtn').addEventListener('click', openUpdateLog)
 
 // 최초 방문 시 NEW 뱃지 표시
 if (!localStorage.getItem(SEEN_KEY)) {
-  const badge = document.getElementById('newBadge42');
+  const badge = document.getElementById('newBadge43');
   if (badge) badge.style.display = 'inline';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'inline';
