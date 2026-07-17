@@ -458,6 +458,12 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // 닉네임 변경 이력(서버 함수가 기록) — 어드민이 유저 상세에서 이전 닉네임을 확인하는 용도.
+    // 일반 클라이언트는 읽기 불가(타인의 개명 이력은 비공개), 쓰기는 서버(Admin SDK)만.
+    match /rename_history/{id} {
+      allow read: if isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
