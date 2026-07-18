@@ -106,12 +106,12 @@ function toggleFeedback(id) {
   renderFeedback();
 }
 
-async function loadFeedback({ reset = false } = {}) {
+export async function loadFeedback({ reset = false } = {}) {
   const el = document.getElementById('feedbackList');
   const moreBtn = document.getElementById('feedbackMoreBtn');
   if (reset || !fbPager) {
-    // ts = 작성 시각(createdAt) — 최신 작성글이 항상 맨 위
-    fbPager = makePager(() => [collection(db, 'feedback'), orderBy('ts', 'desc')], PAGE_SIZE);
+    // ts = 작성 시각(createdAt) — 최신 작성글이 항상 맨 위. 처리함 기본 10건, 더 보기로 +10.
+    fbPager = makePager(() => [collection(db, 'feedback'), orderBy('ts', 'desc')], 10);
     fbRows.length = 0;
     fbExpanded.clear();
   }
@@ -198,11 +198,10 @@ async function loadVersion({ force = false } = {}) {
 }
 
 // ── 바인딩 / 로드 ──
-export function initOperationsTab() {
+// 처리함(inbox) 문의 UI 바인딩 — 더 보기 + 카드 펼치기/접기 위임
+export function initFeedbackUI() {
   const moreBtn = document.getElementById('feedbackMoreBtn');
   moreBtn.addEventListener('click', () => loadFeedback());
-
-  // 카드 펼치기/접기 위임 — 답글 입력란/버튼 클릭은 토글로 취급하지 않음
   document.getElementById('feedbackList').addEventListener('click', (e) => {
     if (e.target.closest('.fb-reply-row')) return;
     const collapsed = e.target.closest('.fb-item.collapsed');
@@ -210,7 +209,10 @@ export function initOperationsTab() {
     const head = e.target.closest('.fb-toggle');
     if (head) toggleFeedback(head.closest('.fb-item').dataset.id);
   });
+}
 
+// 관리(tools)>게임 운영 바인딩 — 함께해주신 분·명예의전당
+export function initOperationsTab() {
   const saveBtn = document.getElementById('opThanksSaveBtn');
   saveBtn.addEventListener('click', guardBtn(saveBtn, async () => {
     const text = (document.getElementById('opThanksText').value || '').trim();
@@ -241,10 +243,9 @@ export function initOperationsTab() {
   }));
 }
 
+// 관리>게임 운영 아코디언을 열 때만 호출 — 문의는 처리함(inbox)이 별도 로드
 export async function loadOperations({ force = false } = {}) {
-  if (force) fbPager = null;
   await Promise.allSettled([
-    loadFeedback({ reset: force }),
     loadThanks({ force }),
     loadHall({ force }),
     loadVersion({ force }),

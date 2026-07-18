@@ -365,10 +365,10 @@ function verdictRowHtml(d) {
     </div>`;
 }
 
-async function loadVerdicts({ force = false } = {}) {
+export async function loadVerdicts({ force = false } = {}) {
   const el = document.getElementById('verdictList');
   const seenListEl = document.getElementById('verdictSeenList');
-  const seenToggle = document.getElementById('verdictSeenToggle');
+  const seenToggle = document.getElementById('verdictSeenToggle'); // 구 UI 전용 — 새 처리함에선 null
   const ackBtn = document.getElementById('verdictAckBtn');
   if (force) cache.bust('security:verdicts');
   setLoading(el);
@@ -390,7 +390,21 @@ async function loadVerdicts({ force = false } = {}) {
       ? newSuspects.map(verdictRowHtml).join('')
       : `<div class="list-empty">✅ 새 의심 판정 없음</div>`;
 
-    // 토글: 이미 확인한 의심 + 검증불가 — 기본 접힘
+    // 새 처리함(토글 버튼 없음): "처리 완료" 탭에 항상 렌더 — 표시/숨김은 서브탭이 담당
+    if (!seenToggle && seenListEl) {
+      seenListEl.innerHTML = folded.length
+        ? (seenSuspects.length ? seenSuspects.map(verdictRowHtml).join('') : '') +
+          (unverifiable.length
+            ? `<div class="card-note" style="margin:10px 0 6px;">❔ 검증 불가 (서버세션 없음) — 치팅 의심이 아니라 서버세션이 생성되지 않아 판정을 확정할 수 없는 기록입니다.</div>
+               ${unverifiable.map(verdictRowHtml).join('')}`
+            : '') +
+          (elapsedOnly.length
+            ? `<div class="card-note" style="margin:10px 0 6px;">⏱️ 짧은 플레이(30초 미만) — 대부분 오탐입니다. 점수는 랭킹에 반영되지 않지만 계정 조치는 필요 없습니다.</div>
+               ${elapsedOnly.map(verdictRowHtml).join('')}`
+            : '')
+        : `<div class="list-empty">처리 완료한 기록이 없어요</div>`;
+    }
+    // 구 UI 토글: 이미 확인한 의심 + 검증불가 — 기본 접힘
     if (seenToggle && seenListEl) {
       if (folded.length) {
         seenToggle.style.display = '';
@@ -423,8 +437,8 @@ async function loadVerdicts({ force = false } = {}) {
   }
 }
 
-// "모두 확인" — 현재 안 본 의심을 전부 확인 처리 → 배지 사라지고 목록은 접힘으로 이동.
-async function ackAllVerdicts() {
+// "모두 확인" — 현재 안 본 의심을 전부 확인 처리 → 배지 사라지고 목록은 처리 완료로 이동.
+export async function ackAllVerdicts() {
   const rows = cache.peek('security:verdicts') || [];
   const seen = loadSeenIds();
   const newIds = rows.filter(d => !isLowSignal(d) && !seen.has(d.id)).map(d => d.id);
@@ -779,27 +793,6 @@ export function initSecurityTab() {
   const crownBtn = document.getElementById('resetCrownBtn');
   crownBtn.addEventListener('click', guardBtn(crownBtn, resetCrown));
 
-  const verdictBtn = document.getElementById('verdictRefreshBtn');
-  verdictBtn.addEventListener('click', guardBtn(verdictBtn, () => loadVerdicts({ force: true })));
-
-  const ackBtn = document.getElementById('verdictAckBtn');
-  if (ackBtn) ackBtn.addEventListener('click', guardBtn(ackBtn, ackAllVerdicts));
-
-  const seenToggle = document.getElementById('verdictSeenToggle');
-  if (seenToggle) seenToggle.addEventListener('click', () => {
-    const listEl = document.getElementById('verdictSeenList');
-    if (!listEl) return;
-    const open = seenToggle.dataset.open === '1';
-    seenToggle.dataset.open = open ? '0' : '1';
-    listEl.style.display = open ? 'none' : 'block';
-    seenToggle.textContent = open
-      ? `이미 확인한 항목 보기 (${seenToggle.dataset.count || ''})`
-      : '이미 확인한 항목 숨기기';
-  });
 }
-
-// 보안 탭을 열면 의심 판정 목록만 표시한다 (진입 시 이미 배지용으로 받아둔 캐시 재사용 → 추가 조회 0).
-// 나머지 조회(스캔·백업·초기화)는 전부 버튼 클릭으로만.
-export async function loadSecurity() {
-  await loadVerdicts();
-}
+// (2026-07 개편) 의심 판정 UI는 처리함(inbox.js)으로 이동 — loadVerdicts/ackAllVerdicts export 사용.
+// 이 파일의 initSecurityTab은 관리(tools) 탭의 보안 도구·백업·초기화 바인딩만 담당한다.
