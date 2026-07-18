@@ -34,7 +34,6 @@
       <button id="verdictBadge" class="verdict-badge" style="display:none;" title="서버가 자동 판정한 의심 세션 — 눌러서 확인">🚨 의심 판정 <b id="verdictBadgeCount">0</b>건</button>
       <button id="reviewPendingBadge" class="verdict-badge review-pending-badge" style="display:none;" title="보류된 리뷰 — 눌러서 승인/거부">📝 보류 리뷰 <b id="reviewPendingCount">0</b>건</button>
       <button id="feedbackNewBadge" class="verdict-badge" style="display:none;" title="아직 안 읽은 문의/피드백 — 눌러서 확인">💬 새 피드백 <b id="feedbackNewCount">0</b>건</button>
-      <button id="donateNewBadge" class="verdict-badge" style="display:none;" title="아직 안 읽은 입금자명(후원 확인) 쪽지 — 눌러서 확인">💛 새 입금자명 <b id="donateNewCount">0</b>건</button>
       <span id="readCounter" class="read-counter" title="이번 세션의 Firestore 조회량 추정치 — 실제 청구 읽기 수와 다소 차이가 있을 수 있어요">추정 읽기 0 · 쿼리 0</span>
       <button id="logoutBtn" class="btn btn-ghost btn-sm">잠금</button>
     </div>
@@ -45,7 +44,7 @@
     <button class="tab-btn" data-tab="users">👥 유저</button>
     <button class="tab-btn" data-tab="analytics">📈 분석</button>
     <button class="tab-btn" data-tab="security">🛡️ 보안</button>
-    <button class="tab-btn" data-tab="rewards">💛 후원·리워드</button>
+    <button class="tab-btn" data-tab="rewards">🎁 보내기</button>
     <button class="tab-btn" data-tab="operations">🛠️ 운영</button>
   </nav>
 
@@ -288,36 +287,57 @@
     <!-- ── 후원·리워드 ── -->
     <section id="tab-rewards" class="tab-section" style="display:none;">
       <div class="section-head">
-        <h2>후원 / 리워드</h2>
-        <button class="btn btn-ghost btn-sm refresh-btn" data-refresh="rewards">↻ 후원 새로고침</button>
+        <h2>🎁 유저에게 보내기</h2>
+        <button class="btn btn-ghost btn-sm refresh-btn" data-refresh="rewards">↻ 새로고침</button>
       </div>
 
       <div class="card">
-        <div class="card-head"><h3>🎁 리워드 지급</h3></div>
-        <div class="row">
-          <input id="rwNick" type="text" placeholder="닉네임">
+        <div class="send-sub">친구나 고마운 유저에게 스킨 또는 메시지를 보낼 수 있어요.</div>
+
+        <input id="rwNick" type="text" placeholder="받는 사람 닉네임">
+
+        <div class="seg" id="rwSeg">
+          <button class="seg-btn active" data-kind="skin">🎁 스킨 선물</button>
+          <button class="seg-btn" data-kind="note">💌 개인 쪽지</button>
+          <button class="seg-btn" data-kind="greeting">💛 감사 인사</button>
         </div>
-        <div class="btn-row" style="margin-top:8px;">
-          <button id="rwSkinGrantBtn" class="btn btn-primary">😻 고양이 스킨 지급</button>
-          <button id="rwSkinRevokeBtn" class="btn btn-ghost">스킨 해제</button>
+
+        <!-- 스킨 선물 -->
+        <div class="rw-panel skin" data-panel="skin">
+          <div class="rw-title">🎁 고양이 스킨 선물하기</div>
+          <div class="rw-desc">선택한 유저에게 스킨과 짧은 메시지를 함께 보내요.</div>
+          <div class="rw-fixed">보낼 스킨 · <b>😻 고양이 스킨</b></div>
+          <textarea id="rwSkinMsg" rows="2" placeholder="함께 보낼 말을 적어주세요. (선택)"></textarea>
+          <div class="btn-row" style="margin-top:8px;">
+            <button id="rwSkinGiftBtn" class="btn btn-gold">🎁 스킨 선물 보내기</button>
+            <button id="rwSkinRevokeBtn" class="btn btn-ghost btn-sm">스킨 해제</button>
+          </div>
         </div>
-        <textarea id="rwThanksText" rows="2" placeholder="쪽지 내용 (비우면 기본 감사 문구) — 예: 쑤님 입금 확인했어요! 스킨 곧 보내드릴게요 💛" style="margin-top:8px;"></textarea>
-        <div class="btn-row" style="margin-top:6px;">
-          <button id="rwThanksNoteBtn" class="btn btn-warm">💌 감사 쪽지 보내기</button>
+
+        <!-- 개인 쪽지 -->
+        <div class="rw-panel note" data-panel="note" style="display:none;">
+          <div class="rw-title">💌 개인 쪽지 보내기</div>
+          <div class="rw-desc">스킨 없이 메시지만 따로 보내요.</div>
+          <textarea id="rwNoteMsg" rows="2" placeholder="전하고 싶은 말을 적어주세요."></textarea>
+          <div class="btn-row" style="margin-top:8px;">
+            <button id="rwNoteBtn" class="btn btn-pink">💌 쪽지 보내기</button>
+          </div>
         </div>
-        <div class="card-note">쪽지는 닉네임만 알면 누구에게나 보낼 수 있어요 (계정 연결 불필요). 다음 접속 때 팝업으로 표시됩니다.</div>
-        <div class="row" style="margin-top:8px;">
-          <input id="rwJellyAmount" type="number" min="1" placeholder="젤리 개수">
-          <button id="rwJellyBtn" class="btn btn-warm">🍬 젤리 지급</button>
+
+        <!-- 감사 인사 -->
+        <div class="rw-panel greeting" data-panel="greeting" style="display:none;">
+          <div class="rw-title">💛 감사 인사 보내기</div>
+          <div class="rw-desc">미리 정해진 문구로 짧게 마음을 전해요.</div>
+          <div class="rw-fixed">보내지는 문구 · <b id="rwGreetPreview">○○님 감사합니다!</b></div>
+          <div class="btn-row" style="margin-top:8px;">
+            <button id="rwGreetBtn" class="btn btn-yellow">💛 감사 인사 보내기</button>
+          </div>
         </div>
-        <div class="card-note">지급/해제/쪽지는 유저가 다음에 게임을 열 때 알림 팝업으로 한 번 전달돼요.</div>
+
+        <button id="rwPreviewBtn" class="btn btn-ghost btn-sm btn-block" style="margin-top:10px;">👀 받는 화면 미리보기</button>
+        <div id="rwPreview" style="display:none; margin-top:10px;"></div>
+        <div class="card-note" style="margin-top:8px;">셋 다 유저가 다음에 게임을 열 때 팝업으로 한 번 전달돼요. (닉네임만 알면 계정 연결 없이 전송 가능)</div>
         <div id="rwResult"></div>
-      </div>
-
-      <div class="card">
-        <div class="card-head"><h3>💌 후원 확인 쪽지함</h3></div>
-        <div id="donateFeedbackList" class="list"></div>
-        <button id="donateFeedbackMoreBtn" class="btn btn-ghost btn-block">이전 기록 더 보기</button>
       </div>
 
       <div class="card">

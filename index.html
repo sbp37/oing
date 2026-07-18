@@ -3123,26 +3123,27 @@ if ('serviceWorker' in navigator) {
   </div>
 </div>
 
-<!-- 스킨 지급 알림 팝업 -->
+<!-- 스킨 선물 도착 팝업 -->
 <div id="skinNotifyOverlay" class="overlay" style="display:none;">
   <div class="overlay-card" style="max-width:300px; text-align:center;">
-    <div style="font-size:44px; margin-bottom:6px;">🐱</div>
-    <div class="overlay-title" style="font-size:17px;" id="skinNotifyTitle">응원해주셔서 감사합니다냥😻</div>
-    <div style="font-size:15px; color:var(--text); margin-top:6px; line-height:1.6;">리워드 배송왔다냥~🐾<br><span style="font-size:13px; color:var(--muted);">게임창에서 확인해보라냥!</span></div>
-    <button id="skinNotifyCloseBtn" class="action-btn" style="width:100%; margin-top:16px;">확인했다냥!</button>
+    <div style="font-size:44px; margin-bottom:6px;">🎁</div>
+    <div class="overlay-title" style="font-size:17px;" id="skinNotifyTitle">고양이 스킨이 도착했어요!</div>
+    <div style="font-size:14px; color:var(--muted); margin-top:6px; line-height:1.6;">새로운 친구가 찾아왔어요 🐾</div>
+    <div id="skinNotifyNote" style="display:none; font-size:13.5px; color:var(--text); margin-top:10px; line-height:1.5; white-space:pre-wrap; background:var(--surface2); border-radius:10px; padding:9px 12px;"></div>
+    <button id="skinNotifyCloseBtn" class="action-btn" style="width:100%; margin-top:16px;">스킨 확인하기</button>
     <div style="font-size:11.5px; color:var(--muted); margin-top:12px; line-height:1.5;">
       혹시 안 보이면 새로고침하거나 창을 껐다 다시 켜보세요.<br>그래도 안 보이면 문의하기로 남겨주세요.
     </div>
   </div>
 </div>
 
-<!-- 감사 쪽지 팝업 (스킨 없이 감사 인사만 보낼 때) -->
+<!-- 쪽지/감사 인사 팝업 (개인 쪽지 · 감사 인사 공용, 내용은 JS에서 채움) -->
 <div id="thanksNoteOverlay" class="overlay" style="display:none;">
   <div class="overlay-card" style="max-width:300px; text-align:center;">
-    <div style="font-size:44px; margin-bottom:6px;">😻</div>
-    <div class="overlay-title" style="font-size:17px;" id="thanksNoteTitle">응원해주셔서 감사합니다냥😻</div>
-    <div id="thanksNoteMsg" style="font-size:13.5px; color:var(--muted); margin-top:8px; line-height:1.5; white-space:pre-wrap;">덕분에 게임이 계속 자란다냥🐾</div>
-    <button id="thanksNoteCloseBtn" class="action-btn" style="width:100%; margin-top:16px;">😸</button>
+    <div id="thanksNoteEmoji" style="font-size:44px; margin-bottom:6px;">💛</div>
+    <div class="overlay-title" style="font-size:17px;" id="thanksNoteTitle">감사합니다!</div>
+    <div id="thanksNoteMsg" style="font-size:13.5px; color:var(--muted); margin-top:8px; line-height:1.5; white-space:pre-wrap;"></div>
+    <button id="thanksNoteCloseBtn" class="action-btn" style="width:100%; margin-top:16px;">확인했어요</button>
   </div>
 </div>
 
@@ -11439,7 +11440,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.5';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1785010000; // v4.6 — 추월 알림 주간 반영(전체·이번 주 각각 "N계단↑ 이름님을 이겼다냥") + 막힘안내 토스트 제거
+const BUILD = 1785030000; // v4.6.1 — 받는 팝업 개편(스킨선물 도착·개인쪽지·감사인사 3종, '리워드/배송' 표현 제거, '확인했어요' 버튼)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
@@ -12686,35 +12687,41 @@ async function checkSkinNotification() {
     }
     if (!d || !ref) return;
     if (d.notifyPending) {
-      // 리워드(스킨) 배송 알림
+      // ① 스킨 선물 도착 — 관리자가 skinNote를 넣었으면 함께 표시
       const titleEl = document.getElementById('skinNotifyTitle');
-      if (titleEl) titleEl.textContent = `${myNick}님, 응원해주셔서 감사합니다냥😻`;
+      if (titleEl) titleEl.textContent = `${myNick}님, 고양이 스킨이 도착했어요!`;
+      const noteEl = document.getElementById('skinNotifyNote');
+      const skinNote = (typeof d.skinNote === 'string') ? d.skinNote.trim() : '';
+      if (noteEl) {
+        if (skinNote) { noteEl.textContent = skinNote; noteEl.style.display = ''; }
+        else { noteEl.textContent = ''; noteEl.style.display = 'none'; } // 메시지 없으면 빈 영역 숨김
+      }
       const overlay = document.getElementById('skinNotifyOverlay');
       if (overlay) overlay.style.display = 'flex';
       await setDoc(ref, { notifyPending: false, thanksPending: false }, { merge: true });
     } else if (d.thanksPending) {
-      // 감사 쪽지만 (리워드 없이) — 관리자가 thanksText를 넣어뒀으면 그 문구를 그대로 보여줌
+      // ②③ 개인 쪽지 / 감사 인사 — thanksKind로 구분. 구버전 데이터(kind 없음)는
+      //     thanksText 유무로 note/greeting을 추정해 하위호환.
+      const kind = d.thanksKind || (typeof d.thanksText === 'string' && d.thanksText.trim() ? 'note' : 'greeting');
+      const emojiEl = document.getElementById('thanksNoteEmoji');
       const titleEl = document.getElementById('thanksNoteTitle');
-      if (titleEl) titleEl.textContent = `${myNick}님, 응원해주셔서 감사합니다냥😻`;
       const msgEl = document.getElementById('thanksNoteMsg');
-      const customMsg = (typeof d.thanksText === 'string' && d.thanksText.trim()) ? d.thanksText.trim() : '';
-      if (msgEl) msgEl.textContent = customMsg || '덕분에 게임이 계속 자란다냥🐾';
-      const overlay = document.getElementById('thanksNoteOverlay');
-      if (overlay) {
-        overlay.style.display = 'flex';
-        // 기본 쪽지는 잠시 후 자동으로 사라짐. 직접 쓴 쪽지는 읽을 시간이 필요하니
-        // 자동으로 닫지 않고 유저가 버튼을 눌러 닫게 둔다.
-        if (!customMsg) {
-          setTimeout(() => {
-            overlay.style.transition = 'opacity 0.6s';
-            overlay.style.opacity = '0';
-            setTimeout(() => { overlay.style.display = 'none'; overlay.style.opacity = '1'; overlay.style.transition = ''; }, 650);
-          }, 4500);
-        }
+      if (kind === 'note') {
+        // 개인 쪽지 — 자유 문구
+        if (emojiEl) emojiEl.textContent = '💌';
+        if (titleEl) titleEl.textContent = `${myNick}님, 쪽지가 도착했어요!`;
+        if (msgEl) { msgEl.textContent = (typeof d.thanksText === 'string' ? d.thanksText.trim() : ''); msgEl.style.color = 'var(--text)'; }
+      } else {
+        // 감사 인사 — 정해진 문구(닉네임 자동 삽입)
+        if (emojiEl) emojiEl.textContent = '💛';
+        if (titleEl) titleEl.textContent = `${myNick}님 감사합니다!`;
+        if (msgEl) { msgEl.textContent = '오잉게임과 함께해주셔서 고마워요 🐾'; msgEl.style.color = 'var(--muted)'; }
       }
+      const overlay = document.getElementById('thanksNoteOverlay');
+      if (overlay) overlay.style.display = 'flex'; // 둘 다 '확인했어요' 버튼으로 직접 닫음(자동 닫힘 없음)
       await setDoc(ref, { thanksPending: false }, { merge: true });
     }
-  } catch (e) { console.warn('스킨/감사 알림 확인 실패:', e); }
+  } catch (e) { console.warn('스킨/쪽지 알림 확인 실패:', e); }
 }
 document.getElementById('thanksNoteCloseBtn').addEventListener('click', () => {
   document.getElementById('thanksNoteOverlay').style.display = 'none';
