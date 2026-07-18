@@ -77,37 +77,15 @@ function feedbackItemHtml(d) {
         <div class="fb-msg ${m.from === 'admin' ? 'from-admin' : ''}">
           <span class="bubble">${escapeHtml(m.text)}</span>
         </div>`).join('')}
-      <div class="fb-reply-row">
-        <textarea class="fb-reply-input" placeholder="답글 작성..." rows="2"></textarea>
-        <button class="btn btn-primary btn-sm fb-reply-btn">답글 보내기</button>
-      </div>
+      <div class="card-note">답장은 게임 안 피드백함(운영자 기기)에서 — 대시보드는 열람 전용</div>
     </div>`;
 }
 
+// 답장 기능은 게임 안 피드백함(운영자 기기, 양방향 대화)으로 통합 이전 — 대시보드는 열람 전용
 function renderFeedback() {
   const el = document.getElementById('feedbackList');
   if (!fbRows.length) { setEmpty(el, '문의가 없어요'); return; }
   el.innerHTML = fbRows.map(feedbackItemHtml).join('');
-  el.querySelectorAll('.fb-reply-btn').forEach(btn => {
-    btn.addEventListener('click', guardBtn(btn, async () => {
-      const item = btn.closest('.fb-item');
-      const id = item.dataset.id;
-      const textarea = item.querySelector('.fb-reply-input');
-      const replyText = (textarea.value || '').trim();
-      if (!replyText) return;
-      try {
-        const row = fbRows.find(r => r.id === id);
-        const messages = [...getMsgs(row)];
-        const ts = Date.now();
-        messages.push({ from: 'admin', text: replyText, ts });
-        await setDoc(doc(db, 'feedback', id), { messages, lastTs: ts, userUnread: true, adminUnread: false }, { merge: true });
-        Object.assign(row, { messages, lastTs: ts, userUnread: true, adminUnread: false });
-        renderFeedback();
-      } catch (e) {
-        alert('답글 전송 실패: ' + humanError(e));
-      }
-    }));
-  });
 }
 
 // 카드 펼치기/접기 — 펼치는 순간에만 읽음 처리 (쓰기 1회, 이미 읽은 글은 쓰기 없음)
