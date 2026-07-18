@@ -6712,6 +6712,27 @@ async function _shadowStartSession() {
 //  · nickname 전달 → 서버(Admin SDK)가 rankings/weekly를 atomic·max로 갱신(판정: accepted/pending_review/rejected_invalid)
 //  · 실패 시 클라 direct write fallback 금지 → 재시도 큐(localStorage)에 적재, 다음 접속 재제출(서버 idempotent)
 //  · 결과 반환(호출부가 성공/보류 표시). 한 판당 최대 1회(플래그) + 서버 active→submitted 재차 방지.
+// 기기 정보(PC/모바일·OS) — 어드민 고득점 검토 표시 전용. 판정엔 쓰이지 않는다.
+// userAgent만으로 판별하고 원문은 보내지 않는다(불필요한 개인정보 최소화).
+function detectDeviceInfo() {
+  try {
+    const ua = navigator.userAgent || '';
+    const touch = (navigator.maxTouchPoints || 0) > 1;
+    const isTablet = /iPad/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua)) || (/Macintosh/i.test(ua) && touch);
+    const isMobile = /iPhone|iPod|Android.*Mobile|Windows Phone|Mobile/i.test(ua);
+    let os = 'unknown';
+    if (/Android/i.test(ua)) os = 'Android';
+    else if (/iPhone|iPad|iPod/i.test(ua)) os = 'iOS';
+    else if (/Macintosh|Mac OS X/i.test(ua)) os = touch ? 'iOS' : 'Mac'; // iPad 데스크톱모드 보정
+    else if (/Windows/i.test(ua)) os = 'Windows';
+    else if (/CrOS/i.test(ua)) os = 'ChromeOS';
+    else if (/Linux/i.test(ua)) os = 'Linux';
+    const type = isTablet ? 'tablet' : (isMobile ? 'mobile' : 'pc');
+    const pwa = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+    return { type, os, pwa: !!pwa };
+  } catch { return null; }
+}
+
 async function _shadowSubmitSession(nickname) {
   if (_shadowSubmitted) return null; // 한 판당 최대 1회
   _shadowSubmitted = true;           // await 전 잠금
@@ -6725,6 +6746,7 @@ async function _shadowSubmitSession(nickname) {
     maxSuccessesIn3Sec: _shadowMaxIn3s,
     failCount: _shadowFailCount,
     clockUsed: _shadowClockUsed, // 시계 사용 횟수(표시 전용 — 판정에 미사용)
+    device: detectDeviceInfo(), // 기기(PC/모바일·OS) — 표시 전용
   };
   try {
     const res = await httpsCallable(fns, 'submitScore')(payload);
@@ -11507,7 +11529,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.5';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1785070000; // v4.6.4 — 랭킹 제작자(🐾 오잉집사) 배지: 닉네임 옆 파란 톤, 순위·점수 무관, 전체/이번주/친구 + 포디움 — 랭킹 하단 '응원해주신 오잉러분들' 이름 칩 카드(전원 표시·최신순·중복1회), 문구 개편
+const BUILD = 1785080000; // v4.6.5 — 점수 제출 시 기기(PC/모바일·OS) 정보 첨부(어드민 고득점 검토 표시 전용)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
