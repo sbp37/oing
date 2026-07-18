@@ -61,10 +61,16 @@
         <div id="todayTasks" class="mini-list"></div>
       </div>
 
-      <!-- 오늘 게임 현황 — 집계 쿼리만(문서 다운로드 0) -->
+      <!-- 오늘 게임 현황 — 오늘 세션 1쿼리에서 전부 계산(고유 방문자·현재접속·플레이·신규) -->
       <div id="todayGrid" class="stat-grid core"></div>
 
-      <!-- 최근 플레이 5건 -->
+      <!-- 현재 접속 중인 닉네임 — 위 세션 조회 결과 재사용(추가 조회 0) -->
+      <div id="todayOnlineCard" class="card online-card" style="display:none;"></div>
+
+      <!-- 오늘 들어온 신규 유저 닉네임 (신규 0명이면 표시 안 함) -->
+      <div id="todayNewCard" class="card" style="display:none;"></div>
+
+      <!-- 최근 플레이 10건 (점수는 최대 10건만 개별 조회) -->
       <div class="card">
         <div class="card-head"><h3>🎮 최근 플레이</h3><button id="todayRecentAllBtn" class="btn btn-ghost btn-sm">전체 보기</button></div>
         <div id="todayRecentList" class="list"></div>
