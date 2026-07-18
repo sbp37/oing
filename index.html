@@ -3350,6 +3350,19 @@ if ('serviceWorker' in navigator) {
     </div>
     <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
 
+      <!-- v4.5 -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v4.5</div>
+        <span id="newBadge45" style="display:none;background:#DD6032;color:white;font-size:11px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:#DA9845;margin-bottom:5px;">🎉 새 기능 · 개선</div>
+      <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
+        <li>▫️ 🔍 <b>막힘 안내</b> — 정답이 몇 개 안 남았을 때 못 찾고 있으면 몇 개 남았는지 알려줘요</li>
+        <li>▫️ 🍀 폭탄이 터질 때 반경에 클로버가 있으면 이제 정답 힌트가 제대로 발동돼요</li>
+        <li>▫️ ⚡ 내부 최적화로 점수 저장·랭킹 화면이 더 빨라졌어요</li>
+      </ul>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
+
       <!-- v4.4 -->
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
         <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v4.4</div>
@@ -11436,19 +11449,19 @@ document.addEventListener('mouseup', () => {
 });
 
 // 업데이트 내역 팝업
-const UPDATE_VERSION = 'v4.4';
+const UPDATE_VERSION = 'v4.5';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784880000; // 플레이 XP(판당 +1, 하루 10) — 내정보 표시·레벨업 토스트 연동 (업데이트 내역 표기는 생략)
+const BUILD = 1784940000; // v4.5 — 막힘 안내 토스트·스퍼트 배너·후원 닉네임 문구·어드민 답장 통합
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
-const SEEN_KEY = 'seenUpdate_v4.4';
+const SEEN_KEY = 'seenUpdate_v4.5';
 
 function openUpdateLog() {
   document.getElementById('updateLog').style.display = 'flex';
   // NEW 뱃지 숨기기 + 본 것으로 저장
   localStorage.setItem(SEEN_KEY, '1');
-  const badge = document.getElementById('newBadge44');
+  const badge = document.getElementById('newBadge45');
   if (badge) badge.style.display = 'none';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'none';
@@ -11461,7 +11474,7 @@ document.getElementById('updateLogBtn').addEventListener('click', openUpdateLog)
 
 // 최초 방문 시 NEW 뱃지 표시
 if (!localStorage.getItem(SEEN_KEY)) {
-  const badge = document.getElementById('newBadge44');
+  const badge = document.getElementById('newBadge45');
   if (badge) badge.style.display = 'inline';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'inline';
