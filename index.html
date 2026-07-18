@@ -2399,6 +2399,9 @@ body.light .myinfo-chip { background: rgba(241,230,210,0.55); }
 .myi-lv-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--blue-bright), var(--accent-lemon)); width: 0%; transition: width 0.5s ease; }
 .myi-lv-xp { font-size: 12px; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; gap: 8px; }
 .myi-lv-hint { font-size: 12px; color: var(--muted); opacity: 0.85; margin-top: 6px; white-space: pre-line; line-height: 1.55; }
+.myi-lv-delta { font-size: 11px; font-weight: 900; color: var(--accent-green-light); margin-left: 2px; flex: 1; }
+.myi-lv-playxp { font-size: 12px; color: var(--muted); font-weight: 700; margin-top: 5px; font-variant-numeric: tabular-nums; }
+.myi-lv-playxp b { color: var(--ivory); }
 .myi-lv-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .myi-lv-info { background: none; border: none; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; padding: 2px 4px; font-family: inherit; opacity: 0.75; flex-shrink: 0; min-width: 34px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; }
 /* 레벨 안내 바텀시트 — 내 정보 모달 위에 살짝 얹히는 작은 시트 */
@@ -3725,9 +3728,10 @@ if ('serviceWorker' in navigator) {
     </div>
     <!-- ⭐ 오잉 레벨 — XP는 서버에 저장하지 않고 내 기록 누적값에서 즉석 계산하는 표시 전용 -->
     <div class="myi-level" id="myiLevel" style="display:none;">
-      <div class="myi-lv-head"><div class="myi-lv-name" id="myiLvName"></div><button class="myi-lv-info" id="myiLvInfoBtn" type="button" aria-label="레벨 안내">ⓘ</button></div>
+      <div class="myi-lv-head"><div class="myi-lv-name" id="myiLvName"></div><span class="myi-lv-delta" id="myiLvDelta" style="display:none;"></span><button class="myi-lv-info" id="myiLvInfoBtn" type="button" aria-label="레벨 안내">ⓘ</button></div>
       <div class="myi-lv-bar"><div class="myi-lv-fill" id="myiLvFill"></div></div>
       <div class="myi-lv-xp"><span id="myiLvXp"></span><span id="myiLvNext"></span></div>
+      <div class="myi-lv-playxp" id="myiLvPlayXp" style="display:none;"></div>
       <div class="myi-lv-hint" id="myiLvHint"></div>
     </div>
     <div class="myi-sec">📜 내 기록</div>
@@ -6642,7 +6646,11 @@ async function _shadowSubmitSession(nickname) {
   };
   try {
     const res = await httpsCallable(fns, 'submitScore')(payload);
-    return (res && res.data) || null;
+    const data = (res && res.data) || null;
+    // 🐾 플레이 XP 미러 갱신 — 서버가 실제 지급을 확정한 뒤에만(가짜 +1 표시 방지).
+    //  updateUserStats(레벨업 토스트 판정)보다 먼저 실행되는 지점이라 이번 판 XP가 토스트에 반영된다.
+    try { if (data && data.playXp) updatePlayXpMirror(data.playXp); } catch {}
+    return data;
   } catch (e) {
     _enqueuePendingSubmit(payload); // 다음 접속 재시도 — 정상 유저 점수 유실 방지(직접 write 없음)
     throw e;
@@ -6664,7 +6672,10 @@ async function _flushPendingSubmits() {
   try { const uid = await ensureAnonymousAuth(); if (!uid) return; } catch { return; }
   const remain = [];
   for (const item of arr) {
-    try { await httpsCallable(fns, 'submitScore')(item.payload); } // 서버 idempotent
+    try {
+      const r = await httpsCallable(fns, 'submitScore')(item.payload); // 서버 idempotent
+      try { if (r && r.data && r.data.playXp) updatePlayXpMirror(r.data.playXp); } catch {} // 🐾 재제출로 지급된 XP도 미러 반영
+    }
     catch (e) {
       const code = (e && e.code) || '';
       if (code === 'functions/permission-denied') {
@@ -10601,6 +10612,9 @@ function oingComputeXp(d) {
   for (const [t, b] of OING_STREAK_MS) if (mgs >= t) xp += b;
   for (const [t, b] of OING_SCORE_TIER) if ((d.bestScore || 0) >= t) { xp += b; break; }
   for (const [t, b] of OING_COMBO_TIER) if ((d.bestCombo || 0) >= t) { xp += b; break; }
+  // 🐾 플레이 XP(판당 +1, 서버 지급) — 배포 이후 플레이분부터 누적되므로 기존 유저의
+  // 현재 XP/레벨은 배포 직후 변하지 않는다. (이 함수는 항상 "내" 통계에만 쓰임)
+  try { xp += loadPlayXpMirror().total || 0; } catch {}
   return xp;
 }
 function oingLevelOf(xp) {
@@ -10637,6 +10651,75 @@ function oingHeldXp(computedXp) {
   const shown = Math.max(computedXp, held);
   if (shown > held) { try { localStorage.setItem(key, String(shown)); } catch {} }
   return shown;
+}
+
+// ── 🐾 플레이 XP(정상 완료 판당 +1, KST 하루 10 상한) — 서버 play_xp/{uid}가 원본 ──
+// 지급은 오직 submitScore CF(Admin SDK). 클라 write는 rules로 차단되므로 이 미러는
+// 표시용일 뿐이고, 위조해도 서버 XP엔 영향이 없다. 미러는 submitScore 응답으로 갱신되고
+// 내정보를 열 때 서버 문서로 동기화(기기 간 일치).
+const PLAY_XP_CAP = 10;
+function kstTodayStr() { return new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10); }
+function playXpKey() { let k = 'oeing_playxp_'; try { k += (MY_UID || loadNickname() || 'anon'); } catch { k += 'anon'; } return k; }
+function loadPlayXpMirror() {
+  try {
+    const m = JSON.parse(localStorage.getItem(playXpKey()) || 'null');
+    if (m && typeof m.total === 'number') return m;
+  } catch {}
+  return { total: 0, today: 0, date: '' };
+}
+function updatePlayXpMirror(px) {
+  if (!px || typeof px.total !== 'number') return;
+  const old = loadPlayXpMirror();
+  if (old.total > px.total) return; // 서버 total은 단조증가 — 다른 기기 최신값을 후퇴시키지 않음
+  const m = { total: px.total, today: px.today || 0, date: px.date || kstTodayStr() };
+  try { localStorage.setItem(playXpKey(), JSON.stringify(m)); } catch {}
+}
+// 오늘(KST) 지급분 — 날짜가 지났으면 0으로 보임(다음 지급 때 서버도 리셋)
+function playXpTodayView(m) { return (m && m.date === kstTodayStr()) ? (m.today || 0) : 0; }
+
+// 내정보를 열 때 서버 문서로 미러 동기화(60초 쓰로틀, 문서 1개 read) — 완료되면 레벨 영역 재렌더
+let _playXpSyncAt = 0;
+async function syncPlayXpFromServer() {
+  if (!MY_UID) return;
+  if (Date.now() - _playXpSyncAt < 60000) return;
+  _playXpSyncAt = Date.now();
+  try {
+    const snap = await getDoc(doc(db, 'play_xp', MY_UID));
+    if (!snap.exists()) return;
+    const d = snap.data() || {};
+    updatePlayXpMirror({ total: d.total || 0, today: d.today || 0, date: d.date });
+    const nick = loadNickname();
+    let st = {};
+    if (nick) { try { st = JSON.parse(localStorage.getItem('oeing_local_stats_' + nick) || 'null') || {}; } catch {} }
+    const ov = document.getElementById('myInfoOverlay');
+    if (ov && ov.style.display === 'flex') { try { renderMyOingLevel(nick, st); } catch {} }
+  } catch {}
+}
+
+// 내정보 XP 변동 배지(▲+N) — "지난번 열어본 뒤로 오른 XP". 이번 열림의 기준값은
+// 첫 렌더에서 확정하고(_xpDeltaBase), 서버 동기화로 재렌더돼도 기준은 유지된다.
+let _xpDeltaBase = null;
+function renderMyXpDelta(shownXp) {
+  const el = document.getElementById('myiLvDelta');
+  if (!el) return;
+  let key = 'oeing_xp_seen_';
+  try { key += (MY_UID || loadNickname() || 'anon'); } catch { key += 'anon'; }
+  if (_xpDeltaBase === null) {
+    try { _xpDeltaBase = parseInt(localStorage.getItem(key) || '0', 10) || 0; } catch { _xpDeltaBase = 0; }
+  }
+  const delta = _xpDeltaBase > 0 ? (shownXp - _xpDeltaBase) : 0; // 최초 열람은 기준만 기록(전량을 "오른 것"처럼 축하하지 않음)
+  if (delta > 0) { el.textContent = '▲ +' + delta.toLocaleString(); el.style.display = ''; }
+  else el.style.display = 'none';
+  try { localStorage.setItem(key, String(Math.max(shownXp, _xpDeltaBase))); } catch {}
+}
+function renderMyPlayXpLine() {
+  const el = document.getElementById('myiLvPlayXp');
+  if (!el) return;
+  const today = playXpTodayView(loadPlayXpMirror());
+  el.innerHTML = (today >= PLAY_XP_CAP)
+    ? `오늘 플레이 XP 완료 <b>${today} / ${PLAY_XP_CAP}</b> 🐾`
+    : `오늘 플레이 XP <b>${today} / ${PLAY_XP_CAP}</b> 🐾`;
+  el.style.display = '';
 }
 // 가까운 성장 목표 한 줄 — 우선순위: ① 오늘 플레이 ② 오늘 목표 ③ 가까운 판수 마일스톤
 // ④ 가까운 최장 스트릭 마일스톤 (⑤ 승급 조건은 게이트에 막힌 경우 gateMsg가 대신 안내)
@@ -10692,6 +10775,8 @@ function renderMyOingLevel(nick, d) {
     set('myiLvHint', gateMsg || oingNextHint(d));
   }
   if (hintEl) hintEl.style.color = g ? 'var(--blue-light)' : '';
+  try { renderMyXpDelta(xp); } catch {}      // ▲+N — 지난번 열어본 뒤로 오른 XP
+  try { renderMyPlayXpLine(); } catch {}     // 오늘 플레이 XP n/10 🐾
   box.style.display = '';
   renderOingLevelPopupContent(lv, xp, gated);
 }
@@ -10787,7 +10872,9 @@ function openMyInfoOverlay() {
     } else { sinceEl.style.display = 'none'; }
   }
   // ⭐ 오잉 레벨 — 로컬 캐시의 누적값에서 즉석 계산 (서버 추가 읽기 0)
+  _xpDeltaBase = null; // 이번 열림의 XP 변동(▲+N) 기준을 새로 잡음
   try { renderMyOingLevel(nick, d); } catch (e) { const b = document.getElementById('myiLevel'); if (b) b.style.display = 'none'; }
+  try { syncPlayXpFromServer(); } catch {} // 서버 play_xp로 미러 동기화(60초 쓰로틀) — 완료 시 자체 재렌더
   const editBtn = document.getElementById('myiEditBtn');
   if (editBtn) editBtn.style.display = nick ? '' : 'none';
   const delBtn = document.getElementById('deleteMyRankBtn');
@@ -11264,7 +11351,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.4';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784810000; // 폭발 반경에 낀 클로버가 정답 힌트를 발동하도록 수정 (업데이트 내역 표기는 생략)
+const BUILD = 1784880000; // 플레이 XP(판당 +1, 하루 10) — 내정보 표시·레벨업 토스트 연동 (업데이트 내역 표기는 생략)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;

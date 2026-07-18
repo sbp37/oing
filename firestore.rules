@@ -472,6 +472,15 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // play_xp — 오잉 레벨 플레이 XP(정상 완료 판당 +1, KST 하루 상한 10).
+    // write 는 오직 submitScore Cloud Function(Admin SDK, 규칙 우회)만 — 클라이언트가
+    // XP를 위조/증가시킬 수 없음. read 는 공개(단순 활동 카운터라 민감정보 없음 — 내정보
+    // 표시·기기 간 동기화용. user_stats 공개 read와 동일한 수준).
+    match /play_xp/{uid} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // 닉네임 변경 이력(서버 함수가 기록) — 어드민이 유저 상세에서 이전 닉네임을 확인하는 용도.
     // 일반 클라이언트는 읽기 불가(타인의 개명 이력은 비공개), 쓰기는 서버(Admin SDK)만.
     match /rename_history/{id} {
