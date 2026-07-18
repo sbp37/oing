@@ -397,3 +397,7 @@ textarea { width: 100%; resize: vertical; }
 .rw-preview-pop .pb { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
 .rw-preview-pop .pn { font-size: 13px; color: var(--text); margin-top: 8px; background: var(--surface2); border-radius: 10px; padding: 8px 10px; white-space: pre-wrap; }
 .rw-preview-pop .pbtn { margin-top: 14px; padding: 9px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border2); color: var(--ivory); font-weight: 700; font-size: 13px; }
+.rw-revoke { margin-top: 10px; font-size: 11.5px; color: var(--muted); }
+.rw-revoke-link { background: none; border: none; color: #c98a8a; font-size: 11.5px; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0; margin-left: 2px; }
+.rw-revoke-link:hover { color: #e0a0a0; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }

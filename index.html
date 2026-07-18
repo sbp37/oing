@@ -3128,11 +3128,11 @@ if ('serviceWorker' in navigator) {
   <div class="overlay-card" style="max-width:300px; text-align:center;">
     <div style="font-size:44px; margin-bottom:6px;">🎁</div>
     <div class="overlay-title" style="font-size:17px;" id="skinNotifyTitle">고양이 스킨이 도착했어요!</div>
-    <div style="font-size:14px; color:var(--muted); margin-top:6px; line-height:1.6;">새로운 친구가 찾아왔어요 🐾</div>
+    <div style="font-size:14px; color:var(--muted); margin-top:6px; line-height:1.6;">새로운 친구가 찾아왔다냥 🐾</div>
     <div id="skinNotifyNote" style="display:none; font-size:13.5px; color:var(--text); margin-top:10px; line-height:1.5; white-space:pre-wrap; background:var(--surface2); border-radius:10px; padding:9px 12px;"></div>
-    <button id="skinNotifyCloseBtn" class="action-btn" style="width:100%; margin-top:16px;">스킨 확인하기</button>
+    <button id="skinNotifyCloseBtn" class="action-btn" style="width:100%; margin-top:16px;">새 스킨 확인하기</button>
     <div style="font-size:11.5px; color:var(--muted); margin-top:12px; line-height:1.5;">
-      혹시 안 보이면 새로고침하거나 창을 껐다 다시 켜보세요.<br>그래도 안 보이면 문의하기로 남겨주세요.
+      게임 화면의 고양이 모습이 바뀌는 스킨이에요.<br>바로 보이지 않으면 새로고침하거나 앱을 완전히 닫았다 다시 열어주세요.
     </div>
   </div>
 </div>
@@ -11440,7 +11440,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.5';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1785030000; // v4.6.1 — 받는 팝업 개편(스킨선물 도착·개인쪽지·감사인사 3종, '리워드/배송' 표현 제거, '확인했어요' 버튼)
+const BUILD = 1785050000; // v4.6.2 — 스킨팝업 문구/버튼 다듬기('새 스킨 확인하기'→스킨 재조회·적용 토스트), 감사인사 버튼 '알았다냥', 냥체 보조문구
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
@@ -12041,9 +12041,31 @@ document.getElementById('contactBtnGame').addEventListener('click', () => {
   if (contactBadge) contactBadge.style.display = 'none';
 });
 document.getElementById('contactCloseBtn').addEventListener('click', closeContactOverlay);
-document.getElementById('skinNotifyCloseBtn').addEventListener('click', () => {
+document.getElementById('skinNotifyCloseBtn').addEventListener('click', async () => {
+  // 팝업 닫기 → 내 스킨 문서 1개 재조회로 최신 스킨 반영(refreshMyCatSkin이 아바타·게임판 리페인트) →
+  // 토스트. 읽음 처리(notifyPending:false)는 팝업 노출 시 이미 끝나 재노출 없음. 전체 스킨목록 재조회 없음.
   document.getElementById('skinNotifyOverlay').style.display = 'none';
+  try { await refreshMyCatSkin(); } catch {}       // 이미 적용된 상태여도 안전(내부에서 변경 없으면 no-op)
+  try { showSkinAppliedToast(); } catch {}
 });
+// 새 스킨 적용 안내 토스트 — 짧게 떴다 사라지는 상단 알림
+function showSkinAppliedToast() {
+  document.querySelectorAll('.skin-applied-toast').forEach(el => el.remove());
+  const t = document.createElement('div');
+  t.className = 'skin-applied-toast';
+  t.style.cssText = `
+    position:fixed; top:14%; left:50%; transform:translate(-50%,-8px);
+    z-index:420; pointer-events:none; white-space:nowrap;
+    background:rgba(20,30,46,0.96); color:#a9f0b9;
+    border:1.5px solid rgba(127,232,149,0.5); border-radius:999px;
+    padding:9px 18px; font-size:13.5px; font-weight:800; letter-spacing:-0.2px;
+    box-shadow:0 4px 16px rgba(0,0,0,0.5); opacity:0; transition:opacity 0.3s ease, transform 0.3s ease;`;
+  t.textContent = '새 스킨이 적용됐어요! 🐾';
+  document.body.appendChild(t);
+  requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translate(-50%,0)'; });
+  setTimeout(() => { t.style.opacity = '0'; }, 2000);
+  setTimeout(() => t.remove(), 2400);
+}
 document.getElementById('contactBoardBtn').addEventListener('click', () => {
   closeContactOverlay();
   document.getElementById('feedbackBoardOverlay').style.display = 'flex';
@@ -12706,19 +12728,22 @@ async function checkSkinNotification() {
       const emojiEl = document.getElementById('thanksNoteEmoji');
       const titleEl = document.getElementById('thanksNoteTitle');
       const msgEl = document.getElementById('thanksNoteMsg');
+      const btnEl = document.getElementById('thanksNoteCloseBtn');
       if (kind === 'note') {
-        // 개인 쪽지 — 자유 문구
+        // 개인 쪽지 — 운영자가 쓴 원문 그대로(냥체 변형 없음)
         if (emojiEl) emojiEl.textContent = '💌';
         if (titleEl) titleEl.textContent = `${myNick}님, 쪽지가 도착했어요!`;
         if (msgEl) { msgEl.textContent = (typeof d.thanksText === 'string' ? d.thanksText.trim() : ''); msgEl.style.color = 'var(--text)'; }
+        if (btnEl) btnEl.textContent = '확인했어요';
       } else {
         // 감사 인사 — 정해진 문구(닉네임 자동 삽입)
         if (emojiEl) emojiEl.textContent = '💛';
         if (titleEl) titleEl.textContent = `${myNick}님 감사합니다!`;
-        if (msgEl) { msgEl.textContent = '오잉게임과 함께해주셔서 고마워요 🐾'; msgEl.style.color = 'var(--muted)'; }
+        if (msgEl) { msgEl.textContent = '함께해줘서 고맙다냥 🐾'; msgEl.style.color = 'var(--muted)'; }
+        if (btnEl) btnEl.textContent = '알았다냥';
       }
       const overlay = document.getElementById('thanksNoteOverlay');
-      if (overlay) overlay.style.display = 'flex'; // 둘 다 '확인했어요' 버튼으로 직접 닫음(자동 닫힘 없음)
+      if (overlay) overlay.style.display = 'flex'; // 버튼으로 직접 닫음(자동 닫힘 없음)
       await setDoc(ref, { thanksPending: false }, { merge: true });
     }
   } catch (e) { console.warn('스킨/쪽지 알림 확인 실패:', e); }

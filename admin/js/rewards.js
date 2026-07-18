@@ -195,17 +195,26 @@ async function loadMoreClickLog(colName) {
 }
 
 // ── 바인딩 / 로드 ──
+// 스킨 선물 기본 메시지 — 닉네임 자동 삽입. 운영자가 손대지 않은 동안만 닉 변경에 맞춰 갱신.
+const SKIN_DEFAULT_MSG = (nick) => `${nick}님 감사합니다! 스킨 예쁘게 써주세요 💛`;
+
 export function initRewardsTab() {
-  // 게임에서 꺼진 기능은 관리자 UI에서도 숨김 — 옵션 제거로 선택/조회 자체가 불가능
-  if (!FEATURES.skinRequests) {
-    const opt = document.querySelector('#clickLogSel option[value="skin_requests"]');
-    if (opt) opt.remove();
-  }
   // ── 유저에게 보내기: 닉네임 + 세그먼트(스킨/쪽지/감사) + 확인창 + 미리보기 ──
-  const nickOf = () => document.getElementById('rwNick').value.trim();
-  const skinMsgOf = () => (document.getElementById('rwSkinMsg').value || '').trim();
-  const noteMsgOf = () => (document.getElementById('rwNoteMsg').value || '').trim();
+  const nickInput = document.getElementById('rwNick');
+  const skinMsgEl = document.getElementById('rwSkinMsg');
+  const noteMsgEl = document.getElementById('rwNoteMsg');
+  const nickOf = () => nickInput.value.trim();
+  const skinMsgOf = () => (skinMsgEl.value || '').trim();
+  const noteMsgOf = () => (noteMsgEl.value || '').trim();
   let currentKind = 'skin';
+  let skinMsgUserEdited = false; // 운영자가 스킨 메시지를 직접 손댔는지 — 손댔으면 닉 변경으로 초기화 안 함
+
+  // 스킨 기본 메시지 채우기(손대지 않은 상태에서만) — 프로그램 .value 설정은 input 이벤트를 안 발생시켜 edited 플래그 유지
+  function syncSkinDefault() {
+    if (skinMsgUserEdited) return;
+    const n = nickOf();
+    skinMsgEl.value = n ? SKIN_DEFAULT_MSG(n) : '';
+  }
 
   // 세그먼트 전환 — 선택한 기능 패널 하나만 표시
   const seg = document.getElementById('rwSeg');
@@ -214,6 +223,7 @@ export function initRewardsTab() {
     currentKind = kind;
     seg.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.kind === kind));
     panels().forEach(p => { p.style.display = p.dataset.panel === kind ? '' : 'none'; });
+    if (kind === 'skin') syncSkinDefault();
     hidePreview();
   }
   seg.addEventListener('click', (e) => {
@@ -221,86 +231,96 @@ export function initRewardsTab() {
     if (btn) switchKind(btn.dataset.kind);
   });
 
-  // 감사 인사 문구 미리보기 — 닉네임 자동 삽입
+  // 감사 인사 문구 미리보기(고정 문구, 닉네임 자동 삽입)
   const greetEl = document.getElementById('rwGreetPreview');
-  const updateGreetPreview = () => { const n = nickOf(); greetEl.textContent = `${n || '○○'}님 감사합니다!`; };
-  document.getElementById('rwNick').addEventListener('input', () => { updateGreetPreview(); hidePreview(); });
-  updateGreetPreview();
+  const updateGreetPreview = () => { const n = nickOf() || '○○'; greetEl.textContent = `${n}님 감사합니다! 함께해줘서 고맙다냥 🐾`; };
 
-  // 받는 화면 팝업 미리보기 (게임 팝업 축소 재현) — 실제 닉네임/메시지 즉시 반영
+  // 전송 버튼 활성/비활성 — 닉네임 없으면 비활성
+  const skinBtn = document.getElementById('rwSkinGiftBtn');
+  const noteBtn = document.getElementById('rwNoteBtn');
+  const greetBtn = document.getElementById('rwGreetBtn');
+  const revokeBtn = document.getElementById('rwSkinRevokeBtn');
+  function updateButtons() {
+    const has = !!nickOf();
+    [skinBtn, noteBtn, greetBtn].forEach(b => { if (b) b.disabled = !has; });
+    if (revokeBtn) revokeBtn.disabled = !has;
+  }
+
+  // 닉네임 입력 → 감사문구·스킨기본메시지 갱신 + 버튼 상태 + (열려 있으면)미리보기 즉시 반영
+  nickInput.addEventListener('input', () => { updateGreetPreview(); syncSkinDefault(); updateButtons(); refreshPreviewIfOpen(); });
+  // 스킨 메시지를 직접 입력하면(수정/삭제 포함) 이후 닉 변경으로 초기화하지 않음
+  skinMsgEl.addEventListener('input', () => { skinMsgUserEdited = true; refreshPreviewIfOpen(); });
+  noteMsgEl.addEventListener('input', () => { refreshPreviewIfOpen(); });
+  updateGreetPreview(); syncSkinDefault(); updateButtons();
+
+  // 받는 화면 팝업 미리보기 (기본 접힘) — 선택한 탭 하나만, 실제 닉네임/메시지 즉시 반영
   const previewBox = document.getElementById('rwPreview');
   function hidePreview() { previewBox.style.display = 'none'; previewBox.innerHTML = ''; }
-  function renderPreview() {
+  function previewHtml() {
     const nick = nickOf() || '○○';
-    let html = '';
     if (currentKind === 'skin') {
       const msg = skinMsgOf();
-      html = `<div class="rw-preview-pop"><div class="pe">🎁</div>
+      return `<div class="rw-preview-pop"><div class="pe">🎁</div>
         <div class="pt">${escapeHtml(nick)}님, 고양이 스킨이 도착했어요!</div>
-        <div class="pb">새로운 친구가 찾아왔어요 🐾</div>
+        <div class="pb">새로운 친구가 찾아왔다냥 🐾</div>
         ${msg ? `<div class="pn">${escapeHtml(msg)}</div>` : ''}
-        <div class="pbtn">스킨 확인하기</div></div>`;
+        <div class="pbtn">새 스킨 확인하기</div></div>`;
     } else if (currentKind === 'note') {
       const msg = noteMsgOf() || '(내용을 입력하세요)';
-      html = `<div class="rw-preview-pop"><div class="pe">💌</div>
+      return `<div class="rw-preview-pop"><div class="pe">💌</div>
         <div class="pt">${escapeHtml(nick)}님, 쪽지가 도착했어요!</div>
         <div class="pn">${escapeHtml(msg)}</div>
         <div class="pbtn">확인했어요</div></div>`;
-    } else {
-      html = `<div class="rw-preview-pop"><div class="pe">💛</div>
-        <div class="pt">${escapeHtml(nick)}님 감사합니다!</div>
-        <div class="pb">오잉게임과 함께해주셔서 고마워요 🐾</div>
-        <div class="pbtn">확인했어요</div></div>`;
     }
-    previewBox.innerHTML = html;
-    previewBox.style.display = 'block';
+    return `<div class="rw-preview-pop"><div class="pe">💛</div>
+      <div class="pt">${escapeHtml(nick)}님 감사합니다!</div>
+      <div class="pb">함께해줘서 고맙다냥 🐾</div>
+      <div class="pbtn">알았다냥</div></div>`;
   }
+  function renderPreview() { previewBox.innerHTML = previewHtml(); previewBox.style.display = 'block'; }
+  function refreshPreviewIfOpen() { if (previewBox.style.display === 'block') previewBox.innerHTML = previewHtml(); }
   document.getElementById('rwPreviewBtn').addEventListener('click', () => {
     if (previewBox.style.display === 'block') hidePreview(); else renderPreview();
   });
 
-  // 전송 — 닉네임 확인 + confirm 확인창 후 전송, 성공 시 입력 비움
-  const send = (label, fn) => async () => {
+  // 전송 성공 후 입력 초기화
+  function resetInputs() {
+    nickInput.value = ''; skinMsgEl.value = ''; noteMsgEl.value = '';
+    skinMsgUserEdited = false;
+    updateGreetPreview(); updateButtons(); hidePreview();
+  }
+  const skinSend = async () => {
     const nick = nickOf();
     if (!nick) { resultMsg('rwResult', '받는 사람 닉네임을 입력하세요.', false); return; }
-    if (!confirm(`${nick}님에게 ${label}할까요?`)) return;
-    try {
-      await fn(nick);
-      document.getElementById('rwNick').value = '';
-      document.getElementById('rwSkinMsg').value = '';
-      document.getElementById('rwNoteMsg').value = '';
-      updateGreetPreview(); hidePreview();
-    } catch (e) { resultMsg('rwResult', humanError(e), false); }
+    if (!confirm(`${nick}님에게 고양이 스킨을 선물할까요?`)) return;
+    try { await giftSkin(nick, skinMsgOf()); resetInputs(); } catch (e) { resultMsg('rwResult', humanError(e), false); }
   };
-  const skinBtn = document.getElementById('rwSkinGiftBtn');
-  skinBtn.addEventListener('click', guardBtn(skinBtn, send('고양이 스킨을 선물', (nick) => giftSkin(nick, skinMsgOf()))));
-  const revokeBtn = document.getElementById('rwSkinRevokeBtn');
-  revokeBtn.addEventListener('click', guardBtn(revokeBtn, send('고양이 스킨을 해제', revokeSkin)));
-  const noteBtn = document.getElementById('rwNoteBtn');
-  noteBtn.addEventListener('click', guardBtn(noteBtn, async () => {
+  const noteSend = async () => {
     const nick = nickOf();
     if (!nick) { resultMsg('rwResult', '받는 사람 닉네임을 입력하세요.', false); return; }
     const msg = noteMsgOf();
     if (!msg) { resultMsg('rwResult', '보낼 쪽지 내용을 입력하세요.', false); return; }
     if (!confirm(`${nick}님에게 개인 쪽지를 보낼까요?`)) return;
-    try { await sendPersonalNote(nick, msg); document.getElementById('rwNick').value = ''; document.getElementById('rwNoteMsg').value = ''; updateGreetPreview(); hidePreview(); }
-    catch (e) { resultMsg('rwResult', humanError(e), false); }
-  }));
-  const greetBtn = document.getElementById('rwGreetBtn');
-  greetBtn.addEventListener('click', guardBtn(greetBtn, send('감사 인사를 보내', sendGreeting)));
-
-  document.getElementById('clickLogSel').addEventListener('change', (e) => loadClickLog(e.target.value));
-  // 스킨 신청 "처리 완료" — 목록이 다시 그려져도 동작하도록 위임 바인딩 (1회)
-  document.getElementById('clickLogList').addEventListener('click', (e) => {
-    const btn = e.target.closest('.skinreq-fulfill');
-    if (btn && !btn.disabled) fulfillSkinRequest(btn.dataset.reqid, btn);
-  });
-  const moreBtn = document.getElementById('clickLogMoreBtn');
-  moreBtn.addEventListener('click', () => loadMoreClickLog(document.getElementById('clickLogSel').value));
+    try { await sendPersonalNote(nick, msg); resetInputs(); } catch (e) { resultMsg('rwResult', humanError(e), false); }
+  };
+  const greetSend = async () => {
+    const nick = nickOf();
+    if (!nick) { resultMsg('rwResult', '받는 사람 닉네임을 입력하세요.', false); return; }
+    if (!confirm(`${nick}님에게 감사 인사를 보낼까요?`)) return;
+    try { await sendGreeting(nick); resetInputs(); } catch (e) { resultMsg('rwResult', humanError(e), false); }
+  };
+  const revokeDo = async () => {
+    const nick = nickOf();
+    if (!nick) { resultMsg('rwResult', '받는 사람 닉네임을 입력하세요.', false); return; }
+    if (!confirm(`${nick}님의 고양이 스킨을 해제할까요?`)) return;
+    try { await revokeSkin(nick); resetInputs(); } catch (e) { resultMsg('rwResult', humanError(e), false); }
+  };
+  skinBtn.addEventListener('click', guardBtn(skinBtn, skinSend));
+  noteBtn.addEventListener('click', guardBtn(noteBtn, noteSend));
+  greetBtn.addEventListener('click', guardBtn(greetBtn, greetSend));
+  revokeBtn.addEventListener('click', guardBtn(revokeBtn, revokeDo));
 }
 
-export async function loadRewards({ force = false } = {}) {
-  if (force) { for (const k of Object.keys(clickState)) delete clickState[k]; }
-  const colName = document.getElementById('clickLogSel').value;
-  await loadClickLog(colName, { reset: force });
+export async function loadRewards() {
+  // 클릭 기록은 이 화면에서 제거됨(향후 '통계 > 사용자 행동'으로 이동 예정) — 이 탭은 로드할 원격 데이터 없음.
 }
