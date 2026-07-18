@@ -291,6 +291,19 @@ textarea { width: 100%; resize: vertical; }
   border: 1px solid rgba(63, 168, 85, 0.4);
 }
 .online-chip.more { background: none; color: var(--muted); border-color: var(--border); font-weight: 400; }
+button.online-chip.more { cursor: pointer; font-family: inherit; font-size: 12.5px; }
+/* 현재 접속 숫자 옆 작은 점 (예전의 큰 🟢 이모지 대체) */
+.online-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 4px;
+  background: var(--accent-green); box-shadow: 0 0 4px rgba(63, 168, 85, 0.6);
+}
+/* 🌱 오늘 신규 유저 닉네임 칩 */
+.new-head { font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.new-head b { color: var(--blue-light); }
+.new-chip {
+  padding: 3px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
+  background: var(--blue-dim); color: var(--blue-light); border: 1px solid var(--border2);
+}
 
 /* ── 차트 (의존성 없는 CSS 막대그래프) ── */
 .chart { display: flex; align-items: flex-end; gap: 3px; height: 130px; padding-top: 18px; }

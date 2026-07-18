@@ -17,7 +17,7 @@ import {
   getFirestore, collection, doc,
   getDoc, getDocs, setDoc, deleteDoc, addDoc,
   query, where, orderBy, limit, startAfter, increment, deleteField,
-  getCountFromServer, getAggregateFromServer, sum,
+  getCountFromServer,
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 import {
   getAuth, signInAnonymously, onAuthStateChanged,
@@ -152,13 +152,6 @@ export async function countQuery(...pathAndConstraints) {
   const snap = await getCountFromServer(q);
   bump(1); // count 집계는 1000개당 1읽기 — 보수적으로 1로 계산
   return snap.data().count;
-}
-// sumQuery: 문서를 내려받지 않고 특정 숫자 필드의 합만 (aggregation, 초저비용)
-export async function sumQuery(fieldName, ...pathAndConstraints) {
-  const q = query(...pathAndConstraints);
-  const snap = await getAggregateFromServer(q, { total: sum(fieldName) });
-  bump(1);
-  return snap.data().total || 0;
 }
 // fetchDocs: getDocs 래퍼 — 읽기 카운터 반영 + {id, ...data} 배열 반환
 export async function fetchDocs(q) {
