@@ -6980,12 +6980,6 @@ function showItemPop(r, c, text, type) {
 }
 
 function makeBoard() {
-  // 새 판이므로 막힘 안내 토스트 자격 초기화 (판당 1회)
-  fewAnswersToastGiven = false;
-  fewAnswersCheckedAt = 0;
-  // 무터치 카운트도 여기서 리셋 — 안 그러면 "직전 판 마지막 탭 이후 경과시간"이 새 판으로
-  // 그대로 이어져서, 새 판을 본 지 얼마 안 됐는데도 토스트가 훨씬 빨리 뜨는 것처럼 보였다.
-  lastInteractionAt = Date.now();
   // 새 보드로 넘어가기 전, 아직 안 쓴 아이템 칸은 같은 좌표에 그대로 보존
   // (보드 클리어/재배열로 아이템이 그냥 사라지는 것 방지)
   const leftoverItems = [];
@@ -8360,7 +8354,6 @@ function startGame() {
             timeLeft = Math.max(0, Math.round((gameEndTime - Date.now()) / 1000));
             updateTimer();
             checkNewbieAutoHint();
-            checkFewAnswersToast(); // 막힘 안내 — 정답 3개 이하 + 5초 무터치 시 개수만 알려줌(판당 1회)
             // v3.6: 클로버가 시간 기반(30~40초 랜덤)으로 뜨던 방식은 콤보 7배수 아이템풀로 옮김 — checkCloverSpawn() 제거
             if (timeLeft <= 0) {
               clearInterval(timerInterval);
@@ -8551,26 +8544,39 @@ async function endGame() {
       const work = (async () => {
         // 최고기록 비교는 목록 검색이 아니라 본인 문서를 직접 읽음 (저장 전에 읽어야 함)
         // (목록은 상위 150명만 가져오므로, 그 밖 순위면 기록이 있어도 "첫 기록"으로 오탐하던 버그 수정)
+        // 전체 최고점 + 이번 주 최고점을 병렬로 읽는다(각 1문서). 전자는 "전체 신기록",
+        // 후자는 "주간 신기록" 판정용 — 주간은 매주 리셋되므로 전체 신기록이 아니어도 이번 주
+        // 순위는 오르는 판이 많다(그게 유저가 주로 보는 랭킹). 그 판에도 추월 알림을 띄우려면
+        // 여기서 직전 주간 최고점을 미리 알아야 한다.
+        const weekId = getWeekId();
         let prevBest = null, prevBestKnown = false;
-        try {
-          const mySnap = await getDoc(doc(db, 'rankings', savedNick));
-          prevBestKnown = true; // 읽기 성공 — 문서가 없으면 '진짜 기록 없음'(첫 기록)
-          if (mySnap.exists()) prevBest = { nickname: savedNick, score: mySnap.data().score };
-        } catch { prevBestKnown = false; } // 읽기 실패 — 최고기록을 알 수 없음
+        let prevWeekBest = null, prevWeekKnown = false;
+        const [rkRes, wkRes] = await Promise.allSettled([
+          getDoc(doc(db, 'rankings', savedNick)),
+          getDoc(doc(db, 'weekly_rankings', weekId, 'scores', savedNick)),
+        ]);
+        if (rkRes.status === 'fulfilled') {
+          prevBestKnown = true;
+          if (rkRes.value.exists()) prevBest = { nickname: savedNick, score: rkRes.value.data().score };
+        }
+        if (wkRes.status === 'fulfilled') {
+          prevWeekKnown = true;
+          if (wkRes.value.exists()) prevWeekBest = wkRes.value.data().score || 0;
+        }
         // 서버 읽기가 실패했으면(prevBestKnown=false) 낮은 점수를 '신기록/첫 기록'으로 오판하지 않는다.
         // 탭을 잠깐 떠났다 오면 게임 시간(실시간 기반)이 소진돼 낮은 점수로 끝나는데, 그 복귀 순간
         // 이 읽기가 실패하면 2점 같은 점수에도 "신기록!"이 뜨던 버그 수정. (실제 랭킹은 서버 max라 안전)
         const isNewRecord = prevBestKnown && (!prevBest || score > prevBest.score);
+        // 주간 신기록 — 이번 주 최고점 갱신(전체 신기록이면 그것보다 항상 크므로 자동 포함)
+        const isNewWeekly = prevWeekKnown && (!prevWeekBest || score > prevWeekBest);
 
         // 이전 순위 목록은 병렬로 — 느려도 점수 저장을 막지 않게.
-        // ★ 읽기 절감: prevList/prevWeekList는 아래 신기록(isNewRecord) 분기에서만 소비된다
-        //   (추월 알림·직전 순위 캡처). 신기록이 아닌 판(대부분)은 전체 186 + 주간 115문서를
-        //   읽고도 한 번도 안 쓰고 버리던 구조 → 신기록일 때만 로드한다. 타이밍은 기존과 동일
-        //   (점수 제출 전 킥오프라 "제출 직전 순위" 스냅샷 의미 보존).
-        const needPrevLists = isNewRecord && score > 0;
-        const prevListPromise = needPrevLists ? loadRankings().catch(() => []) : Promise.resolve([]);
-        // 주간 '내 순위 바'의 "방금 대비"용 — 이 게임 직전의 주간 순위를 같이 캡처(전체와 스케일이 달라 따로 저장)
-        const prevWeekListPromise = needPrevLists ? loadWeeklyRankings().catch(() => []) : Promise.resolve([]);
+        // ★ 읽기 절감: 전체 목록(prevList)은 전체 신기록일 때만, 주간 목록(prevWeekList)은
+        //   주간 신기록일 때만 로드한다(추월 알림·직전 순위 캡처에서만 소비). 둘 다 아니면
+        //   전체 186 + 주간 115문서를 읽고 버리므로 조건부 로드로 절감. "제출 직전 순위" 스냅샷
+        //   의미가 유지되도록 타이밍은 제출 전 킥오프 그대로.
+        const prevListPromise = (isNewRecord && score > 0) ? loadRankings().catch(() => []) : Promise.resolve([]);
+        const prevWeekListPromise = (isNewWeekly && score > 0) ? loadWeeklyRankings().catch(() => []) : Promise.resolve([]);
 
         // ★ 점수 저장을 최우선으로 실행 + 일시적 네트워크 오류는 1회 재시도
         //   (기존엔 loadRankings(최대 150개 문서)가 먼저라, 그게 느리거나 실패하면
@@ -8640,29 +8646,58 @@ async function endGame() {
           if (playRecordSfx) { try { playFanfare(); } catch {} } // 신기록 팡파레 (WebAudio 합성, 음량 균형)
         }
 
-        if (isNewRecord && score > 0) {
-          const prevIdx = prevList.findIndex(e => e.nickname === savedNick);
+        // ── 순위 추월 알림 (전체 + 주간) + '방금 대비' 화살표 스냅샷 ──
+        //  전체 신기록이면 전체 기준으로, 주간 신기록이면 주간 기준으로 각각 "누구를 몇 계단
+        //  넘었는지" 계산해 결과창에 보여준다. 주간은 매주 리셋돼 유저가 주로 보는 랭킹이므로,
+        //  전체 신기록이 아니어도 이번 주 순위가 올랐으면 이 알림이 뜬다.
+        if ((isNewRecord || isNewWeekly) && score > 0) {
+          // 한 랭킹 목록에서 내가 제친 사람들 → {top:바로 밑에 오게 된 사람, climbed:제친 수, myPrevRank}
+          const overtakeInfo = (list) => {
+            const myIdx = list.findIndex(e => e.nickname === savedNick);
+            const aboveMe = myIdx === -1 ? list : list.slice(0, myIdx);
+            const overtaken = aboveMe.filter(e => e.nickname !== savedNick && (e.score || 0) < score);
+            return { top: overtaken.length ? overtaken[0].nickname : null, climbed: overtaken.length, myPrevRank: myIdx };
+          };
+          let allInfo = null, weekInfo = null;
+          if (isNewRecord) allInfo = overtakeInfo(prevList);
+          const prevWeekList = isNewWeekly ? await prevWeekListPromise : [];
+          if (isNewWeekly) weekInfo = overtakeInfo(prevWeekList);
+
+          // '방금 대비' 화살표용 직전 순위 저장 — 오른 랭킹만 기록(안 오른 쪽은 빈값=화살표 없음)
           try {
             sessionStorage.setItem('oeing_just_updated', savedNick);
-            sessionStorage.setItem('oeing_just_updated_prevrank', prevIdx === -1 ? '' : String(prevIdx + 1));
-            // 주간 '내 순위 바'가 "방금 대비"를 주간 스케일로 표시하도록, 이 게임 직전 주간 순위도 저장
-            const prevWeekList = await prevWeekListPromise;
-            const prevWeekIdx = prevWeekList.findIndex(e => e.nickname === savedNick);
-            sessionStorage.setItem('oeing_just_updated_prevrank_week', prevWeekIdx === -1 ? '' : String(prevWeekIdx + 1));
+            sessionStorage.setItem('oeing_just_updated_prevrank',
+              (allInfo && allInfo.myPrevRank !== -1) ? String(allInfo.myPrevRank + 1) : '');
+            sessionStorage.setItem('oeing_just_updated_prevrank_week',
+              (weekInfo && weekInfo.myPrevRank !== -1) ? String(weekInfo.myPrevRank + 1) : '');
           } catch {}
-          // ── 순위 추월 알림 — "○○님을 이겼어요! (N계단 ↑)" 복원 ──
-          //  이전에 나보다 위였는데 내 새 점수보다 낮아진 사람들 = 내가 제친 사람들.
+
+          // 문구 조립 — 각 줄이 "전체/이번 주 N계단 ↑ · 이름님을 이겼다냥"으로 완결.
+          //  전체·주간에서 같은 사람을 넘겼으면 한 줄로 합친다.
           try {
-            const aboveMe = prevIdx === -1 ? prevList : prevList.slice(0, prevIdx);
-            const overtaken = aboveMe.filter(e => e.nickname !== savedNick && (e.score || 0) < score);
             const beatEl = document.getElementById('beatMsg');
-            if (beatEl && overtaken.length > 0) {
-              const passed = overtaken[0].nickname; // 방금 막 제친(내 새 위치 바로 아래) 사람
-              const climbed = overtaken.length;
-              beatEl.innerHTML = `🏆 <b>${escapeHtml(passed)}</b>님을 이겼다냥! <span style="color:#7fe895;">${climbed}계단 ↑</span>`;
+            const allLine = (allInfo && allInfo.top)
+              ? { name: allInfo.top, climbed: allInfo.climbed } : null;
+            const weekLine = (weekInfo && weekInfo.top)
+              ? { name: weekInfo.top, climbed: weekInfo.climbed } : null;
+            const lines = [];
+            if (allLine && weekLine && allLine.name === weekLine.name) {
+              // 같은 사람 — 한 줄로 합침
+              lines.push(`🏆 <b>${escapeHtml(allLine.name)}</b>님을 이겼다냥! `
+                + `<span style="color:#7fe895;">전체 ${allLine.climbed}계단 ↑</span> `
+                + `<span style="color:#DA9845;">이번 주 ${weekLine.climbed}계단 ↑</span>`);
+            } else {
+              if (allLine) lines.push(`🏆 <span style="color:#7fe895;">전체 ${allLine.climbed}계단 ↑</span> · <b>${escapeHtml(allLine.name)}</b>님을 이겼다냥!`);
+              if (weekLine) lines.push(`🔥 <span style="color:#DA9845;">이번 주 ${weekLine.climbed}계단 ↑</span> · <b>${escapeHtml(weekLine.name)}</b>님을 이겼다냥!`);
+            }
+            if (beatEl && lines.length) {
+              beatEl.innerHTML = lines.join('<br>');
               beatEl.style.display = 'block';
             }
           } catch {}
+        }
+
+        if (isNewRecord && score > 0) {
           renderRanking();
           nickDone.style.fontSize = '12px';
           nickDone.style.color = 'var(--muted)';
@@ -8884,64 +8919,6 @@ function checkNewbieAutoHint() {
   if (Date.now() - lastInteractionAt < NEWBIE_IDLE_MS) return;
   newbieHintGiven = true;
   showNewbieBlinkHint();
-}
-
-// ══════════════════════════════
-//  막힘 안내 토스트 — 정답이 3개 이하로 남았는데 5초 넘게 못 찾고 있으면
-//  "몇 개 남았는지"만 알려줌 (위치는 안 알려줘서 힌트/클로버 가치 유지).
-//  판(보드)당 1회만 — 3개일 때 떴으면 2개·1개가 돼도 다시 안 뜸, 보드 리셋 후 초기화.
-// ══════════════════════════════
-const FEW_ANSWERS_MAX = 3;        // 이 개수 이하일 때만
-const FEW_ANSWERS_IDLE_MS = 5000; // 이만큼 아무 터치가 없을 때만 (잘 풀리는 중엔 절대 안 뜸)
-let fewAnswersToastGiven = false; // 판당 1회
-let fewAnswersCheckedAt = 0;      // 이번 막힘 구간에서 이미 스캔했는지 — 틱마다 전체 스캔 방지
-
-// "빈 칸 여백만 다른 같은 조합"이 여러 번 세지는 걸 막기 위해 비어있지 않은 칸 집합 기준으로 중복 제거
-function countDistinctAnswers() {
-  const seen = new Set();
-  for (const a of findAllAnswers()) {
-    seen.add(a.coords.map(({ r, c }) => r + ',' + c).sort().join('|'));
-  }
-  return seen.size;
-}
-
-function checkFewAnswersToast() {
-  if (fewAnswersToastGiven || !gameRunning || boardResetting) return;
-  if (Date.now() - lastInteractionAt < FEW_ANSWERS_IDLE_MS) return;
-  if (fewAnswersCheckedAt >= lastInteractionAt) return; // 이번 막힘 구간은 이미 확인함 — 다시 터치하기 전엔 재스캔 안 함
-  fewAnswersCheckedAt = Date.now();
-  const n = countDistinctAnswers();
-  if (n < 1 || n > FEW_ANSWERS_MAX) return; // 0개는 자동 보드 리셋이 처리
-  fewAnswersToastGiven = true;
-  showFewAnswersToast(n);
-}
-
-function showFewAnswersToast(n) {
-  // 숫자는 표시하지 않는다 — 정답을 지우면 남은 칸 조합이 바뀌어 새 정답이 생기거나
-  // 사라질 수 있어서("두개랬는데 지우니 두개 더" 혼란), 개수 약속은 어떤 형태든 깨진다.
-  // "아직 있다"만 알려주는 게 항상 참이고, 기능의 목적(막혔을 때 안심)도 그대로다.
-  // 타임프리즈 연출과 동일한 스타일 — 배경(원형 배너) 없이 글씨만 화면 중앙에 글로우
-  document.querySelectorAll('.few-answers-pop').forEach(el => el.remove());
-  if (!document.getElementById('fewAnswersKeyframes')) {
-    const style = document.createElement('style');
-    style.id = 'fewAnswersKeyframes';
-    style.textContent = `
-      @keyframes fewAnsIn  { from { opacity:0; transform:translate(-50%,-50%) scale(0.85); } to { opacity:1; transform:translate(-50%,-50%) scale(1); } }
-      @keyframes fewAnsOut { from { opacity:1; transform:translate(-50%,-50%) scale(1); } to { opacity:0; transform:translate(-50%,-58%) scale(0.95); } }`;
-    document.head.appendChild(style);
-  }
-  const pop = document.createElement('div');
-  pop.className = 'few-answers-pop';
-  pop.style.cssText = `
-    position:fixed; top:36%; left:50%; transform:translate(-50%,-50%);
-    text-align:center; pointer-events:none; z-index:400; white-space:nowrap;
-    font-family:'Jua','Malgun Gothic',sans-serif; font-weight:400;
-    font-size:22px; color:#7fe895; letter-spacing:2px;
-    text-shadow:0 0 12px rgba(63,168,85,0.9), 0 0 24px rgba(127,232,149,0.4);
-    animation: fewAnsIn 0.22s ease, fewAnsOut 0.4s ease 2s forwards;`;
-  pop.textContent = '정답 몇개 안 남았다냥~😽';
-  document.body.appendChild(pop);
-  setTimeout(() => pop.remove(), 2500); // 등장 0.22s + 유지 2s + 사라짐 0.4s
 }
 
 // 끝나기 30~40초 전 사이 랜덤한 시점에 딱 1번 체크 — 당첨되면 랜덤 칸에 클로버 등장
@@ -11462,7 +11439,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.5';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784990000; // v4.5.5 — 판 넘어갈 때 막힘안내 무터치 타이머도 리셋(체감 5초 정확도) + 업뎃로그에서 막힘안내 항목 제거(자잘한 조정)
+const BUILD = 1785010000; // v4.6 — 추월 알림 주간 반영(전체·이번 주 각각 "N계단↑ 이름님을 이겼다냥") + 막힘안내 토스트 제거
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
