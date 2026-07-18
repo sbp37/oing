@@ -2,26 +2,31 @@
    오잉게임 관리자 — 게임 본체와 동일한 다크 팔레트/카드 스타일 유지
    ══════════════════════════════════════════════════════════════ */
 :root {
-  --bg: #0b0e17;
-  --surface: #121a28;
-  --surface2: #182233;
-  --border: #223347;
-  --border2: #2c4a68;
-  --blue-dim: #16283c;
-  --blue-mid: #235e8c;
-  --blue-bright: #2f7ec9;
-  --blue-light: #7ec2f0;
-  --text: #e8edf5;
-  --muted: #7a8ba3;
-  --outer-bg: #06090f;
-  --accent-green: #3fa855;
-  --accent-green-light: #7fe895;
-  --accent-orange: #DD6032;
-  --accent-lemon: #DA9845;
+  /* 2026-07 개편: 검정에 가깝던 팔레트를 한 단계 밝은 딥 네이비로.
+     위계(어두움→밝음): outer-bg < bg < surface(카드) < surface2(리스트 행) < input < selected */
+  --bg: #0E1624;            /* 전체 배경 */
+  --surface: #172235;       /* 기본 카드 */
+  --surface2: #1C293E;      /* 카드 안 리스트 행/보조 영역 */
+  --input-bg: #1B2940;      /* 입력창 */
+  --selected: #22334C;      /* 선택된 카드/행 강조 */
+  --border: #2C3C56;
+  --border2: #3A5070;
+  --blue-dim: #1A2C44;
+  --blue-mid: #2A66A0;
+  --blue-bright: #4A9FEF;
+  --blue-light: #8CC8F5;
+  --text: #F3F6FA;
+  --muted: #A7B3C5;
+  --muted2: #75839A;        /* 비활성/희미한 텍스트 */
+  --outer-bg: #0A101C;
+  --accent-green: #4CAF6B;
+  --accent-green-light: #8FE8A8;
+  --accent-orange: #E08050;
+  --accent-lemon: #E7AD52;
   --ivory: #F1EBDA;
-  --danger: #ef4444;
-  --danger-dim: rgba(239, 68, 68, 0.12);
-  --gold: #fbbf24;
+  --danger: #E25A5A;
+  --danger-dim: rgba(226, 90, 90, 0.12);
+  --gold: #E7AD52;
 }
 
 * { box-sizing: border-box; }
@@ -37,7 +42,7 @@ body {
 h1, h2, h3 { margin: 0; font-weight: 800; }
 input, select, textarea, button { font-family: inherit; font-size: 14px; color: var(--text); }
 input, select, textarea {
-  background: var(--surface2);
+  background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 10px;
