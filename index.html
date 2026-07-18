@@ -8915,7 +8915,9 @@ function checkFewAnswersToast() {
 }
 
 function showFewAnswersToast(n) {
-  const word = n === 1 ? '한개' : (n === 2 ? '두개' : '세개');
+  // 숫자는 표시하지 않는다 — 정답을 지우면 남은 칸 조합이 바뀌어 새 정답이 생기거나
+  // 사라질 수 있어서("두개랬는데 지우니 두개 더" 혼란), 개수 약속은 어떤 형태든 깨진다.
+  // "아직 있다"만 알려주는 게 항상 참이고, 기능의 목적(막혔을 때 안심)도 그대로다.
   // 타임프리즈 연출과 동일한 스타일 — 배경(원형 배너) 없이 글씨만 화면 중앙에 글로우
   document.querySelectorAll('.few-answers-pop').forEach(el => el.remove());
   if (!document.getElementById('fewAnswersKeyframes')) {
@@ -8935,7 +8937,7 @@ function showFewAnswersToast(n) {
     font-size:22px; color:#7fe895; letter-spacing:2px;
     text-shadow:0 0 12px rgba(63,168,85,0.9), 0 0 24px rgba(127,232,149,0.4);
     animation: fewAnsIn 0.22s ease, fewAnsOut 0.4s ease 2.2s forwards;`;
-  pop.textContent = `정답 ${word} 남았다냥~😽`;
+  pop.textContent = '아직 숨은 정답이 있다냥~😽';
   document.body.appendChild(pop);
   setTimeout(() => pop.remove(), 2700); // 등장 0.22s + 유지 ~2s + 사라짐 0.4s
 }
@@ -11458,7 +11460,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.5';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784960000; // v4.5.2 — 막힘 안내 토스트: 프리즈식 글씨만(초록) 중앙 연출 + 체류 연장
+const BUILD = 1784970000; // v4.5.3 — 막힘 안내 문구에서 개수 제거("아직 숨은 정답이 있다냥") — 지우면 새 정답이 생겨 개수 약속이 깨지는 혼란 방지
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
