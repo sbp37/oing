@@ -104,10 +104,7 @@ function donateItemHtml(d) {
           <span class="bubble">${escapeHtml(m.text)}</span>
         </div>`).join('')}
       ${uidSection}
-      <div class="fb-reply-row">
-        <textarea class="fb-reply-input" placeholder="답장 작성... (작성자만 게임의 '지난 글 보기'에서 확인)" rows="2"></textarea>
-        <button class="btn btn-primary btn-sm donate-reply-btn">답장 보내기</button>
-      </div>
+      <div class="card-note">답장은 게임 안 피드백함(운영자 기기)에서 — 대시보드는 열람·계정 연결 전용</div>
     </div>`;
 }
 
@@ -218,27 +215,7 @@ function renderDonateFeedback() {
   const el = document.getElementById('donateFeedbackList');
   if (!donateRows.length) { setEmpty(el, '후원 확인 쪽지가 없어요'); return; }
   el.innerHTML = donateRows.map(donateItemHtml).join('');
-  el.querySelectorAll('.donate-reply-btn').forEach(btn => {
-    btn.addEventListener('click', guardBtn(btn, async () => {
-      const item = btn.closest('.fb-item');
-      const id = item.dataset.id;
-      const textarea = item.querySelector('.fb-reply-input');
-      const replyText = (textarea.value || '').trim();
-      if (!replyText) return;
-      try {
-        const row = donateRows.find(r => r.id === id);
-        const messages = Array.isArray(row.messages) ? [...row.messages] : [];
-        const ts = Date.now();
-        messages.push({ from: 'admin', text: replyText, ts });
-        await setDoc(doc(db, 'feedback_donate', id), { messages, lastTs: ts, userUnread: true, adminUnread: false }, { merge: true });
-        Object.assign(row, { messages, lastTs: ts, userUnread: true, adminUnread: false });
-        renderDonateFeedback();
-        loadDonateNewBadge(); // 상단 배지 개수 갱신
-      } catch (e) {
-        alert('답장 전송 실패: ' + humanError(e));
-      }
-    }));
-  });
+  // 답장 기능은 게임 안 피드백함(운영자 기기, 양방향 대화)으로 통합 이전 — 대시보드는 열람·계정 연결 전용
 }
 async function loadDonateFeedback({ reset = false } = {}) {
   const el = document.getElementById('donateFeedbackList');
