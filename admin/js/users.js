@@ -9,19 +9,20 @@
 //  · 닉네임 검색은 nickname_lookup 문서 1개 → 관련 문서 직접 조회 (풀스캔 없음)
 // ══════════════════════════════════════════════════════════════
 import {
-  db, collection, doc, orderBy,
-  fetchDoc, deleteDoc, makePager, getUserDocByNick, resolveUserDocId,
+  db, collection, doc, orderBy, query, limit,
+  fetchDoc, fetchDocs, deleteDoc, makePager, getUserDocByNick, resolveUserDocId,
   getWeekId, getTodayDateStr, fmtAgo, fmtDateTime, fmtDuration, fmtNum, escapeHtml,
   humanError, normalizeNickname,
 } from './firebase.js';
-import { getTodaySessions } from './stats.js';
+import { getTodaySessions, todayNewUsersList } from './stats.js';
 import { setLoading, setError, setEmpty, guardBtn, resultMsg } from './admin.js';
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 20;
 
 // 정렬 모드 → user_stats 필드 (전부 단일 필드 orderBy — 복합 인덱스 불필요)
 const SORT_FIELDS = {
   lastPlayed:    { field: 'lastPlayed',    label: v => fmtAgo(v),                 name: '최근 플레이' },
+  firstPlayed:   { field: 'firstPlayed',   label: v => fmtDateTime(v).split(' ')[0], name: '가입' },
   bestScore:     { field: 'bestScore',     label: v => `${fmtNum(v)}pt`,          name: '최고 점수' },
   playCount:     { field: 'playCount',     label: v => `${fmtNum(v)}판`,          name: '플레이 수' },
   totalPlayTime: { field: 'totalPlayTime', label: v => fmtDuration(v),            name: '누적 시간' },
@@ -79,11 +80,15 @@ async function loadPage(sortKey, { reset = false } = {}) {
 // 홈이 이미 받아온 오늘 visit_sessions 캐시를 그대로 재사용 — 추가 Firestore 조회 0.
 // ⚠️ 이전 구현은 users.createdAt(=계정 연결 시각)을 "가입"으로 표시해서 기존 유저에게
 //    오늘 날짜가 가입일처럼 보였음 — 접속 기록엔 "접속 시각"만 표시한다.
-async function loadTodayUsers({ force = false } = {}) {
+// full=false: 최근 세션 30건만 읽어 고유 유저 10명 표시(기본).
+// full=true("전체 보기"): 오늘 세션 전량을 읽어 고유 방문자 전체 + 재방문 수치 계산.
+async function loadTodayUsers({ force = false, full = false } = {}) {
   const el = document.getElementById('usersTodayList');
   setLoading(el);
   try {
-    const sessions = await getTodaySessions({ force });
+    const sessions = full
+      ? await getTodaySessions({ force })
+      : await fetchDocs(query(collection(db, 'visit_sessions'), orderBy('lastSeenTs', 'desc'), limit(30)));
     // 방문자 단위로 합산 (같은 유저의 여러 세션 → 1행)
     const byVisitor = new Map();
     for (const s of sessions) {
@@ -96,7 +101,7 @@ async function loadTodayUsers({ force = false } = {}) {
     }
     const rows = [...byVisitor.entries()]
       .sort((a, b) => b[1].lastSeenTs - a[1].lastSeenTs)
-      .slice(0, 50);
+      .slice(0, full ? 200 : 10);
     if (!rows.length) { setEmpty(el, '오늘 접속한 유저가 없어요'); return; }
     el.innerHTML = rows.map(([key, v]) => {
       const isAnon = !v.nickname;
@@ -106,7 +111,7 @@ async function loadTodayUsers({ force = false } = {}) {
         <span class="main"><span class="nick">${escapeHtml(name)}</span>${isAnon ? ' <span class="badge">익명 방문</span>' : ''}</span>
         <span class="sub">접속 ${fmtDateTime(v.lastSeenTs)} · ${v.plays}판</span>
       </div>`;
-    }).join('') + (byVisitor.size > 50 ? `<div class="card-note">외 ${byVisitor.size - 50}명 (최근 접속순 50명까지 표시)</div>` : '');
+    }).join('') + (full ? `<div class="card-note">오늘 고유 방문 ${byVisitor.size}명 (세션 ${sessions.length}건)</div>` : '');
   } catch (e) {
     setError(el, humanError(e));
   }
@@ -214,6 +219,18 @@ export function initUsersTab() {
   const moreBtn = document.getElementById('usersMoreBtn');
   moreBtn.addEventListener('click', guardBtn(moreBtn, () => loadPage(document.getElementById('userSortSel').value)));
 
+  // 오늘 접속 "전체 보기" — 이때만 오늘 세션 전량 조회(고유 방문자 수 포함)
+  const todayAllBtn = document.getElementById('usersTodayAllBtn');
+  todayAllBtn.addEventListener('click', guardBtn(todayAllBtn, () => loadTodayUsers({ full: true })));
+  // 전체 유저 "전체 보기" — 이때만 user_stats 목록 조회(20명/페이지)
+  const allBtn = document.getElementById('usersAllBtn');
+  allBtn.addEventListener('click', guardBtn(allBtn, async () => {
+    document.getElementById('usersAllCard').style.display = '';
+    const sortKey = document.getElementById('userSortSel').value;
+    if (!listState[sortKey]) await loadPage(sortKey);
+    document.getElementById('usersAllCard').scrollIntoView({ behavior: 'smooth' });
+  }));
+
   const searchBtn = document.getElementById('userSearchBtn');
   const searchInput = document.getElementById('userSearchInput');
   searchBtn.addEventListener('click', guardBtn(searchBtn, () => searchUser(searchInput.value.trim())));
@@ -232,13 +249,43 @@ export function initUsersTab() {
   });
 }
 
+// 신규 유저 최근 10명 (user_stats firstPlayed desc)
+async function loadNewUsers() {
+  const el = document.getElementById('usersNewList');
+  setLoading(el);
+  try {
+    const rows = await todayNewUsersList(10);
+    el.innerHTML = rows.length ? rows.map(r => `
+      <div class="list-row clickable user-row" data-nick="${escapeHtml(r.nickname || r.id)}">
+        <span class="main"><span class="nick">${escapeHtml(r.nickname || r.id)}</span></span>
+        <span class="sub">가입 ${r.firstPlayed ? fmtDateTime(r.firstPlayed).split(' ')[0] : '-'} · ${fmtNum(r.playCount || 0)}판</span>
+      </div>`).join('') : `<div class="list-empty">신규 유저가 없어요</div>`;
+  } catch (e) { setError(el, humanError(e)); }
+}
+
+// 최근 활동 유저 10명 (user_stats lastPlayed desc)
+async function loadRecentActive() {
+  const el = document.getElementById('usersRecentList');
+  setLoading(el);
+  try {
+    const rows = await fetchDocs(query(collection(db, 'user_stats'), orderBy('lastPlayed', 'desc'), limit(10)));
+    el.innerHTML = rows.length ? rows.map(r => `
+      <div class="list-row clickable user-row" data-nick="${escapeHtml(r.nickname || r.id)}">
+        <span class="main"><span class="nick">${escapeHtml(r.nickname || r.id)}</span></span>
+        <span class="sub">${r.lastPlayed ? fmtAgo(r.lastPlayed) : '-'} · 최고 ${fmtNum(r.bestScore || 0)}pt</span>
+      </div>`).join('') : `<div class="list-empty">기록이 없어요</div>`;
+  } catch (e) { setError(el, humanError(e)); }
+}
+
 export async function loadUsers({ force = false } = {}) {
   if (force) {
     for (const k of Object.keys(listState)) delete listState[k];
+    document.getElementById('usersAllCard').style.display = 'none';
   }
-  const sortKey = document.getElementById('userSortSel').value;
+  // 기본: 3영역 × 10명만. 전체 목록은 "전체 보기"를 눌렀을 때만 조회.
   await Promise.allSettled([
     loadTodayUsers({ force }),
-    listState[sortKey] ? Promise.resolve(renderList(sortKey)) : loadPage(sortKey, { reset: force }),
+    loadNewUsers(),
+    loadRecentActive(),
   ]);
 }
