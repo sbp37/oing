@@ -8,7 +8,7 @@
 import {
   db, collection, doc, query, where, orderBy, limit,
   fetchDocs, fetchDoc, setDoc, deleteDoc, getUserDocByNick, resolveUserDocId, countQuery,
-  getWeekId, fmtNum, fmtDateTime, escapeHtml, downloadJSON, humanError,
+  getWeekId, fmtNum, fmtDateTime, fmtDuration, escapeHtml, downloadJSON, humanError,
   getTodayDateStr, cache, fns, httpsCallable,
 } from './firebase.js';
 import { setLoading, setError, setEmpty, guardBtn, resultMsg } from './admin.js';
@@ -19,7 +19,7 @@ import { deleteRankingRecord } from './users.js';
 // 실제 복구 판정(관리자 확인·상한 미만·현재보다 높을 때만·감사 로그)은 전부 서버(adminRecoverScore).
 // 여기서는 후보 표시와 서버 호출만 한다. user_stats.bestScore(전체 최고점)가 아니라
 // "오늘 실제 점수"만 대상 — recentScores 뒤 dailyPlayCount개의 최댓값(서버 로직과 동일).
-const RECOVER_SCORE_MAX = 60000; // 서버(adminRecover.js) 공식 상한과 동일 — 2026-07-15 운영 결정
+const RECOVER_SCORE_MAX = 58000; // 서버(adminRecover.js) 공식 상한과 동일 — 2026-07-18 운영 결정 58000
 function todaysBestScoreClient(s, today) {
   if (!s) return 0;
   if (s.lastPlayDate !== today && s.dailyDate !== today) return 0;
@@ -137,6 +137,22 @@ async function resetPin() {
 const HIGH_SCORE_MIN = 40000;
 const DECISION_KO = { accepted: ['정상 반영', 'ok'], pending_review: ['보류', 'pending'], rejected_invalid: ['거부', 'rejected'] };
 
+// 기기 라벨 — game_sessions.client.device({type,os,pwa}). 2026-07-18부터 수집(이전 판은 없음).
+const DEVICE_TYPE_KO = { mobile: '📱 모바일', tablet: '📱 태블릿', pc: '💻 PC', unknown: '❔ 알 수 없음' };
+function deviceLabel(dv) {
+  if (!dv || typeof dv !== 'object') return '기록 없음 (이전 버전 판)';
+  const type = DEVICE_TYPE_KO[dv.type] || DEVICE_TYPE_KO.unknown;
+  const os = (dv.os && dv.os !== 'unknown') ? ` · ${escapeHtml(dv.os)}` : '';
+  const pwa = dv.pwa === true ? ' · 홈화면 앱' : '';
+  return `${type}${os}${pwa}`;
+}
+// 짧은 기기 배지(목록 줄용) — 모바일/PC만 아이콘으로
+function deviceMini(dv) {
+  if (!dv || !dv.type) return '';
+  const m = { mobile: '📱', tablet: '📱', pc: '💻' };
+  return m[dv.type] ? `<span title="${escapeHtml(deviceLabel(dv))}">${m[dv.type]}</span>` : '';
+}
+
 // 사람이 빠르게 읽는 한 줄 요약 — 전부 규칙 기반(추측·차단 없음)
 function highScoreSummary(d, stats) {
   const parts = [];
@@ -147,7 +163,9 @@ function highScoreSummary(d, stats) {
   if (elapsedSec != null && avgPlay) {
     const r = elapsedSec / avgPlay;
     parts.push(r >= 1.5 ? `평소보다 ${r.toFixed(1)}배 긴 장기플레이형` : (r <= 0.7 ? `평소보다 짧은 판(${r.toFixed(1)}배)` : '평소 길이와 비슷'));
-  } else if (elapsedSec != null) parts.push(`플레이 ${Math.round(elapsedSec)}초`);
+  } else if (elapsedSec != null) parts.push(`플레이 ${fmtDuration(Math.round(elapsedSec))}`);
+  // 기기(있을 때만)
+  if (d.client?.device) parts.push(deviceLabel(d.client.device));
   // ② 시계 사용 (신버전 판부터 기록)
   const clock = d.client?.clockUsed;
   parts.push((typeof clock === 'number') ? `시계 ${clock}회 사용` : '시계 기록 없음(이전 버전 판)');
@@ -177,12 +195,17 @@ function highScoreDetailHtml(d, stats) {
   const recent = (stats && Array.isArray(stats.recentScores)) ? stats.recentScores : [];
   const reasons = Array.isArray(d.official?.reasons) ? d.official.reasons : [];
   const line = (k, v) => `<div class="mini-row"><span class="mini-label">${k}</span><span class="mini-val">${v}</span></div>`;
+  // 성공률(성공 / (성공+실패)) — 플레이 스타일 참고용
+  const total = (c.clearCount || 0) + (c.failCount || 0);
+  const successRate = total > 0 ? Math.round((c.clearCount || 0) / total * 100) + '%' : '-';
   return `
     <div class="hs-summary" style="margin:8px 0; padding:8px 10px; border-radius:8px; background:rgba(148,163,184,0.08); font-size:12.5px; line-height:1.6;">📝 ${escapeHtml(highScoreSummary(d, stats))}</div>
+    ${line('기기', deviceLabel(c.device))}
     ${line('점수', fmtNum(c.finalScore ?? 0) + '점')}
-    ${line('플레이 시간', (elapsedSec != null ? elapsedSec + '초' : '-') + (avgPlay ? ` (평소 평균 ${avgPlay}초)` : ''))}
+    ${line('플레이 시간', (elapsedSec != null ? fmtDuration(elapsedSec) : '-') + (avgPlay ? ` (평소 평균 ${fmtDuration(avgPlay)})` : ''))}
     ${line('최고 콤보', fmtNum(c.maxCombo ?? 0))}
-    ${line('성공 / 실패', `${fmtNum(c.clearCount ?? 0)} / ${fmtNum(c.failCount ?? 0)}`)}
+    ${line('성공 / 실패', `${fmtNum(c.clearCount ?? 0)} / ${fmtNum(c.failCount ?? 0)} (성공률 ${successRate})`)}
+    ${line('초기화(리셋) 횟수', fmtNum(c.resetCount ?? 0) + '회')}
     ${line('3초 내 최대 성공', fmtNum(c.maxSuccessesIn3Sec ?? 0) + '회')}
     ${line('평균 성공 간격', avgGap ? avgGap + '초' : '-')}
     ${line('시계 아이템', (typeof c.clockUsed === 'number') ? c.clockUsed + '회' : '기록 없음(이전 버전)')}
@@ -208,7 +231,7 @@ async function loadHighScores() {
       return `
         <div class="verdict-row ${decCls}" data-hs="${i}" style="cursor:pointer; flex-wrap:wrap;">
           <span class="vr-main">
-            <span class="nick">${escapeHtml(d.nickname || d.uid || '?')}</span>
+            <span class="nick">${escapeHtml(d.nickname || d.uid || '?')}</span> ${deviceMini(d.client?.device)}
             · <b>${fmtNum(d.client?.finalScore ?? 0)}점</b>
             <span class="vr-sub">${when} · 눌러서 상세 ▾</span>
           </span>
@@ -247,7 +270,7 @@ async function loadHighScores() {
 const VERDICT_DECISIONS = ['pending_review', 'rejected_invalid'];
 const REASON_LABELS = {
   ELAPSED_TOO_SHORT: '30초 미만 즉시클리어',
-  SCORE_OVER_OFFICIAL_CAP: '점수 상한 초과(6만+)',
+  SCORE_OVER_OFFICIAL_CAP: '점수 상한 초과(5.8만+)',
   IMPOSSIBLE_BURST: '비정상 폭발 성공(버스트)',
   COMPOSITE_ANOMALY: '복합 이상패턴',
   NO_SESSION: '서버세션 없음',
@@ -359,7 +382,7 @@ function verdictRowHtml(d) {
         <span class="nick">${escapeHtml(d.nickname || d.uid || '?')}</span>
         · ${fmtNum(d.client?.finalScore ?? '-')}점
         <span class="vr-reasons">${reasons.map(r => `<span class="verdict-tag ${cls}">${escapeHtml(reasonLabel(r))}</span>`).join('')}</span>
-        <span class="vr-sub">플레이 ${elapsedSec != null ? elapsedSec + '초' : '-'}${burst != null ? ` · 3초내 최대 ${fmtNum(burst)}성공` : ''} · ${d.official?.decidedAt ? fmtDateTime(d.official.decidedAt) : '-'}</span>
+        <span class="vr-sub">플레이 ${elapsedSec != null ? fmtDuration(elapsedSec) : '-'}${burst != null ? ` · 3초내 최대 ${fmtNum(burst)}성공` : ''} · ${d.official?.decidedAt ? fmtDateTime(d.official.decidedAt) : '-'}</span>
       </span>
       <span class="vr-verdict ${cls}">${verdictText}</span>
     </div>`;
