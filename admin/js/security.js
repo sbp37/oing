@@ -9,7 +9,7 @@ import {
   db, collection, doc, query, where, orderBy, limit,
   fetchDocs, fetchDoc, setDoc, deleteDoc, getUserDocByNick, resolveUserDocId, countQuery,
   getWeekId, fmtNum, fmtDateTime, fmtDuration, escapeHtml, downloadJSON, humanError,
-  getTodayDateStr, cache, fns, httpsCallable,
+  getTodayDateStr, cache, fns, httpsCallable, makePager,
 } from './firebase.js';
 import { setLoading, setError, setEmpty, guardBtn, resultMsg } from './admin.js';
 import { deleteRankingRecord } from './users.js';
@@ -187,19 +187,148 @@ function highScoreSummary(d, stats) {
   return parts.join(' · ');
 }
 
-function highScoreDetailHtml(d, stats) {
+// ── 🕵️ 성공 원장(ledger) 분석 — 4만+ 신버전 판에만 존재. 전부 표시 전용(자동 조치 없음) ──
+const INTEGRITY_KO = {
+  COMBO_GT_CLEARS: '최고 콤보가 성공 수보다 큼 (모순)',
+  BURST_GT_CLEARS: '3초 버스트가 성공 수보다 큼 (모순)',
+  LEDGER_COUNT_MISMATCH: '기록된 성공 수와 원장 줄 수가 안 맞음',
+  LEDGER_SCORE_MISMATCH: '제출 점수와 원장 점수가 다름 (강한 의심)',
+  LEDGER_COMBO_MISMATCH: '최고 콤보와 원장 기록이 안 맞음',
+};
+function hsParseLedger(str) {
+  if (typeof str !== 'string' || !str) return null;
+  const out = [];
+  for (const p of str.split(';')) {
+    if (!p) continue;
+    const f = p.split(',').map(Number);
+    if (f.length !== 3 || f.some(x => !Number.isFinite(x) || x < 0)) return null;
+    out.push(f);
+  }
+  return out.length ? out : null;
+}
+// 성공 간격 통계 — 첫 줄(시작→첫 성공)은 준비 시간이라 리듬에서 제외
+function hsRhythm(entries) {
+  const deltas = entries.slice(1).map(e => e[0]);
+  if (deltas.length < 5) return null;
+  const s = [...deltas].sort((a, b) => a - b);
+  const pct = (p) => s[Math.min(s.length - 1, Math.floor(s.length * p))];
+  const mean = deltas.reduce((a, b) => a + b, 0) / deltas.length;
+  const std = Math.sqrt(deltas.reduce((a, b) => a + (b - mean) ** 2, 0) / deltas.length);
+  const median = pct(0.5);
+  const tol = Math.max(50, median * 0.08); // 균일 판정 허용폭: 중앙값 ±8% (최소 50ms)
+  const uniformPct = Math.round(deltas.filter(d => Math.abs(d - median) <= tol).length / deltas.length * 100);
+  const third = Math.max(1, Math.floor(deltas.length / 3));
+  const rate = (arr) => arr.length ? Math.round(60000 / (arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : 0;
+  return {
+    n: deltas.length, median, min: s[0], max: s[s.length - 1], mean: Math.round(mean), std: Math.round(std),
+    p10: pct(0.10), p25: pct(0.25), p75: pct(0.75), p90: pct(0.90),
+    fast100: deltas.filter(d => d <= 100).length,
+    fast300: deltas.filter(d => d <= 300).length,
+    uniformPct,
+    pauses: deltas.filter(d => d >= 5000).length,
+    maxPause: s[s.length - 1],
+    rateEarly: rate(deltas.slice(0, third)), rateMid: rate(deltas.slice(third, third * 2)), rateLate: rate(deltas.slice(third * 2)),
+  };
+}
+// 리듬 기반 주의 신호 — 사람 손은 흔들리고, 매크로는 균일하다
+function hsRhythmFlags(st) {
+  const flags = [];
+  if (!st) return flags;
+  if (st.n >= 50 && st.uniformPct >= 60) flags.push(`입력 간격이 기계처럼 균일함 (${st.uniformPct}%가 중앙값 ±8% 안)`);
+  if (st.fast100 >= 5) flags.push(`0.1초 이하 간격 입력 ${st.fast100}회`);
+  if (st.n >= 50 && st.std <= Math.max(30, st.median * 0.05)) flags.push('간격 흔들림(표준편차)이 비정상적으로 작음');
+  return flags;
+}
+// 판 간 리듬 유사도 — 백분위 지문을 중앙값으로 정규화해 비교 (같은 유저의 원장 있는 판들끼리)
+function hsFingerprint(st) {
+  if (!st || !st.median) return null;
+  return [st.p10, st.p25, st.median, st.p75, st.p90].map(v => v / st.median);
+}
+function hsSimilarityLabel(d, allRows) {
+  const mine = hsFingerprint(hsRhythmOf(d));
+  if (!mine) return null;
+  const others = allRows.filter(r => r !== d && r.nickname === d.nickname && r.client?.ledger);
+  const diffs = [];
+  for (const o of others) {
+    const fp = hsFingerprint(hsRhythmOf(o));
+    if (fp) diffs.push(mine.reduce((a, v, i) => a + Math.abs(v - fp[i]), 0) / mine.length);
+  }
+  if (!diffs.length) return null;
+  const avg = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+  const label = avg < 0.06 ? '매우 비슷함 ⚠️' : (avg < 0.15 ? '비슷한 편' : '자연스럽게 다름');
+  return { label, count: diffs.length, verySimilar: avg < 0.06 };
+}
+const _hsRhythmCache = new Map();
+function hsRhythmOf(d) {
+  if (!_hsRhythmCache.has(d)) {
+    const entries = hsParseLedger(d.client?.ledger);
+    _hsRhythmCache.set(d, entries ? hsRhythm(entries) : null);
+  }
+  return _hsRhythmCache.get(d);
+}
+const fmtMs = (ms) => (ms >= 1000 ? (ms / 1000).toFixed(2) + '초' : ms + 'ms');
+
+function highScoreDetailHtml(d, stats, allRows) {
   const c = d.client || {};
   const elapsedSec = typeof d.serverElapsed === 'number' ? Math.round(d.serverElapsed / 1000) : null;
   const avgPlay = (stats && stats.playCount > 0 && stats.totalPlayTime > 0) ? Math.round(stats.totalPlayTime / stats.playCount) : null;
   const avgGap = (elapsedSec && c.clearCount > 0) ? (elapsedSec / c.clearCount).toFixed(2) : null;
   const recent = (stats && Array.isArray(stats.recentScores)) ? stats.recentScores : [];
   const reasons = Array.isArray(d.official?.reasons) ? d.official.reasons : [];
+  const integ = d.official?.integrity || null;
+  const rhythm = hsRhythmOf(d);
+  const sim = hsSimilarityLabel(d, allRows || []);
   const line = (k, v) => `<div class="mini-row"><span class="mini-label">${k}</span><span class="mini-val">${v}</span></div>`;
+  const head = (t) => `<div style="margin:12px 0 2px; font-size:11.5px; font-weight:800; color:var(--muted2); letter-spacing:0.3px;">${t}</div>`;
+
+  // ── 주의 신호 종합(쉬운 말) — 자동 판정 사유 + 무결성 모순 + 리듬 신호 + 유사도 ──
+  const warns = [];
+  reasons.filter(r => r !== 'NO_SESSION').forEach(r => warns.push(reasonLabel(r)));
+  (integ?.flags || []).forEach(f => warns.push(INTEGRITY_KO[f] || f));
+  hsRhythmFlags(rhythm).forEach(f => warns.push(f));
+  if (sim && sim.verySimilar) warns.push(`최근 고득점 ${sim.count}판과 입력 리듬이 매우 비슷함`);
+  const warnBox = warns.length
+    ? `<div class="hs-summary" style="margin:8px 0; padding:8px 10px; border-radius:8px; background:rgba(226,90,90,0.10); border:1px solid rgba(226,90,90,0.3); font-size:12.5px; line-height:1.7;">⚠️ <b>주의 신호 ${warns.length}개</b><br>${warns.map(w => '· ' + escapeHtml(w)).join('<br>')}</div>`
+    : `<div class="hs-summary" style="margin:8px 0; padding:8px 10px; border-radius:8px; background:rgba(76,175,107,0.10); border:1px solid rgba(76,175,107,0.3); font-size:12.5px;">✅ 주의 신호 없음</div>`;
+
+  // ── 점수 검증(원장 재계산) ──
+  const entries = hsParseLedger(c.ledger);
+  const ledgerScore = integ?.ledgerScore ?? (entries ? entries[entries.length - 1][1] : null);
+  const scoreDiff = integ?.scoreDiff ?? (ledgerScore != null ? (c.finalScore ?? 0) - ledgerScore : null);
+  const verifyRows = ledgerScore != null ? `
+    ${line('제출 점수', fmtNum(c.finalScore ?? 0) + '점')}
+    ${line('원장 재계산', fmtNum(ledgerScore) + '점')}
+    ${line('차이', scoreDiff === 0 ? '0 ✅' : `<b style="color:#fca5a5;">${fmtNum(scoreDiff)}점 ⚠️</b>`)}`
+    : line('점수 검증', '원장 없음 (v4.6.6 이전 판)');
+
+  // ── 입력 리듬 통계 ──
+  const rhythmRows = rhythm ? `
+    ${line('성공 간격 중앙값', fmtMs(rhythm.median) + ` (평균 ${fmtMs(rhythm.mean)})`)}
+    ${line('최소 / 최대', `${fmtMs(rhythm.min)} / ${fmtMs(rhythm.max)}`)}
+    ${line('흔들림(표준편차)', fmtMs(rhythm.std))}
+    ${line('p10 / p25 / p75 / p90', [rhythm.p10, rhythm.p25, rhythm.p75, rhythm.p90].map(fmtMs).join(' / '))}
+    ${line('빠른 입력', `0.1초 이하 ${rhythm.fast100}회 · 0.3초 이하 ${rhythm.fast300}회`)}
+    ${line('균일한 간격 비율', rhythm.uniformPct + '% (중앙값 ±8% 안)')}
+    ${line('정지 구간(5초+)', `${rhythm.pauses}회 · 최장 ${fmtMs(rhythm.maxPause)}`)}
+    ${line('초반/중반/후반 속도', `${rhythm.rateEarly} → ${rhythm.rateMid} → ${rhythm.rateLate} 성공/분`)}
+    ${sim ? line('다른 판과 리듬 비교', `${sim.label} (원장 있는 ${sim.count}판 대비)`) : ''}`
+    : line('입력 리듬', '원장 없음 (v4.6.6 이전 판)');
+
+  // ── 시간·창 상태 ──
+  const w = c.winStat || null;
+  const winRows = w ? `
+    ${line('전체 플레이', w.playMs != null ? fmtDuration(Math.round(w.playMs / 1000)) : '-')}
+    ${line('화면 이탈(백그라운드)', `${w.hidCount ?? 0}회 · 합 ${w.hidMs != null ? fmtDuration(Math.round(w.hidMs / 1000)) : '-'} · 최장 ${w.hidMax != null ? fmtDuration(Math.round(w.hidMax / 1000)) : '-'}`)}
+    ${line('실제 활성 시간', (w.playMs != null && w.hidMs != null) ? fmtDuration(Math.round((w.playMs - w.hidMs) / 1000)) : '-')}`
+    : '';
+
   // 성공률(성공 / (성공+실패)) — 플레이 스타일 참고용
   const total = (c.clearCount || 0) + (c.failCount || 0);
   const successRate = total > 0 ? Math.round((c.clearCount || 0) / total * 100) + '%' : '-';
   return `
+    ${warnBox}
     <div class="hs-summary" style="margin:8px 0; padding:8px 10px; border-radius:8px; background:rgba(148,163,184,0.08); font-size:12.5px; line-height:1.6;">📝 ${escapeHtml(highScoreSummary(d, stats))}</div>
+    ${head('📊 기본')}
     ${line('기기', deviceLabel(c.device))}
     ${line('점수', fmtNum(c.finalScore ?? 0) + '점')}
     ${line('플레이 시간', (elapsedSec != null ? fmtDuration(elapsedSec) : '-') + (avgPlay ? ` (평소 평균 ${fmtDuration(avgPlay)})` : ''))}
@@ -211,38 +340,64 @@ function highScoreDetailHtml(d, stats) {
     ${line('시계 아이템', (typeof c.clockUsed === 'number') ? c.clockUsed + '회' : '기록 없음(이전 버전)')}
     ${line('최근 점수 추이', recent.length ? recent.map(fmtNum).join(' → ') : '-')}
     ${line('자동 판정', `${(DECISION_KO[d.official?.decision] || ['-'])[0]}${reasons.length ? ' — ' + reasons.map(reasonLabel).join(', ') : ''}`)}
+    ${head('🧮 점수 검증')}
+    ${verifyRows}
+    ${head('🎹 입력 리듬')}
+    ${rhythmRows}
+    ${winRows ? head('🪟 시간·창 상태') + winRows : ''}
   `;
 }
 
-async function loadHighScores() {
+// 목록: 기본 10건 + "더 보기" 커서 페이지네이션 (점수 높은 순)
+const HS_PAGE = 10;
+let hsRows = [];
+let hsPager = null;
+function hsRowHtml(d, i) {
+  const [decText, decCls] = DECISION_KO[d.official?.decision] || ['?', 'unverifiable'];
+  const when = d.submittedAt ? fmtDateTime(d.submittedAt) : '-';
+  const nWarn = (d.official?.integrity?.flags || []).length;
+  return `
+    <div class="verdict-row ${decCls}" data-hs="${i}" style="cursor:pointer; flex-wrap:wrap;">
+      <span class="vr-main">
+        <span class="nick">${escapeHtml(d.nickname || d.uid || '?')}</span> ${deviceMini(d.client?.device)}
+        · <b>${fmtNum(d.client?.finalScore ?? 0)}점</b>
+        ${nWarn ? `<span class="badge warn">모순 ${nWarn}</span>` : ''}
+        <span class="vr-sub">${when} · 눌러서 상세 ▾</span>
+      </span>
+      <span class="vr-verdict ${decCls}">${decText}</span>
+      <div class="hs-detail" style="display:none; flex-basis:100%; margin-top:4px;"></div>
+    </div>`;
+}
+function hsRender() {
   const el = document.getElementById('highScoreList');
-  setLoading(el, '4만점 이상 세션을 찾는 중...');
-  try {
-    const rows = await fetchDocs(query(
+  el.innerHTML = hsRows.map((d, i) => hsRowHtml(d, i)).join('');
+  const more = document.getElementById('highScoreMoreBtn');
+  if (more) more.style.display = (hsPager && !hsPager.done) ? '' : 'none';
+}
+async function loadHighScores({ append = false } = {}) {
+  const el = document.getElementById('highScoreList');
+  if (!append) {
+    hsRows = []; _hsRhythmCache.clear();
+    hsPager = makePager(() => [
       collection(db, 'game_sessions'),
       where('client.finalScore', '>=', HIGH_SCORE_MIN),
       orderBy('client.finalScore', 'desc'),
-      limit(30),
-    ));
-    if (!rows.length) { setEmpty(el, '4만점 이상 세션이 아직 없어요'); return; }
-    el.innerHTML = rows.map((d, i) => {
-      const [decText, decCls] = DECISION_KO[d.official?.decision] || ['?', 'unverifiable'];
-      const when = d.submittedAt ? fmtDateTime(d.submittedAt) : '-';
-      return `
-        <div class="verdict-row ${decCls}" data-hs="${i}" style="cursor:pointer; flex-wrap:wrap;">
-          <span class="vr-main">
-            <span class="nick">${escapeHtml(d.nickname || d.uid || '?')}</span> ${deviceMini(d.client?.device)}
-            · <b>${fmtNum(d.client?.finalScore ?? 0)}점</b>
-            <span class="vr-sub">${when} · 눌러서 상세 ▾</span>
-          </span>
-          <span class="vr-verdict ${decCls}">${decText}</span>
-          <div class="hs-detail" style="display:none; flex-basis:100%; margin-top:4px;"></div>
-        </div>`;
-    }).join('');
-    // 줄 클릭 → 상세 토글 (유저 통계는 처음 펼칠 때 1건만 읽고 캐시)
-    el.querySelectorAll('[data-hs]').forEach(rowEl => {
-      rowEl.addEventListener('click', async () => {
-        const d = rows[Number(rowEl.dataset.hs)];
+    ], HS_PAGE);
+    setLoading(el, '4만점 이상 세션을 찾는 중...');
+  }
+  try {
+    const page = await hsPager.next();
+    hsRows.push(...page);
+    if (!hsRows.length) { setEmpty(el, '4만점 이상 세션이 아직 없어요'); return; }
+    hsRender();
+    // 줄 클릭 → 상세 토글 (위임 1회 바인딩 — 유저 통계는 처음 펼칠 때 1건만 읽고 캐시)
+    if (!el.dataset.hsBound) {
+      el.dataset.hsBound = '1';
+      el.addEventListener('click', async (ev) => {
+        const rowEl = ev.target.closest('[data-hs]');
+        if (!rowEl) return;
+        const d = hsRows[Number(rowEl.dataset.hs)];
+        if (!d) return;
         const box = rowEl.querySelector('.hs-detail');
         if (box.style.display !== 'none') { box.style.display = 'none'; return; }
         if (!box.dataset.loaded) {
@@ -250,12 +405,12 @@ async function loadHighScores() {
           box.style.display = 'block';
           let stats = null;
           try { const r = await getUserDocByNick('user_stats', d.nickname || ''); stats = r && r.data; } catch {}
-          box.innerHTML = highScoreDetailHtml(d, stats);
+          box.innerHTML = highScoreDetailHtml(d, stats, hsRows);
           box.dataset.loaded = '1';
         }
         box.style.display = 'block';
       });
-    });
+    }
   } catch (e) {
     const msg = humanError(e);
     const extra = /index/i.test(String(e && (e.code || e.message)))
@@ -772,7 +927,9 @@ export function initSecurityTab() {
   if (recoverBtn) recoverBtn.addEventListener('click', guardBtn(recoverBtn, scanRecoverCandidates));
 
   const hsBtn = document.getElementById('highScoreScanBtn');
-  if (hsBtn) hsBtn.addEventListener('click', guardBtn(hsBtn, loadHighScores));
+  if (hsBtn) hsBtn.addEventListener('click', guardBtn(hsBtn, () => loadHighScores()));
+  const hsMoreBtn = document.getElementById('highScoreMoreBtn');
+  if (hsMoreBtn) hsMoreBtn.addEventListener('click', guardBtn(hsMoreBtn, () => loadHighScores({ append: true })));
 
   const blockLoadBtn = document.getElementById('blocklistLoadBtn');
   if (blockLoadBtn) blockLoadBtn.addEventListener('click', guardBtn(blockLoadBtn, loadBlocklist));
