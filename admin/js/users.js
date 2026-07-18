@@ -167,26 +167,35 @@ async function openUserDetail(nick) {
         .join(' ← ')
       : null;
     const kv = (k, v) => `<div class="kv"><span class="k">${k}</span><span class="v">${v ?? '-'}</span></div>`;
+    // 그룹으로 묶어서 표시 — 위험 버튼(랭킹 삭제)은 기본 접힘
     body.innerHTML = `
-      ${kv('계정 연동', uid ? `연동됨 (${uid.slice(0, 8)}…)` : '미연동 (이전 방식 데이터)')}
-      ${prevNicks ? kv('🏷️ 이전 닉네임', prevNicks) : ''}
-      ${kv('첫 플레이 (가입)', stats?.firstPlayed ? fmtDateTime(stats.firstPlayed) : '가입일 미상')}
-      ${kv('계정 연결일', userDoc?.createdAt ? fmtDateTime(userDoc.createdAt) : '-')}
-      ${kv('마지막 접속', userDoc?.lastSeenAt ? fmtAgo(userDoc.lastSeenAt) : (stats?.lastPlayed ? fmtAgo(stats.lastPlayed) : '-'))}
+      <div class="mg-title">📌 기본 정보</div>
       ${kv('전체 랭킹 점수', rank ? fmtNum(rank.score) + 'pt' : '없음')}
       ${kv(`이번주(${weekId}) 점수`, weekScore ? fmtNum(weekScore.score) + 'pt' : '없음')}
       ${kv('최고 점수', fmtNum(stats?.bestScore ?? '-'))}
+      ${kv('마지막 접속', userDoc?.lastSeenAt ? fmtAgo(userDoc.lastSeenAt) : (stats?.lastPlayed ? fmtAgo(stats.lastPlayed) : '-'))}
+      ${kv('고양이 스킨', skins?.cat ? '보유 😻' : '없음')}
+      <div class="mg-title">🎮 플레이 기록</div>
+      ${kv('첫 플레이 (가입)', stats?.firstPlayed ? fmtDateTime(stats.firstPlayed) : '가입일 미상')}
       ${kv('총 플레이', `${fmtNum(stats?.playCount || 0)}판 · ${fmtDuration(stats?.totalPlayTime || 0)}`)}
       ${kv('오늘 플레이', stats?.dailyDate === getTodayDateStr() ? `${stats.dailyPlayCount || 0}판` : '0판')}
       ${kv('연속 출석', `${stats?.streak || 0}일`)}
       ${kv('최고 콤보', fmtNum(stats?.bestCombo ?? '-'))}
-      ${kv('젤리', `${fmtNum(stats?.jelly || 0)}개`)}
+      ${kv('최근 점수', (stats?.recentScores || []).slice(-5).join(', ') || '-')}
+      <div class="mg-title">🔗 계정 연결</div>
+      ${kv('계정 연동', uid ? `연동됨 (${uid.slice(0, 8)}…)` : '미연동 (이전 방식 데이터)')}
+      ${kv('계정 연결일', userDoc?.createdAt ? fmtDateTime(userDoc.createdAt) : '-')}
+      ${prevNicks ? kv('🏷️ 이전 닉네임', prevNicks) : ''}
+      <div class="mg-title">🧭 유입 정보</div>
       ${kv('유입 경로', escapeHtml(stats?.referrerSrc || '-'))}
       ${kv('추천인', escapeHtml(stats?.refBy || '-'))}
-      ${kv('고양이 스킨', skins?.cat ? '보유 😻' : '없음')}
-      ${kv('최근 점수', (stats?.recentScores || []).slice(-5).join(', ') || '-')}
-      <button id="userModalDeleteRank" class="btn btn-danger btn-block">🗑️ 이 유저 랭킹 기록 삭제</button>
-      <div id="userModalResult"></div>`;
+      <details class="tool-acc danger-acc" style="margin-top:12px;">
+        <summary>🔴 관리 도구</summary>
+        <div class="tool-body">
+          <button id="userModalDeleteRank" class="btn btn-danger btn-block">🗑️ 이 유저 랭킹 기록 삭제</button>
+          <div id="userModalResult"></div>
+        </div>
+      </details>`;
     const delBtn = document.getElementById('userModalDeleteRank');
     delBtn.addEventListener('click', guardBtn(delBtn, () => deleteRankingRecord(nick, 'userModalResult')));
   } catch (e) {

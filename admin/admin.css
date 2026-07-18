@@ -433,6 +433,9 @@ textarea { width: 100%; resize: vertical; }
 .tool-acc .tool-body .card .list-row, .tool-acc .tool-body .card .fb-item { background: var(--surface); }
 .danger-acc { border-color: rgba(226, 90, 90, 0.45); }
 .danger-acc > summary { color: #f0a8a8; }
+/* 유저 상세 모달 — 정보 그룹 제목 */
+.mg-title { font-size: 12px; font-weight: 800; color: var(--muted2); margin: 14px 0 2px; letter-spacing: 0.3px; }
+.mg-title:first-child { margin-top: 0; }
 /* 행동 요약 카드 */
 .bh-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
