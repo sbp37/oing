@@ -8916,21 +8916,22 @@ function checkFewAnswersToast() {
 
 function showFewAnswersToast(n) {
   const word = n === 1 ? '한개' : (n === 2 ? '두개' : '세개');
-  const rect = gridEl ? gridEl.getBoundingClientRect() : { left: 0, top: 120, width: window.innerWidth };
   const pop = document.createElement('div');
+  // 화면 정중앙 고정 + 페이드 인/아웃 — 판 어디를 보고 있어도 놓치지 않게
   pop.style.cssText = `
     position:fixed; pointer-events:none; z-index:250; white-space:nowrap;
-    left:50%; transform:translateX(-50%);
-    top:${Math.max(60, rect.top + 6)}px;
-    font-size:13.5px; font-weight:900; letter-spacing:-0.2px;
-    padding:8px 16px; border-radius:999px;
+    left:50%; top:47%; transform:translate(-50%,-50%) scale(0.94);
+    font-size:14px; font-weight:900; letter-spacing:-0.2px;
+    padding:9px 18px; border-radius:999px;
     background:rgba(20,30,46,0.96); color:#a9f0b9;
     border:1.5px solid rgba(127,232,149,0.55);
     box-shadow:0 4px 16px rgba(0,0,0,0.5), 0 0 12px rgba(127,232,149,0.15);
-    animation: floatup 1.6s ease forwards;`;
+    opacity:0; transition:opacity 0.3s ease, transform 0.3s ease;`;
   pop.textContent = `Hint! 정답 ${word} 숨어있다냥~😽`;
   document.body.appendChild(pop);
-  setTimeout(() => pop.remove(), 1600); // 아이템 팝(showItemPop)과 동일한 체류 시간
+  requestAnimationFrame(() => { pop.style.opacity = '1'; pop.style.transform = 'translate(-50%,-50%) scale(1)'; });
+  setTimeout(() => { pop.style.opacity = '0'; }, 2300); // 2.3초 보여주고
+  setTimeout(() => pop.remove(), 2700);                  // 0.4초 페이드아웃 후 제거
 }
 
 // 끝나기 30~40초 전 사이 랜덤한 시점에 딱 1번 체크 — 당첨되면 랜덤 칸에 클로버 등장
@@ -11451,7 +11452,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.5';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784940000; // v4.5 — 막힘 안내 토스트·스퍼트 배너·후원 닉네임 문구·어드민 답장 통합
+const BUILD = 1784950000; // v4.5.1 — 막힘 안내 토스트 화면 중앙 고정 + 체류 2.3초로 연장
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
