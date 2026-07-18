@@ -6859,8 +6859,12 @@ function triggerCaughtItem(bd, rr, cc, chainDepth) {
   } else if (bd.freeze) {
     activateFreeze(15);
   } else if (bd.lucky) {
-    combo += 2;
-    if (combo > maxCombo) maxCombo = combo;
+    if (bd.luckyKind === 'clover') {
+      activateLucky(rr, cc); // 🍀 폭발 반경에 낀 클로버도 그냥 사라지지 않고 정답 힌트 발동
+    } else {
+      combo += 2; // 🍬 콤보사탕 — 콤보 +2 (스폰 판정은 바깥 폭발 경로의 crossedB가 처리)
+      if (combo > maxCombo) maxCombo = combo;
+    }
   } else if ((bd.bomb || bd.megabomb) && chainDepth > 0) {
     const isMega2 = !!bd.megabomb;
     const rSpan = isMega2 ? 2 : 1, cSpan = isMega2 ? 3 : 2;
