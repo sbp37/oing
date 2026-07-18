@@ -2,26 +2,31 @@
    오잉게임 관리자 — 게임 본체와 동일한 다크 팔레트/카드 스타일 유지
    ══════════════════════════════════════════════════════════════ */
 :root {
-  --bg: #0b0e17;
-  --surface: #121a28;
-  --surface2: #182233;
-  --border: #223347;
-  --border2: #2c4a68;
-  --blue-dim: #16283c;
-  --blue-mid: #235e8c;
-  --blue-bright: #2f7ec9;
-  --blue-light: #7ec2f0;
-  --text: #e8edf5;
-  --muted: #7a8ba3;
-  --outer-bg: #06090f;
-  --accent-green: #3fa855;
-  --accent-green-light: #7fe895;
-  --accent-orange: #DD6032;
-  --accent-lemon: #DA9845;
+  /* 2026-07 개편: 검정에 가깝던 팔레트를 한 단계 밝은 딥 네이비로.
+     위계(어두움→밝음): outer-bg < bg < surface(카드) < surface2(리스트 행) < input < selected */
+  --bg: #0E1624;            /* 전체 배경 */
+  --surface: #172235;       /* 기본 카드 */
+  --surface2: #1C293E;      /* 카드 안 리스트 행/보조 영역 */
+  --input-bg: #1B2940;      /* 입력창 */
+  --selected: #22334C;      /* 선택된 카드/행 강조 */
+  --border: #2C3C56;
+  --border2: #3A5070;
+  --blue-dim: #1A2C44;
+  --blue-mid: #2A66A0;
+  --blue-bright: #4A9FEF;
+  --blue-light: #8CC8F5;
+  --text: #F3F6FA;
+  --muted: #A7B3C5;
+  --muted2: #75839A;        /* 비활성/희미한 텍스트 */
+  --outer-bg: #0A101C;
+  --accent-green: #4CAF6B;
+  --accent-green-light: #8FE8A8;
+  --accent-orange: #E08050;
+  --accent-lemon: #E7AD52;
   --ivory: #F1EBDA;
-  --danger: #ef4444;
-  --danger-dim: rgba(239, 68, 68, 0.12);
-  --gold: #fbbf24;
+  --danger: #E25A5A;
+  --danger-dim: rgba(226, 90, 90, 0.12);
+  --gold: #E7AD52;
 }
 
 * { box-sizing: border-box; }
@@ -37,7 +42,7 @@ body {
 h1, h2, h3 { margin: 0; font-weight: 800; }
 input, select, textarea, button { font-family: inherit; font-size: 14px; color: var(--text); }
 input, select, textarea {
-  background: var(--surface2);
+  background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 10px;
@@ -154,14 +159,14 @@ textarea { width: 100%; resize: vertical; }
 
 .tabbar {
   position: sticky; top: 0; z-index: 50;
-  display: flex; flex-wrap: wrap; /* 모바일에서 2줄로 전부 보이게 — 가로 잘림 없음 */
+  display: flex; /* 5개 탭이 항상 한 줄 — 좁은 화면은 균등 분할 + 축소 */
   gap: 6px;
   padding: 8px 0;
   background: var(--bg);
 }
 .tab-btn {
-  flex-shrink: 0;
-  padding: 8px 14px;
+  flex: 1 1 0; min-width: 0; text-align: center; white-space: nowrap;
+  padding: 8px 6px;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface);
@@ -369,4 +374,94 @@ textarea { width: 100%; resize: vertical; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
   .stat-value { font-size: 18px; }
   .section-head h2 { font-size: 15px; }
+}
+
+/* ── 유저에게 보내기 (리워드 탭 개편) ── */
+.send-sub { font-size: 12px; color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
+.seg { display: flex; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 4px; margin-top: 10px; }
+.seg-btn { flex: 1; padding: 8px 4px; border-radius: 7px; border: none; background: none; color: var(--muted); font-weight: 700; font-size: 12.5px; cursor: pointer; white-space: nowrap; transition: background 0.15s, color 0.15s; }
+.seg-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+.seg-btn[data-kind="skin"].active { color: #f0d8a8; }
+.seg-btn[data-kind="note"].active { color: #e6b8d8; }
+.seg-btn[data-kind="greeting"].active { color: #f2e08a; }
+.rw-panel { margin-top: 12px; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface2); }
+.rw-panel.skin { border-left: 3px solid var(--accent-lemon); }
+.rw-panel.note { border-left: 3px solid #c785b0; }
+.rw-panel.greeting { border-left: 3px solid #d8c94a; }
+.rw-title { font-size: 14px; font-weight: 800; margin-bottom: 3px; }
+.rw-desc { font-size: 12px; color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
+.rw-fixed { font-size: 12.5px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+.rw-fixed b { color: var(--ivory); }
+.btn-gold { background: rgba(218,152,69,0.18); border-color: var(--accent-lemon); color: #f0d8a8; }
+.btn-pink { background: rgba(199,133,176,0.16); border-color: #c785b0; color: #e6b8d8; }
+.btn-yellow { background: rgba(216,201,74,0.16); border-color: #d8c94a; color: #f2e08a; }
+/* 받는 화면 미리보기 (게임 팝업 축소 재현) */
+.rw-preview-pop { background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; padding: 18px 16px; text-align: center; max-width: 280px; margin: 0 auto; }
+.rw-preview-pop .pe { font-size: 40px; margin-bottom: 4px; }
+.rw-preview-pop .pt { font-size: 15px; font-weight: 800; color: var(--ivory); line-height: 1.4; }
+.rw-preview-pop .pb { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+.rw-preview-pop .pn { font-size: 13px; color: var(--text); margin-top: 8px; background: var(--surface2); border-radius: 10px; padding: 8px 10px; white-space: pre-wrap; }
+.rw-preview-pop .pbtn { margin-top: 14px; padding: 9px; border-radius: 10px; background: var(--surface2); border: 1px solid var(--border2); color: var(--ivory); font-weight: 700; font-size: 13px; }
+.rw-revoke { margin-top: 10px; font-size: 11.5px; color: var(--muted); }
+.rw-revoke-link { background: none; border: none; color: #c98a8a; font-size: 11.5px; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0; margin-left: 2px; }
+.rw-revoke-link:hover { color: #e0a0a0; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── 2026-07 개편: 서브탭/아코디언/데이터 상태 ── */
+.sub-panel { margin-top: 12px; }
+.data-status-badge {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 14px; font-size: 13px; font-weight: 700; color: var(--muted);
+}
+.data-status-badge:hover { border-color: var(--border2); }
+.tool-acc {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  margin-bottom: 12px; overflow: hidden;
+}
+.tool-acc > summary {
+  list-style: none; cursor: pointer; user-select: none;
+  padding: 14px; font-size: 14.5px; font-weight: 800;
+  min-height: 44px; display: flex; align-items: center;
+}
+.tool-acc > summary::-webkit-details-marker { display: none; }
+.tool-acc > summary::after { content: '▾'; margin-left: auto; color: var(--muted2); transition: transform 0.15s; }
+.tool-acc[open] > summary::after { transform: rotate(180deg); }
+.tool-acc[open] > summary { border-bottom: 1px solid var(--border); }
+.tool-acc .tool-body { padding: 12px; }
+.tool-acc .tool-body .card { background: var(--surface2); }
+.tool-acc .tool-body .card .list-row, .tool-acc .tool-body .card .fb-item { background: var(--surface); }
+.danger-acc { border-color: rgba(226, 90, 90, 0.45); }
+.danger-acc > summary { color: #f0a8a8; }
+/* 유저 상세 모달 — 정보 그룹 제목 */
+.mg-title { font-size: 12px; font-weight: 800; color: var(--muted2); margin: 14px 0 2px; letter-spacing: 0.3px; }
+.mg-title:first-child { margin-top: 0; }
+/* 함께해주신 분 — 공개 화면 미리보기 칩 */
+.tp-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.tp-chip {
+  padding: 3px 9px; border-radius: 999px; font-size: 12px; line-height: 1.5;
+  color: var(--text); background: var(--surface2); border: 1px solid var(--border);
+  max-width: 100%; overflow-wrap: anywhere;
+}
+/* 행동 요약 카드 */
+.bh-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 11px 12px; margin-bottom: 8px;
+}
+.bh-card .bh-name { font-weight: 800; font-size: 13.5px; }
+.bh-card .bh-meta { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.6; }
+.bh-group { margin-bottom: 10px; }
+.bh-group > summary {
+  list-style: none; cursor: pointer; min-height: 44px; display: flex; align-items: center;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 0 14px; font-weight: 800; font-size: 13.5px;
+}
+.bh-group > summary::-webkit-details-marker { display: none; }
+.bh-group > summary::after { content: '▾'; margin-left: auto; color: var(--muted2); }
+.bh-group[open] > summary::after { transform: rotate(180deg); }
+.bh-group .bh-body { padding: 8px 0 0; }
+/* 모바일 터치·탭바 */
+.tab-btn { min-height: 40px; }
+@media (max-width: 400px) {
+  .tab-btn { padding: 8px 2px; font-size: 12px; letter-spacing: -0.3px; }
 }

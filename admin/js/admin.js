@@ -1,34 +1,36 @@
 // ══════════════════════════════════════════════════════════════
 //  admin.js — 로그인 게이트 + 탭 전환 + 지연 로딩 제어 (관리자 본체)
 //
+//  2026-07 개편: 🏠오늘 / 📥처리함 / 👥유저 / 📊통계 / 🛠관리 5탭.
 //  핵심 동작:
-//   · 최초 진입 시 "홈" 탭 데이터만 로드
+//   · 최초 진입 시 "오늘" 탭 데이터만 로드 (집계 위주 — 문서 다운로드 최소)
 //   · 다른 탭은 처음 클릭했을 때 1회만 로드 (loaded 플래그)
 //   · 같은 탭 재클릭/재방문 시 Firebase 재조회 없음 — 세션 캐시 재사용
 //   · 각 탭의 "↻ 새로고침" 버튼만 해당 탭 데이터를 다시 조회
+//   · goto('tab' | 'tab:sub') — 배지/할 일에서 서브탭·아코디언까지 바로 이동
 // ══════════════════════════════════════════════════════════════
 import { signInAnon, signInEmail, signOutAll, waitForAuth, cache } from './firebase.js';
-import { loadDashboard } from './dashboard.js';
+import { initTodayTab, loadDashboard, renderTasks } from './dashboard.js';
+import { initInbox, loadInbox, gotoInboxSub } from './inbox.js';
 import { initUsersTab, loadUsers } from './users.js';
-import { initAnalyticsTab, loadAnalytics } from './analytics.js';
-import { initSecurityTab, loadSecurity, loadVerdictBadge, loadReviewPendingBadge } from './security.js';
-import { initRewardsTab, loadRewards, loadDonateNewBadge } from './rewards.js';
-import { initOperationsTab, loadOperations, loadFeedbackNewBadge } from './operations.js';
+import { initStatsTab, loadStats, gotoStatsSub } from './statstab.js';
+import { initToolsTab, loadTools, openToolAcc } from './tools.js';
+import { loadVerdictBadge, loadReviewPendingBadge } from './security.js';
+import { loadFeedbackNewBadge } from './operations.js';
 
 // ── 탭 레지스트리 ─────────────────────────────────────────────
 // init: 이벤트 바인딩(1회, 조회 없음) / load: 실제 데이터 조회
 const TABS = {
-  home:       { load: loadDashboard },
-  users:      { init: initUsersTab,      load: loadUsers },
-  analytics:  { init: initAnalyticsTab,  load: loadAnalytics },
-  security:   { init: initSecurityTab,   load: loadSecurity },
-  rewards:    { init: initRewardsTab,    load: loadRewards },
-  operations: { init: initOperationsTab, load: loadOperations },
+  today: { init: () => initTodayTab({ goto: gotoTarget }), load: loadDashboard },
+  inbox: { init: initInbox,    load: loadInbox },
+  users: { init: initUsersTab, load: loadUsers },
+  stats: { init: initStatsTab, load: loadStats },
+  tools: { init: initToolsTab, load: loadTools },
 };
 const state = {};           // { [tab]: { inited, loaded, loading } }
 for (const k of Object.keys(TABS)) state[k] = { inited: false, loaded: false, loading: false };
 
-let currentTab = 'home';
+let currentTab = 'today';
 
 async function openTab(name, { force = false } = {}) {
   if (!TABS[name]) return;
@@ -56,12 +58,22 @@ async function openTab(name, { force = false } = {}) {
   }
 }
 
+// ── 화면 간 이동 헬퍼 — 'inbox:verdicts' / 'stats:datause' / 'tools:acc-ops' / 'users' ──
+async function gotoTarget(target) {
+  const [tab, sub] = String(target || '').split(':');
+  await openTab(tab);
+  if (!sub) return;
+  if (tab === 'inbox') gotoInboxSub(sub);
+  else if (tab === 'stats') gotoStatsSub(sub);
+  else if (tab === 'tools') openToolAcc(sub);
+}
+
 function bindTabs() {
   document.getElementById('tabbar').addEventListener('click', (e) => {
     const btn = e.target.closest('.tab-btn');
     if (btn) openTab(btn.dataset.tab);
   });
-  // 각 탭의 새로고침 버튼 — 해당 탭 캐시만 무효화 후 재조회
+  // 각 탭의 새로고침 버튼(탭당 1개) — 해당 탭 캐시만 무효화 후 재조회
   document.querySelectorAll('.refresh-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const tab = btn.dataset.refresh;
@@ -88,36 +100,21 @@ async function sha256Hex(text) {
 function showApp() {
   document.getElementById('loginGate').style.display = 'none';
   document.getElementById('adminApp').style.display = 'block';
-  // ★ 최초 진입: 홈 탭 데이터 + 의심 판정 배지 카운트만.
-  //   배지는 "치팅을 즉시 알아채는 것"이 목적이라 진입 시 1회 조회를 허용한다
-  //   (최대 50건 1쿼리). 결과는 캐시에 담겨 보안 탭이 그대로 재사용한다.
-  openTab('home');
-  loadVerdictBadge();
-  loadReviewPendingBadge();
-  // 배지 클릭 → 보안 탭으로 이동
-  const badge = document.getElementById('verdictBadge');
-  if (badge && !badge._bound) {
-    badge._bound = true;
-    badge.addEventListener('click', () => openTab('security'));
-  }
-  const rpBadge = document.getElementById('reviewPendingBadge');
-  if (rpBadge && !rpBadge._bound) {
-    rpBadge._bound = true;
-    rpBadge.addEventListener('click', () => openTab('security'));
-  }
-  // 💬 새 피드백 / 💛 새 입금자명 — 안 읽은(adminUnread) 글 개수 배지 (count 집계 각 1쿼리)
-  loadFeedbackNewBadge();
-  loadDonateNewBadge();
-  const fbBadge = document.getElementById('feedbackNewBadge');
-  if (fbBadge && !fbBadge._bound) {
-    fbBadge._bound = true;
-    fbBadge.addEventListener('click', () => openTab('operations'));
-  }
-  const dnBadge = document.getElementById('donateNewBadge');
-  if (dnBadge && !dnBadge._bound) {
-    dnBadge._bound = true;
-    dnBadge.addEventListener('click', () => openTab('rewards'));
-  }
+  // ★ 최초 진입: 오늘 탭 데이터 + 배지 카운트만.
+  //   배지는 "치팅·문의를 즉시 알아채는 것"이 목적이라 진입 시 1회 조회를 허용한다
+  //   (의심 최대 50건 1쿼리 + count 2쿼리). 결과는 캐시에 담겨 처리함이 그대로 재사용한다.
+  openTab('today');
+  // 배지 3종이 다 도착한 뒤 "오늘 확인할 일"을 다시 그린다 (배지 DOM 값 재사용 — 추가 조회 0)
+  Promise.allSettled([loadVerdictBadge(), loadReviewPendingBadge(), loadFeedbackNewBadge()])
+    .then(() => { try { renderTasks(); } catch {} });
+  // 배지 클릭 → 해당 처리 화면으로 바로 이동
+  const bind = (id, target) => {
+    const el = document.getElementById(id);
+    if (el && !el._bound) { el._bound = true; el.addEventListener('click', () => gotoTarget(target)); }
+  };
+  bind('verdictBadge', 'inbox:verdicts');
+  bind('reviewPendingBadge', 'tools:acc-ops');
+  bind('feedbackNewBadge', 'inbox:feedback');
 }
 
 async function enterAdmin() {
