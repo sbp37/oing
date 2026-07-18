@@ -6859,8 +6859,12 @@ function triggerCaughtItem(bd, rr, cc, chainDepth) {
   } else if (bd.freeze) {
     activateFreeze(15);
   } else if (bd.lucky) {
-    combo += 2;
-    if (combo > maxCombo) maxCombo = combo;
+    if (bd.luckyKind === 'clover') {
+      activateLucky(rr, cc); // 🍀 폭발 반경에 낀 클로버도 그냥 사라지지 않고 정답 힌트 발동
+    } else {
+      combo += 2; // 🍬 콤보사탕 — 콤보 +2 (스폰 판정은 바깥 폭발 경로의 crossedB가 처리)
+      if (combo > maxCombo) maxCombo = combo;
+    }
   } else if ((bd.bomb || bd.megabomb) && chainDepth > 0) {
     const isMega2 = !!bd.megabomb;
     const rSpan = isMega2 ? 2 : 1, cSpan = isMega2 ? 3 : 2;
@@ -11260,7 +11264,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.4';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784750000; // v4.4 — Firestore 읽기 절감(게임종료 랭킹 프리로드 조건화·캐시 TTL 조정)
+const BUILD = 1784810000; // 폭발 반경에 낀 클로버가 정답 힌트를 발동하도록 수정 (업데이트 내역 표기는 생략)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
