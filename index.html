@@ -2415,6 +2415,38 @@ body.light .myinfo-chip { background: rgba(241,230,210,0.55); }
 }
 body.light .week-spurt-banner { background: rgba(218,152,69,0.12); border-color: rgba(180,120,40,0.5); color: #8a5a14; }
 body.light .week-spurt-banner small { color: rgba(138,90,20,0.75); }
+
+/* 🐾 이번 달 응원해주신 분 — 네이비·골드 카드 + 이름 칩.
+   글로우는 정적 그림자 + opacity만 움직이는 오버레이(합성 단계 처리)라 발열 부담 없음.
+   기본 접힘(display:none) 상태에서는 애니메이션 비용 0. */
+.thanks-card {
+  position: relative; overflow: hidden; text-align: center;
+  margin: 4px 0 8px; padding: 16px 12px 14px;
+  background: linear-gradient(180deg, rgba(218,152,69,0.10), rgba(218,152,69,0.03));
+  border: 1px solid rgba(218,152,69,0.28); border-radius: 14px;
+  box-shadow: 0 0 18px rgba(231,173,82,0.10), inset 0 0 26px rgba(231,173,82,0.05);
+}
+.thanks-card::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(140px 70px at 50% 0%, rgba(255,210,122,0.16), transparent 70%);
+  animation: thanksGlow 4.5s ease-in-out infinite alternate;
+}
+@keyframes thanksGlow { from { opacity: 0.35; } to { opacity: 1; } }
+.thanks-title {
+  font-size: 14px; font-weight: 800; color: #f0d8a8; letter-spacing: -0.2px;
+  text-shadow: 0 0 10px rgba(231,173,82,0.4); margin-bottom: 11px; line-height: 1.5;
+}
+.thanks-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.thanks-chip {
+  padding: 4px 11px; border-radius: 999px; font-size: 12.5px; line-height: 1.5;
+  color: var(--ivory, #f5ead8); background: rgba(240,216,168,0.08);
+  border: 1px solid rgba(240,216,168,0.14);
+  max-width: 100%; overflow-wrap: anywhere;
+}
+.thanks-foot { margin-top: 12px; font-size: 12.5px; color: var(--muted); line-height: 1.8; }
+body.light .thanks-card { background: rgba(218,152,69,0.10); border-color: rgba(180,120,40,0.35); }
+body.light .thanks-title { color: #8a5a14; text-shadow: none; }
+body.light .thanks-chip { color: #6b4a12; background: rgba(180,120,40,0.10); border-color: rgba(180,120,40,0.22); }
 .myi-lv-playxp { font-size: 12px; color: var(--muted); font-weight: 700; margin-top: 5px; font-variant-numeric: tabular-nums; }
 .myi-lv-playxp b { color: var(--ivory); }
 .myi-lv-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
@@ -2883,7 +2915,7 @@ if ('serviceWorker' in navigator) {
         <div class="rank-list" id="rankList"></div>
         <div class="rank-empty" id="rankEmpty" style="display:none">아직 기록이 없어요<br>🐾 첫 번째 도전자가 되어보세요!</div>
         <button id="weeklyThanksToggle" style="display:none; margin:14px auto 4px; padding:6px 16px; background:none; border:1px solid rgba(218,152,69,0.4); border-radius:16px; color:rgba(240,216,168,0.75); font-family:inherit; font-size:12px; cursor:pointer;">🐾 이번달 함께해주신 분 ▾</button>
-        <div id="weeklyThanksDisplay" style="display:none; text-align:center; margin:4px 0 8px; padding:14px; background:rgba(218,152,69,0.1); border:1px solid rgba(218,152,69,0.35); border-radius:12px; font-size:13.5px; color:var(--ivory); line-height:1.7;"></div>
+        <div id="weeklyThanksDisplay" class="thanks-card" style="display:none;"></div>
 
         <div class="my-rank-info" id="myRankInfo"></div>
         <div class="nick-change-wrap" style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
@@ -4716,9 +4748,18 @@ async function renderWeeklyThanks() {
     const snap = await getDoc(doc(db, 'meta', 'weeklyThanks'));
     const raw = snap.exists() ? (snap.data().text || '').trim() : '';
     if (!raw) { el.style.display = 'none'; toggle.style.display = 'none'; return; }
-    const names = raw.split(',').map(n => n.trim()).filter(Boolean).map(n => n + '님');
-    const namesHtml = names.join(', ');
-    el.innerHTML = `😻 <b style="color:#ffd27a;">${namesHtml}</b><br><span style="font-size:12px; color:var(--muted);">덕분에 서버비·개발비에 큰 힘이 된다냥</span><br>항상 감사하다냥♥︎`;
+    // 저장값(쉼표 구분, 새 이름은 뒤에 추가됨)은 그대로 두고 화면에서만 정리:
+    // ① 공백/빈 항목 제거 ② 최근 입력(뒤쪽)이 앞에 오게 역순 ③ 완전 동일 닉네임은
+    // 최근 위치 것만 1번 표시. '님'은 붙이지 않는다(닉네임 원문 그대로).
+    const parts = raw.split(',').map(n => n.trim()).filter(Boolean);
+    const seen = new Set(); const names = [];
+    for (let i = parts.length - 1; i >= 0; i--) {
+      if (!seen.has(parts[i])) { seen.add(parts[i]); names.push(parts[i]); }
+    }
+    el.innerHTML = `
+      <div class="thanks-title">🐾 이번 달 오잉게임을 응원해주신 오잉러분들</div>
+      <div class="thanks-chips">${names.map(n => `<span class="thanks-chip">${escapeHtml(n)}</span>`).join('')}</div>
+      <div class="thanks-foot">보내주신 마음 덕분에 오잉게임을 계속 돌보고 있어요.<br>항상 고맙다냥 💛</div>`;
     // 기본은 접힘 — 화면에 다시 올 때마다(게임하다 오거나 다른 화면 갔다 와도) 항상 닫힌 상태로 초기화
     el.style.display = 'none';
     toggle.textContent = '🐾 이번달 함께해주신 분 ▾';
@@ -11440,7 +11481,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.5';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1785050000; // v4.6.2 — 스킨팝업 문구/버튼 다듬기('새 스킨 확인하기'→스킨 재조회·적용 토스트), 감사인사 버튼 '알았다냥', 냥체 보조문구
+const BUILD = 1785060000; // v4.6.3 — 랭킹 하단 '응원해주신 오잉러분들' 이름 칩 카드(전원 표시·최신순·중복1회), 문구 개편
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;

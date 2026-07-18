@@ -130,11 +130,32 @@ export async function loadFeedback({ reset = false } = {}) {
 }
 
 // ── 이번 달 함께해주신 분 (meta/weeklyThanks — 기존과 동일) ──
+// 저장은 쉼표 구분 텍스트 그대로(공백·빈 항목만 정리). 게임 랭킹 화면은 이 값을
+// "역순(최근 입력이 앞) + 완전 동일 닉네임은 최근 위치만" 규칙으로 칩으로 보여준다.
+// 아래 미리보기는 입력창 값만으로 같은 규칙을 재현 — Firestore 조회 0.
+function thanksDisplayNames(text) {
+  const parts = String(text || '').split(',').map(n => n.trim()).filter(Boolean);
+  const seen = new Set(); const names = [];
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (!seen.has(parts[i])) { seen.add(parts[i]); names.push(parts[i]); }
+  }
+  return names;
+}
+function renderThanksPreview() {
+  const box = document.getElementById('opThanksPreview');
+  if (!box) return;
+  const names = thanksDisplayNames(document.getElementById('opThanksText').value);
+  box.innerHTML = names.length
+    ? `<div class="card-note" style="margin:8px 0 4px;">공개 화면 표시 순서 (최근 입력이 앞, 중복 1회):</div>
+       <div class="tp-chips">${names.map(n => `<span class="tp-chip">${escapeHtml(n)}</span>`).join('')}</div>`
+    : '';
+}
 async function loadThanks({ force = false } = {}) {
   try {
     if (force) cache.bust('operations:thanks');
     const data = await cache.get('operations:thanks', () => fetchDoc(doc(db, 'meta', 'weeklyThanks')));
     document.getElementById('opThanksText').value = (data && data.text) || '';
+    renderThanksPreview();
   } catch (e) {
     resultMsg('opThanksResult', humanError(e), false);
   }
@@ -213,15 +234,21 @@ export function initFeedbackUI() {
 
 // 관리(tools)>게임 운영 바인딩 — 함께해주신 분·명예의전당
 export function initOperationsTab() {
+  const thanksInput = document.getElementById('opThanksText');
+  thanksInput.addEventListener('input', renderThanksPreview); // 입력 즉시 미리보기 (조회 0)
   const saveBtn = document.getElementById('opThanksSaveBtn');
   saveBtn.addEventListener('click', guardBtn(saveBtn, async () => {
-    const text = (document.getElementById('opThanksText').value || '').trim();
+    // 저장 전 정리는 공백·빈 항목만 — 입력 순서/중복은 그대로 저장 (표시 규칙은 게임 쪽)
+    const text = (thanksInput.value || '').split(',').map(s => s.trim()).filter(Boolean).join(', ');
     if (!text) { resultMsg('opThanksResult', '내용을 입력하거나 "비우기"를 사용하세요.', false); return; }
+    thanksInput.value = text;
+    renderThanksPreview();
     try { await saveThanks(text); } catch (e) { resultMsg('opThanksResult', humanError(e), false); }
   }));
   const clearBtn = document.getElementById('opThanksClearBtn');
   clearBtn.addEventListener('click', guardBtn(clearBtn, async () => {
-    document.getElementById('opThanksText').value = '';
+    thanksInput.value = '';
+    renderThanksPreview();
     try { await saveThanks(''); } catch (e) { resultMsg('opThanksResult', humanError(e), false); }
   }));
 

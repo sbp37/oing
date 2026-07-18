@@ -436,6 +436,13 @@ textarea { width: 100%; resize: vertical; }
 /* 유저 상세 모달 — 정보 그룹 제목 */
 .mg-title { font-size: 12px; font-weight: 800; color: var(--muted2); margin: 14px 0 2px; letter-spacing: 0.3px; }
 .mg-title:first-child { margin-top: 0; }
+/* 함께해주신 분 — 공개 화면 미리보기 칩 */
+.tp-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.tp-chip {
+  padding: 3px 9px; border-radius: 999px; font-size: 12px; line-height: 1.5;
+  color: var(--text); background: var(--surface2); border: 1px solid var(--border);
+  max-width: 100%; overflow-wrap: anywhere;
+}
 /* 행동 요약 카드 */
 .bh-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
