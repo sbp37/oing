@@ -3357,7 +3357,6 @@ if ('serviceWorker' in navigator) {
       </div>
       <div style="font-size:13px;font-weight:700;color:#DA9845;margin-bottom:5px;">🎉 새 기능 · 개선</div>
       <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
-        <li>▫️ 🔍 <b>막힘 안내</b> — 정답이 몇 개 안 남았을 때 못 찾고 있으면 몇 개 남았는지 알려줘요</li>
         <li>▫️ 🍀 폭탄이 터질 때 반경에 클로버가 있으면 이제 정답 힌트가 제대로 발동돼요</li>
         <li>▫️ ⚡ 내부 최적화로 점수 저장·랭킹 화면이 더 빨라졌어요</li>
       </ul>
@@ -6984,6 +6983,9 @@ function makeBoard() {
   // 새 판이므로 막힘 안내 토스트 자격 초기화 (판당 1회)
   fewAnswersToastGiven = false;
   fewAnswersCheckedAt = 0;
+  // 무터치 카운트도 여기서 리셋 — 안 그러면 "직전 판 마지막 탭 이후 경과시간"이 새 판으로
+  // 그대로 이어져서, 새 판을 본 지 얼마 안 됐는데도 토스트가 훨씬 빨리 뜨는 것처럼 보였다.
+  lastInteractionAt = Date.now();
   // 새 보드로 넘어가기 전, 아직 안 쓴 아이템 칸은 같은 좌표에 그대로 보존
   // (보드 클리어/재배열로 아이템이 그냥 사라지는 것 방지)
   const leftoverItems = [];
@@ -11460,7 +11462,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.5';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1784980000; // v4.5.4 — 막힘 안내 문구 "정답 몇개 안 남았다냥~😽" (희소성 정보, 개수 약속 없음) + 유지 2초
+const BUILD = 1784990000; // v4.5.5 — 판 넘어갈 때 막힘안내 무터치 타이머도 리셋(체감 5초 정확도) + 업뎃로그에서 막힘안내 항목 제거(자잘한 조정)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
