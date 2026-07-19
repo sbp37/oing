@@ -7849,19 +7849,11 @@ let cloverHintCoords = null;
 let cloverHintClearTimer = null;
 
 function activateLucky(fromR, fromC) {
-  const answers = findAllAnswers();
-  if (answers.length === 0) return;
+  // 힌트 버튼과 동일 기준으로 정답 1개(3칸 이상 우선, 2칸짜리 쉬운 힌트 제외)
+  const pick = pickHintAnswer();
+  if (!pick) return;
   playLucky();
-  const shuffled = answers.sort(() => Math.random()-0.5);
-  const picks = shuffled.slice(0, 1); // 정답 1개만 (힌트 버튼과 동일하게)
-  const coords = [];
-  picks.forEach(ans => {
-    for (let r = ans.r1; r <= ans.r2; r++)
-      for (let c = ans.c1; c <= ans.c2; c++) {
-        if (!board[r][c].empty) coords.push({ r, c });
-      }
-  });
-  cloverHintCoords = coords;
+  cloverHintCoords = pick.coords.slice();
   reapplyCloverHintHighlight();
   showItemPop(fromR, fromC, `🍀 클로버! 정답 발견`, 'hint');
   if (cloverHintClearTimer) clearTimeout(cloverHintClearTimer);
@@ -9012,16 +9004,22 @@ function findAllAnswers() {
   return found;
 }
 
-// 클로버용: 숫자 셀 3개 이상 조합만 랜덤 1개
-function showAnswers() {
-  const found = findAllAnswers();
-  if (found.length === 0) return false;
-  // 숫자 합=10 조합을 항상 우선 — 고양이 칸은 "숫자 정답이 하나도 없을 때"만 가리킴
-  // (고양이 1x1 사각형이 조합 수를 압도해서 힌트가 자꾸 고양이만 가리키던 버그 수정)
+// 힌트/클로버가 가리킬 정답 1개 고르기 — 세 힌트(💡버튼·뉴비 자동힌트·🍀클로버) 공통.
+//  ★ 숫자 3칸 이상 조합만 고른다 — 5+5, 2+8 같은 2칸짜리 '너무 쉬운 힌트'는 제외(오잉이 요청).
+//  단, 보드에 3칸+ 조합이 하나도 없는 막판에는 어쩔 수 없이 2칸으로 폴백해 힌트가 먹통이 안 되게 함
+//  (그 상황에선 2칸이 사실상 유일한 수라 '쉬운 힌트'라기보다 필요한 도움).
+function pickHintAnswer() {
+  const found = findAllAnswers(); // 여기 담기는 조합은 모두 합=10·숫자 2칸 이상(고양이만/1칸 없음)
+  if (found.length === 0) return null;
   const num3 = found.filter(a => a.numCount >= 3);
-  const numAny = found.filter(a => a.numCount > 0);
-  const pool = num3.length > 0 ? num3 : (numAny.length > 0 ? numAny : found);
-  const pick = pool[Math.floor(Math.random() * pool.length)];
+  const pool = num3.length > 0 ? num3 : found; // 3칸+ 우선, 없을 때만 2칸 폴백
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// 💡 힌트 버튼용: 정답 1개(3칸 이상 우선) 강조
+function showAnswers() {
+  const pick = pickHintAnswer();
+  if (!pick) return false;
   activeHintCoords = pick.coords.slice();
   reapplyAnswerHighlight();
   return true;
@@ -9084,13 +9082,8 @@ function checkCloverSpawn() {
 }
 
 function showNewbieBlinkHint() {
-  const found = findAllAnswers();
-  if (found.length === 0) return;
-  // 숫자 정답 우선 — 고양이만 깜빡이는 혼란 방지
-  const num3 = found.filter(a => a.numCount >= 3);
-  const numAny = found.filter(a => a.numCount > 0);
-  const pool = num3.length > 0 ? num3 : (numAny.length > 0 ? numAny : found);
-  const pick = pool[Math.floor(Math.random() * pool.length)];
+  const pick = pickHintAnswer(); // 3칸 이상 우선(2칸짜리 쉬운 힌트 제외)
+  if (!pick) return;
   newbieHintCoords = pick.coords.slice();
   reapplyNewbieHintHighlight();
   if (newbieHintClearTimer) clearTimeout(newbieHintClearTimer);
@@ -11607,7 +11600,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.5';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1785115000; // v4.6.9 — PC 사이드 패널 다시하기 버튼을 점수 위로 분리(셔플 오클릭 방지)
+const BUILD = 1785120000; // v4.7.0 — 힌트·클로버가 2칸(5+5·2+8) 대신 3칸 이상 조합만 알려주게(너무 쉬운 힌트 방지)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
