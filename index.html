@@ -2041,6 +2041,16 @@ body.light #panelGame .hint-btn.pregame { background: #f5f5f5; border-color: #d0
   80%  { transform:translate(-50%,-50%) scale(1.05) rotate(0deg); }
   100% { opacity:0; transform:translate(-50%,-70%) scale(1); }
 }
+/* 최고점수 등극 배너 전용 — 확 뜨고(초반) → 오래 유지 → 마지막에만 사라짐 (읽을 시간 확보) */
+@keyframes recordpopLong {
+  0%   { opacity:0; transform:translate(-50%,-50%) scale(0.4) rotate(-8deg); }
+  8%   { opacity:1; transform:translate(-50%,-50%) scale(1.15) rotate(3deg); }
+  13%  { transform:translate(-50%,-50%) scale(0.95) rotate(-1deg); }
+  18%  { transform:translate(-50%,-50%) scale(1.05) rotate(0deg); }
+  22%  { opacity:1; transform:translate(-50%,-50%) scale(1) rotate(0deg); }
+  85%  { opacity:1; transform:translate(-50%,-50%) scale(1) rotate(0deg); } /* 여기까지 꽉 찬 상태로 유지 */
+  100% { opacity:0; transform:translate(-50%,-70%) scale(1); }
+}
 /* 발열 최적화: box-shadow 펄스 제거(정적 중간값) — 스케일 펄스(GPU)만 유지 */
 @keyframes restartPulse {
   0%, 100% { transform: scale(1); }
@@ -8948,12 +8958,12 @@ function showNewRecordPop() {
     box-shadow:0 6px 26px rgba(224,153,43,0.5), 0 0 40px rgba(255,213,103,0.45), inset 0 1px 0 rgba(255,255,255,0.6);
     text-align:center; line-height:1.5;
     pointer-events:none; z-index:300;
-    animation:recordpop 2.4s ease forwards;
+    animation:recordpopLong 4.5s ease forwards;
     white-space:nowrap;
   `;
   pop.innerHTML = `🎉 최고점수 등극! 🎉<br><span style="font-size:15px; font-weight:800; color:#6b4a12;">역대 최고 기록 경신이다냥 🐱🔥</span>`;
   document.body.appendChild(pop);
-  setTimeout(() => pop.remove(), 2400);
+  setTimeout(() => pop.remove(), 4500);
 }
 
 // 정답 표시
