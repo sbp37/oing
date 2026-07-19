@@ -347,6 +347,10 @@
           <div class="card">
             <div class="card-head"><h3>🏅 고득점 세션 (4만+)</h3><button id="highScoreScanBtn" class="btn btn-ghost btn-sm">조회</button></div>
             <div class="card-note" style="margin-bottom:8px;">줄을 누르면 상세(주의 신호·점수 검증·입력 리듬·기기)가 펼쳐져요. 입력 리듬·점수 검증은 v4.6.6 이후 판부터 기록돼요.</div>
+            <div id="highScoreSort" class="seg" style="display:none; margin-bottom:8px;">
+              <button class="seg-btn active" data-hssort="recent">최근순</button>
+              <button class="seg-btn" data-hssort="score">점수순</button>
+            </div>
             <div id="highScoreList" class="list"></div>
             <button id="highScoreMoreBtn" class="btn btn-ghost btn-block" style="display:none; margin-top:8px;">더 보기 (10건씩)</button>
           </div>

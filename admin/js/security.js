@@ -349,9 +349,7 @@ function highScoreDetailHtml(d, stats, allRows) {
 }
 
 // 목록: 기본 10건 + "더 보기" 커서 페이지네이션 (점수 높은 순)
-const HS_PAGE = 10;
 let hsRows = [];
-let hsPager = null;
 function hsRowHtml(d, i) {
   const [decText, decCls] = DECISION_KO[d.official?.decision] || ['?', 'unverifiable'];
   const when = d.submittedAt ? fmtDateTime(d.submittedAt) : '-';
@@ -368,28 +366,54 @@ function hsRowHtml(d, i) {
       <div class="hs-detail" style="display:none; flex-basis:100%; margin-top:4px;"></div>
     </div>`;
 }
+// 정렬 모드 — 기본 '최근순'(방금 친 판이 맨 위에 떠서 등록 확인 쉬움), 토글로 '점수순'(핵 의심 상위부터).
+//  Firestore는 부등호 필터(finalScore>=4만) 필드가 첫 orderBy여야 해서 서버 정렬은 점수순만 가능 →
+//  4만+ 세션을 (희소하므로) 한 번에 다 불러온 뒤 클라이언트에서 정렬만 바꾼다.
+let hsSort = 'recent';
+const HS_MAX_LOAD = 600; // 안전 상한 — 4만+는 희소하지만 폭주 대비
+function hsSortRows() {
+  if (hsSort === 'score') hsRows.sort((a, b) => (b.client?.finalScore ?? 0) - (a.client?.finalScore ?? 0));
+  else hsRows.sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0)); // recent: 최근 제출 먼저
+}
 function hsRender() {
+  hsSortRows();
   const el = document.getElementById('highScoreList');
   el.innerHTML = hsRows.map((d, i) => hsRowHtml(d, i)).join('');
   const more = document.getElementById('highScoreMoreBtn');
-  if (more) more.style.display = (hsPager && !hsPager.done) ? '' : 'none';
+  if (more) more.style.display = 'none'; // 한 번에 다 불러오므로 더보기 미사용
+  const sortUi = document.getElementById('highScoreSort');
+  if (sortUi) sortUi.style.display = hsRows.length ? '' : 'none';
 }
-async function loadHighScores({ append = false } = {}) {
+async function loadHighScores() {
   const el = document.getElementById('highScoreList');
-  if (!append) {
-    hsRows = []; _hsRhythmCache.clear();
-    hsPager = makePager(() => [
-      collection(db, 'game_sessions'),
-      where('client.finalScore', '>=', HIGH_SCORE_MIN),
-      orderBy('client.finalScore', 'desc'),
-    ], HS_PAGE);
-    setLoading(el, '4만점 이상 세션을 찾는 중...');
-  }
+  hsRows = []; _hsRhythmCache.clear();
+  const pager = makePager(() => [
+    collection(db, 'game_sessions'),
+    where('client.finalScore', '>=', HIGH_SCORE_MIN),
+    orderBy('client.finalScore', 'desc'), // 서버 정렬은 점수순 고정(부등호 필터 제약) — 표시는 hsSort로
+  ], 50);
+  setLoading(el, '4만점 이상 세션을 찾는 중...');
   try {
-    const page = await hsPager.next();
-    hsRows.push(...page);
-    if (!hsRows.length) { setEmpty(el, '4만점 이상 세션이 아직 없어요'); return; }
+    let capped = false;
+    while (!pager.done) {
+      const page = await pager.next();
+      hsRows.push(...page);
+      if (hsRows.length >= HS_MAX_LOAD) { capped = true; break; }
+    }
+    if (!hsRows.length) {
+      setEmpty(el, '4만점 이상 세션이 아직 없어요');
+      const sortUi = document.getElementById('highScoreSort');
+      if (sortUi) sortUi.style.display = 'none';
+      return;
+    }
     hsRender();
+    if (capped) {
+      const note = document.createElement('div');
+      note.className = 'card-note';
+      note.style.marginTop = '6px';
+      note.textContent = `※ 최근 4만+ 세션 ${HS_MAX_LOAD}건까지만 불러왔어요(그 이전 판은 생략).`;
+      el.appendChild(note);
+    }
     // 줄 클릭 → 상세 토글 (위임 1회 바인딩 — 유저 통계는 처음 펼칠 때 1건만 읽고 캐시)
     if (!el.dataset.hsBound) {
       el.dataset.hsBound = '1';
@@ -928,8 +952,15 @@ export function initSecurityTab() {
 
   const hsBtn = document.getElementById('highScoreScanBtn');
   if (hsBtn) hsBtn.addEventListener('click', guardBtn(hsBtn, () => loadHighScores()));
-  const hsMoreBtn = document.getElementById('highScoreMoreBtn');
-  if (hsMoreBtn) hsMoreBtn.addEventListener('click', guardBtn(hsMoreBtn, () => loadHighScores({ append: true })));
+  // 정렬 토글(최근순/점수순) — 이미 불러온 목록을 클라이언트에서 다시 정렬만 (재조회 없음)
+  const hsSortUi = document.getElementById('highScoreSort');
+  if (hsSortUi) hsSortUi.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('[data-hssort]');
+    if (!btn || !hsRows.length) return;
+    hsSort = btn.dataset.hssort;
+    hsSortUi.querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b === btn));
+    hsRender();
+  });
 
   const blockLoadBtn = document.getElementById('blocklistLoadBtn');
   if (blockLoadBtn) blockLoadBtn.addEventListener('click', guardBtn(blockLoadBtn, loadBlocklist));
