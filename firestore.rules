@@ -482,9 +482,9 @@ service cloud.firestore {
     }
 
     // 🏅 주간 마감 정산 — 서버(weeklySettle CF)만 쓴다. 클라는 읽기 전용.
-    //  user_weekly_summary/{nick}: 유저별 요약(지난주 순위·최고 순위·참여 주차·Top10/30 횟수)
+    //  user_weekly_summary/{uid}: 유저별 요약(지난주 순위·최고 순위·참여 주차·Top10/30 횟수) — 키는 UID
     //  weekly_results/{weekKey}  : 주차별 마감 마커 + 상위 스냅샷
-    match /user_weekly_summary/{nick} {
+    match /user_weekly_summary/{uid} {
       allow read: if true;
       allow write: if false;
     }

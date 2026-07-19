@@ -10303,17 +10303,19 @@ async function renderWeeklyRanking(gen = ++_rankRenderGen) {
 //  세션 내 캐시 — 주간 탭을 오가도 재조회 없음.
 // ══════════════════════════════
 let _myWeeklySummary;            // undefined=미로드 · null=기록 없음 · 객체=요약
-let _myWeeklySummaryNick = null;
+let _myWeeklySummaryUid = null;
 let _weeklyAutoShown = false;    // 월요일 자동 팝업 — 세션당 1회만 시도
 let _mwkScrollY = 0;
+// 요약 문서 키 = 내 UID (익명 포함 전원 보유 · PIN 복구 시 기존 uid 계승 — 닉 변경과 무관하게 이어짐)
 async function loadMyWeeklySummary() {
-  const nick = loadNickname();
-  if (!nick) return null;
-  if (_myWeeklySummary !== undefined && _myWeeklySummaryNick === nick) return _myWeeklySummary;
+  let uid = (typeof MY_UID !== 'undefined' && MY_UID) ? MY_UID : null;
+  if (!uid) { try { uid = await ensureAnonymousAuth(); } catch {} }
+  if (!uid) return null;
+  if (_myWeeklySummary !== undefined && _myWeeklySummaryUid === uid) return _myWeeklySummary;
   try {
-    const snap = await getDoc(doc(db, 'user_weekly_summary', nick));
+    const snap = await getDoc(doc(db, 'user_weekly_summary', uid));
     _myWeeklySummary = snap.exists() ? snap.data() : null;
-    _myWeeklySummaryNick = nick;
+    _myWeeklySummaryUid = uid;
   } catch (e) { return null; } // 실패 시 캐시 안 함 — 다음 진입 때 재시도
   return _myWeeklySummary;
 }
