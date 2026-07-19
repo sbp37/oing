@@ -287,6 +287,37 @@ function hsWatch(d, allRows) {
   return { points: reasons.length, reasons, watch: reasons.length >= HS_WATCH_MIN };
 }
 
+// ── 🖥️ 같은 기기 추적 — 차단(섀도우밴) 계정과 같은 기기에서 온 다른 계정 표시(재가입 의심) ──
+//  기기 지문 = os·browser·해상도·dpr·pointer 조합(대략적 — 흔한 조합은 남과 겹칠 수 있어 '표시만',
+//  자동 차단은 하지 않는다). 핵심 신호: 이미 차단된 uid와 같은 지문 → 재가입 의심으로 강조.
+let hsBlockedUids = new Set(); // ranking_blocklist 문서 id(uid) — loadHighScores에서 채움
+function hsDeviceFP(d) {
+  const v = d.client && d.client.device;
+  if (!v || typeof v !== 'object' || (!v.os && !v.browser)) return null;
+  return [v.os, v.browser, v.vw, v.vh, v.dpr, v.pointer].map((x) => (x == null ? '' : x)).join('|');
+}
+// 지문 → Map(uid → nick) : 같은 기기지문을 쓴 계정들
+function hsBuildDeviceMap(rows) {
+  const map = new Map();
+  for (const r of rows) {
+    const fp = hsDeviceFP(r); if (!fp) continue;
+    const uid = r.uid || r.nickname;
+    if (!map.has(fp)) map.set(fp, new Map());
+    map.get(fp).set(uid, r.nickname || uid);
+  }
+  return map;
+}
+function hsDeviceFlag(d, fpMap) {
+  const fp = hsDeviceFP(d);
+  const selfUid = d.uid || d.nickname;
+  const selfBlocked = !!(d.uid && hsBlockedUids.has(d.uid));
+  if (!fp || !fpMap.has(fp)) return { selfBlocked, sameDeviceBlocked: false, others: [] };
+  const others = [...fpMap.get(fp).entries()]
+    .filter(([uid]) => uid !== selfUid)
+    .map(([uid, nick]) => ({ uid, nick, blocked: !!(uid && hsBlockedUids.has(uid)) }));
+  return { selfBlocked, sameDeviceBlocked: others.some((o) => o.blocked), others };
+}
+
 const _hsRhythmCache = new Map();
 function hsRhythmOf(d) {
   if (!_hsRhythmCache.has(d)) {
@@ -332,6 +363,23 @@ function hsCrossGamesHtml(d, allRows) {
       <thead><tr style="color:var(--muted);">
         <th style="text-align:left;">시각</th><th style="text-align:right;">점수</th><th style="text-align:right;">성공률</th><th style="text-align:right;">시계</th><th style="text-align:center;">이 판과 리듬</th><th style="text-align:left;">판정</th>
       </tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+// 🖥️ 같은 기기(지문) 계정 목록 — 차단 계정과 겹치면 재가입 의심으로 강조
+function hsSameDeviceHtml(d, allRows) {
+  const fp = hsDeviceFP(d);
+  if (!fp) return '';
+  const df = hsDeviceFlag(d, hsBuildDeviceMap(allRows || []));
+  if (!df.others.length && !df.selfBlocked) return '';
+  const badge = df.selfBlocked ? ' <span style="color:#fca5a5;">(이 계정은 차단됨 🚫)</span>' : '';
+  const list = df.others.length
+    ? df.others.map((o) => `${escapeHtml(o.nick)}${o.blocked ? ' <b style="color:#fca5a5;">🚫차단</b>' : ''}`).join(' · ')
+    : '<span style="color:var(--muted);">같은 기기의 다른 고득점 계정 없음</span>';
+  const warn = df.sameDeviceBlocked
+    ? '<div style="color:#fca5a5; font-weight:700; margin-top:2px;">🚨 차단된 계정과 기기 지문이 같음 — 재가입 의심</div>' : '';
+  return `<div style="margin:6px 0 2px; font-size:11.5px; font-weight:800; color:var(--muted2);">🖥️ 같은 기기(지문) 계정${badge}</div>
+    <div style="font-size:12px; line-height:1.7;">${list}${warn}
+    <div style="color:var(--muted); font-size:10.5px; margin-top:2px;">※ 지문(OS·브라우저·해상도)은 대략적이라 남과 겹칠 수 있어요 — 참고용.</div></div>`;
 }
 
 function highScoreDetailHtml(d, stats, allRows) {
@@ -400,6 +448,7 @@ function highScoreDetailHtml(d, stats, allRows) {
     ${watchBox}
     <div class="hs-summary" style="margin:8px 0; padding:8px 10px; border-radius:8px; background:rgba(148,163,184,0.08); font-size:12.5px; line-height:1.6;">📝 ${escapeHtml(highScoreSummary(d, stats))}</div>
     ${(allRows && hsCrossGamesHtml(d, allRows)) || ''}
+    ${(allRows && hsSameDeviceHtml(d, allRows)) || ''}
     ${head('📊 기본')}
     ${line('기기', deviceLabel(c.device))}
     ${line('점수', fmtNum(c.finalScore ?? 0) + '점')}
@@ -422,17 +471,22 @@ function highScoreDetailHtml(d, stats, allRows) {
 
 // 목록: 기본 10건 + "더 보기" 커서 페이지네이션 (점수 높은 순)
 let hsRows = [];
-function hsRowHtml(d, i, wf) {
+function hsRowHtml(d, i, wf, df) {
   const [decText, decCls] = DECISION_KO[d.official?.decision] || ['?', 'unverifiable'];
   const when = d.submittedAt ? fmtDateTime(d.submittedAt) : '-';
   const nWarn = (d.official?.integrity?.flags || []).length;
   const watchBadge = wf && wf.watch
     ? `<span class="badge warn" title="관찰 사유 ${wf.points}개 — ${escapeHtml(wf.reasons.join(' · '))}">👀 관찰 ${wf.points}</span>` : '';
+  const blockBadge = df && df.selfBlocked ? '<span class="badge" style="background:#7f1d1d;color:#fecaca;">🚫 차단됨</span>' : '';
+  const sameDevBadge = (df && df.sameDeviceBlocked && !df.selfBlocked)
+    ? `<span class="badge warn" title="차단된 계정과 기기 지문이 같음 — 재가입 의심">🚨 차단기기</span>` : '';
   return `
     <div class="verdict-row ${decCls}" data-hs="${i}" style="cursor:pointer; flex-wrap:wrap;">
       <span class="vr-main">
         <span class="nick">${escapeHtml(d.nickname || d.uid || '?')}</span> ${deviceMini(d.client?.device)}
         · <b>${fmtNum(d.client?.finalScore ?? 0)}점</b>
+        ${blockBadge}
+        ${sameDevBadge}
         ${watchBadge}
         ${nWarn ? `<span class="badge warn">모순 ${nWarn}</span>` : ''}
         <span class="vr-sub">${when} · 눌러서 상세 ▾</span>
@@ -454,12 +508,14 @@ function hsSortRows() {
 function hsRender() {
   hsSortRows();
   const el = document.getElementById('highScoreList');
+  // 기기 지문 맵 1회 구축 → 차단 계정과 같은 기기(재가입 의심) 판별
+  const fpMap = hsBuildDeviceMap(hsRows);
   // 관찰 플래그를 한 번씩 계산(캐시된 리듬/유사도 사용) — data-hs 인덱스는 원본 hsRows 기준 유지
-  const items = hsRows.map((d, i) => ({ d, i, wf: hsWatch(d, hsRows) }));
+  const items = hsRows.map((d, i) => ({ d, i, wf: hsWatch(d, hsRows), df: hsDeviceFlag(d, fpMap) }));
   const watchCount = items.filter((x) => x.wf.watch).length;
   const view = hsWatchOnly ? items.filter((x) => x.wf.watch) : items;
   el.innerHTML = view.length
-    ? view.map((x) => hsRowHtml(x.d, x.i, x.wf)).join('')
+    ? view.map((x) => hsRowHtml(x.d, x.i, x.wf, x.df)).join('')
     : '<div style="padding:14px; text-align:center; color:var(--muted); font-size:12.5px;">관찰 대상이 없어요.</div>';
   const more = document.getElementById('highScoreMoreBtn');
   if (more) more.style.display = 'none'; // 한 번에 다 불러오므로 더보기 미사용
@@ -479,6 +535,11 @@ function hsRender() {
 async function loadHighScores() {
   const el = document.getElementById('highScoreList');
   hsRows = []; _hsRhythmCache.clear();
+  // 차단(섀도우밴) 명단 로드 — 같은 기기 재가입 의심 판별용 (실패해도 목록은 계속 뜨게)
+  try {
+    const bl = await fetchDocs(collection(db, 'ranking_blocklist'));
+    hsBlockedUids = new Set(bl.map((b) => b.id));
+  } catch { hsBlockedUids = new Set(); }
   const pager = makePager(() => [
     collection(db, 'game_sessions'),
     where('client.finalScore', '>=', HIGH_SCORE_MIN),
