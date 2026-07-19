@@ -481,6 +481,20 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // 🏅 주간 마감 정산 — 서버(weeklySettle CF)만 쓴다.
+    //  user_weekly_summary/{uid}: 유저별 요약(지난주 순위·최고 순위·참여 주차·Top10/30 횟수) — 키는 UID.
+    //    게임 팝업('나의 주간 기록')이 읽는 유일한 문서 → 공개 read.
+    //  weekly_results/{weekKey}  : 주차별 마감 마커 + 상위 스냅샷 + UID 매칭 근거(matches:
+    //    matchedSessionId·matchedUid 등). 정산 검증용 증거 데이터라 일반 유저에게 비공개 — 어드민만 read.
+    match /user_weekly_summary/{uid} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /weekly_results/{weekKey} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // 닉네임 변경 이력(서버 함수가 기록) — 어드민이 유저 상세에서 이전 닉네임을 확인하는 용도.
     // 일반 클라이언트는 읽기 불가(타인의 개명 이력은 비공개), 쓰기는 서버(Admin SDK)만.
     match /rename_history/{id} {
