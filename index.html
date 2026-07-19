@@ -2753,6 +2753,12 @@ if ('serviceWorker' in navigator) {
 
       <!-- PC 사이드패널 -->
       <div class="game-side-panel" id="gameSidePanel" style="display:none">
+        <!-- 다시하기는 셔플과 나란히 있으면 헷갈려서(오클릭 위험) 점수 위로 분리 배치 -->
+        <button id="sideRestartBtn" style="
+          background:var(--surface2); border:1px solid var(--border);
+          color:var(--muted); font-family:inherit; font-size:14px; font-weight:700;
+          padding:10px; border-radius:12px; cursor:pointer; width:100%;
+        ">🔄 다시하기</button>
         <div class="stat-box"><div class="stat-label">점수</div><div class="stat-val" id="scoreDisp2">0</div></div>
         <div class="stat-box"><div class="stat-label">남은 시간</div><div class="stat-val" id="timerDisp2">2:00</div></div>
         <div class="stat-box"><div class="stat-label">최고 콤보</div><div class="stat-val" id="clearDisp2">×0</div></div>
@@ -2772,11 +2778,6 @@ if ('serviceWorker' in navigator) {
           color:#b9c9ea; font-family:inherit; font-size:14px; font-weight:800;
           padding:10px; border-radius:12px; cursor:pointer; width:100%;
         ">🔀 셔플 (1)</button>
-        <button id="sideRestartBtn" style="
-          background:var(--surface2); border:1px solid var(--border);
-          color:var(--muted); font-family:inherit; font-size:14px; font-weight:700;
-          padding:10px; border-radius:12px; cursor:pointer; width:100%;
-        ">🔄 다시하기</button>
       </div>
 
       <!-- 시작 오버레이: fixed지만 탭바가 DOM 뒤에 있어서 항상 위에 렌더됨 -->
@@ -11606,7 +11607,7 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.5';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1785110000; // v4.6.8 — 클로버·자동힌트 초록 칸을 선택해도 파란 선택표시가 보이도록 수정(기존엔 정답 힌트에만 적용됐음)
+const BUILD = 1785115000; // v4.6.9 — PC 사이드 패널 다시하기 버튼을 점수 위로 분리(셔플 오클릭 방지)
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
