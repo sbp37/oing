@@ -7903,7 +7903,36 @@ function spawnRandomItem() {
       }
     }
   if (empties.length === 0) return;
-  const {r, c} = empties[Math.floor(Math.random() * empties.length)];
+  // 아이템(특히 💣폭탄) 생성 위치를 '숫자 근처'로 유도한다.
+  //  예전엔 빈칸 중 완전 랜덤이라, 숫자가 싹 지워진 넓은 빈 구역 한복판에 폭탄이 떠서
+  //  터뜨릴 게 없는 아쉬운 경우가 잦았음(빈 구역이 넓으면 그 확률이 오히려 더 컸음).
+  //  ① 각 빈칸을 3x3 반경 안 숫자 칸 수(0~8)로 점수화
+  //  ② 숫자에 한 칸이라도 닿는 빈칸(점수≥1)이 있으면 '그중에서만' 생성 → 순수 허공 생성은 제거
+  //  ③ 다만 그 안에서도 (점수+SOFT_BASE) 가중치라 '항상 제일 빽빽한 곳'에 집착하진 않음
+  //     → 숫자 근처이되 자리가 매번 달라 난이도가 급변하지 않는 '중간' 세기.
+  //  ④ 숫자에 닿는 빈칸이 하나도 없을 때만(막판 등) 예전처럼 전체 빈칸에서 폴백.
+  //  (어떤 경우에도 '빈칸에만' 생성하므로 숫자 개수·총합·점수/랭킹 밸런스는 전혀 안 바뀜)
+  const isNumberCell = (d) => d && !d.empty && !d.cat && !d.bomb && !d.clock
+                              && !d.megabomb && !d.freeze && !d.lucky;
+  const scoreOf = ({ r, c }) => {
+    let s = 0;
+    for (let dr = -1; dr <= 1; dr++)
+      for (let dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && isNumberCell(board[nr][nc])) s++;
+      }
+    return s;
+  };
+  const SOFT_BASE = 2; // 숫자 근처 안에서의 쏠림 완화 — 클수록 근처 안에서 자리 고름
+  const scored = empties.map((e) => ({ e, s: scoreOf(e) }));
+  const near = scored.filter((x) => x.s >= 1);
+  const cand = near.length > 0 ? near : scored; // 숫자 닿는 빈칸 우선, 없으면 전체 폴백
+  let totalW = 0;
+  cand.forEach((x) => { x.w = (near.length > 0 ? x.s : 0) + SOFT_BASE; totalW += x.w; });
+  let pickW = Math.random() * totalW, pickIdx = 0;
+  for (; pickIdx < cand.length; pickIdx++) { pickW -= cand[pickIdx].w; if (pickW < 0) break; }
+  const { r, c } = cand[Math.min(pickIdx, cand.length - 1)].e;
 
   const tier = combo >= 21 ? 3 : combo >= 14 ? 2 : 1;
   const elapsed = Date.now() - gameStartTime;
