@@ -308,16 +308,18 @@ function hsCrossGamesHtml(d, allRows) {
     if (!mineFp || !fp) return null;
     return mineFp.reduce((a, v, i) => a + Math.abs(v - fp[i]), 0) / mineFp.length;
   };
+  // 표 폭 절약용 짧은 날짜(MM.DD HH:MM) — 앞의 연도(YYYY.)만 제거
+  const shortWhen = (t) => (t ? fmtDateTime(t).replace(/^\d{4}\./, '') : '-');
   const sorted = [...rows].sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0));
   const body = sorted.map((o) => {
     const c = o.client || {};
     const tot = (c.clearCount || 0) + (c.failCount || 0);
     const sr = tot > 0 ? Math.round((c.clearCount || 0) / tot * 100) + '%' : '-';
-    const dist = (o === d) ? '(이 판)' : (() => { const x = fpDist(o); return x == null ? '-' : (x < 0.06 ? `매우 비슷 ⚠️` : x < 0.15 ? '비슷' : '다름'); })();
+    const dist = (o === d) ? '<span style="color:var(--muted);">이 판</span>' : (() => { const x = fpDist(o); return x == null ? '-' : (x < 0.06 ? `매우비슷 ⚠️` : x < 0.15 ? '비슷' : '다름'); })();
     const [decText] = DECISION_KO[o.official?.decision] || ['-'];
     const cnt = (o.official?.integrity?.flags || []).length;
     return `<tr${o === d ? ' style="background:rgba(148,163,184,0.12);"' : ''}>
-      <td>${o.submittedAt ? fmtDateTime(o.submittedAt) : '-'}</td>
+      <td>${shortWhen(o.submittedAt)}</td>
       <td style="text-align:right;"><b>${fmtNum(c.finalScore ?? 0)}</b></td>
       <td style="text-align:right;">${sr}</td>
       <td style="text-align:right;">${typeof c.clockUsed === 'number' ? c.clockUsed : '-'}</td>
@@ -325,8 +327,8 @@ function hsCrossGamesHtml(d, allRows) {
       <td>${decText}</td>
     </tr>`;
   }).join('');
-  return `<div style="margin:6px 0 2px; font-size:11.5px; font-weight:800; color:var(--muted2);">🔎 이 유저의 고득점 판 ${rows.length}개 (리듬이 판박이면 의심)</div>
-    <div style="overflow-x:auto;"><table class="mini-table" style="width:100%; border-collapse:collapse; font-size:11.5px;">
+  return `<div style="margin:6px 0 2px; font-size:11.5px; font-weight:800; color:var(--muted2);">🔎 이 유저의 고득점 판 ${rows.length}개 (리듬이 판박이면 의심 · 표는 옆으로 밀어서 보기)</div>
+    <div class="mini-table-wrap"><table class="mini-table" style="border-collapse:collapse; font-size:11.5px;">
       <thead><tr style="color:var(--muted);">
         <th style="text-align:left;">시각</th><th style="text-align:right;">점수</th><th style="text-align:right;">성공률</th><th style="text-align:right;">시계</th><th style="text-align:center;">이 판과 리듬</th><th style="text-align:left;">판정</th>
       </tr></thead><tbody>${body}</tbody></table></div>`;

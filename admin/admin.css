@@ -143,7 +143,11 @@ textarea { width: 100%; resize: vertical; }
 .verdict-row.rejected { border-left-color: var(--danger); }
 .verdict-row.pending { border-left-color: var(--accent-lemon); }
 .verdict-row.unverifiable { border-left-color: var(--muted); opacity: 0.85; }
+.verdict-row { min-width: 0; max-width: 100%; }
 .verdict-row .vr-main { flex: 1; min-width: 0; }
+/* 상세 펼침 영역 — 넓은 교차표가 카드를 밀어내지 않도록 폭 고정, 표만 내부 옆스크롤 */
+.verdict-row .hs-detail { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.hs-detail .mini-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
 .verdict-row .vr-reasons { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 4px; }
 .verdict-row .vr-sub { color: var(--muted); font-size: 11.5px; margin-top: 3px; }
 .verdict-tag {

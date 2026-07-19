@@ -124,8 +124,17 @@ export function fmtAgo(ts) {
 }
 export function fmtDuration(sec) {
   if (!sec && sec !== 0) return '-';
-  if (sec < 60) return `${Math.round(sec)}초`;
-  return `${Math.floor(sec / 60)}분 ${Math.round(sec % 60)}초`;
+  sec = Math.round(sec);
+  if (sec < 60) return `${sec}초`;
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  // 시간이 있으면 '시간 분 초', 없으면 '분 초' (0인 단위는 생략)
+  const parts = [];
+  if (h) parts.push(`${h}시간`);
+  if (m) parts.push(`${m}분`);
+  if (s || !parts.length) parts.push(`${s}초`);
+  return parts.join(' ');
 }
 export function fmtNum(n) { return (typeof n === 'number') ? n.toLocaleString('ko-KR') : (n ?? '-'); }
 export function escapeHtml(s) {
