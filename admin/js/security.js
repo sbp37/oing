@@ -258,6 +258,35 @@ function hsSimilarityLabel(d, allRows) {
   const label = avg < 0.06 ? '매우 비슷함 ⚠️' : (avg < 0.15 ? '비슷한 편' : '자연스럽게 다름');
   return { label, count: diffs.length, verySimilar: avg < 0.06 };
 }
+// ── 👀 관찰 자동 플래그 — 소프트 의심 패턴 자동 표시(확증 아님, "여기부터 봐라" 눈길 유도용) ──
+//  세션 자체 데이터 + 원장 리듬 + 판 간 유사도만 사용(추가 서버 조회 없음). 자동 차단 절대 없음.
+//  ※ 이 신호들은 실력 좋은 정상 유저와도 겹칠 수 있음 — 최종 판단은 상세를 열어 사람이 한다.
+const HS_WATCH_MIN = 3; // 이만큼 조건 충족 시 👀 관찰 딱지
+function hsWatch(d, allRows) {
+  const c = d.client || {};
+  const rhythm = hsRhythmOf(d);
+  const sim = hsSimilarityLabel(d, allRows || []);
+  const reasons = [];
+  // ① 후반에도 안 느려짐 — 사람은 보통 후반에 지쳐 감속. 솔버/보조툴은 고민이 없어 유지됨
+  if (rhythm && rhythm.n >= 30 && rhythm.rateEarly > 0 && rhythm.rateLate >= rhythm.rateEarly * 0.98)
+    reasons.push('후반에도 속도가 안 떨어짐');
+  // ② 거의 안 틀림(충분한 표본) — 정답을 다 알고 있는 듯
+  const total = (c.clearCount || 0) + (c.failCount || 0);
+  if (total >= 150 && (c.clearCount || 0) / total >= 0.98)
+    reasons.push(`성공률 ${Math.round((c.clearCount || 0) / total * 100)}% (거의 무실수)`);
+  // ③ 시계 과다 — 판을 억지로 늘려 점수 파밍
+  if (typeof c.clockUsed === 'number' && c.clockUsed >= 20)
+    reasons.push(`시계 ${c.clockUsed}회 과다 사용`);
+  // ④ 다른 판과 리듬이 매우 비슷 — 매크로/일정한 보조 패턴 의심
+  if (sim && sim.verySimilar) reasons.push(`다른 판과 리듬 매우 비슷 (${sim.count}판)`);
+  // ⑤ 입력 간격이 꽤 균일 — 기계적 리듬 경향
+  if (rhythm && rhythm.n >= 50 && rhythm.uniformPct >= 45)
+    reasons.push(`입력 간격 균일 ${rhythm.uniformPct}%`);
+  // ⑥ 0.3초 이하 초고속 입력 존재 — 사람 반응 한계 근처
+  if (rhythm && rhythm.fast300 >= 3) reasons.push(`0.3초 이하 빠른 입력 ${rhythm.fast300}회`);
+  return { points: reasons.length, reasons, watch: reasons.length >= HS_WATCH_MIN };
+}
+
 const _hsRhythmCache = new Map();
 function hsRhythmOf(d) {
   if (!_hsRhythmCache.has(d)) {
@@ -267,6 +296,41 @@ function hsRhythmOf(d) {
   return _hsRhythmCache.get(d);
 }
 const fmtMs = (ms) => (ms >= 1000 ? (ms / 1000).toFixed(2) + '초' : ms + 'ms');
+
+// ── 🔎 이 유저의 다른 고득점 판 교차표 — 판마다 성적·리듬이 판박이면 매크로/보조툴 의심 ──
+//  같은 닉네임의 로드된 4만+ 세션을 시간순으로 나열. 이 판과의 리듬 지문 거리도 표시.
+function hsCrossGamesHtml(d, allRows) {
+  const rows = (allRows || []).filter((r) => r.nickname === d.nickname);
+  if (rows.length <= 1) return '';
+  const mineFp = hsFingerprint(hsRhythmOf(d));
+  const fpDist = (o) => {
+    const fp = hsFingerprint(hsRhythmOf(o));
+    if (!mineFp || !fp) return null;
+    return mineFp.reduce((a, v, i) => a + Math.abs(v - fp[i]), 0) / mineFp.length;
+  };
+  const sorted = [...rows].sort((a, b) => (b.submittedAt ?? 0) - (a.submittedAt ?? 0));
+  const body = sorted.map((o) => {
+    const c = o.client || {};
+    const tot = (c.clearCount || 0) + (c.failCount || 0);
+    const sr = tot > 0 ? Math.round((c.clearCount || 0) / tot * 100) + '%' : '-';
+    const dist = (o === d) ? '(이 판)' : (() => { const x = fpDist(o); return x == null ? '-' : (x < 0.06 ? `매우 비슷 ⚠️` : x < 0.15 ? '비슷' : '다름'); })();
+    const [decText] = DECISION_KO[o.official?.decision] || ['-'];
+    const cnt = (o.official?.integrity?.flags || []).length;
+    return `<tr${o === d ? ' style="background:rgba(148,163,184,0.12);"' : ''}>
+      <td>${o.submittedAt ? fmtDateTime(o.submittedAt) : '-'}</td>
+      <td style="text-align:right;"><b>${fmtNum(c.finalScore ?? 0)}</b></td>
+      <td style="text-align:right;">${sr}</td>
+      <td style="text-align:right;">${typeof c.clockUsed === 'number' ? c.clockUsed : '-'}</td>
+      <td style="text-align:center;">${dist}${cnt ? ` ·모순${cnt}` : ''}</td>
+      <td>${decText}</td>
+    </tr>`;
+  }).join('');
+  return `<div style="margin:6px 0 2px; font-size:11.5px; font-weight:800; color:var(--muted2);">🔎 이 유저의 고득점 판 ${rows.length}개 (리듬이 판박이면 의심)</div>
+    <div style="overflow-x:auto;"><table class="mini-table" style="width:100%; border-collapse:collapse; font-size:11.5px;">
+      <thead><tr style="color:var(--muted);">
+        <th style="text-align:left;">시각</th><th style="text-align:right;">점수</th><th style="text-align:right;">성공률</th><th style="text-align:right;">시계</th><th style="text-align:center;">이 판과 리듬</th><th style="text-align:left;">판정</th>
+      </tr></thead><tbody>${body}</tbody></table></div>`;
+}
 
 function highScoreDetailHtml(d, stats, allRows) {
   const c = d.client || {};
@@ -281,6 +345,7 @@ function highScoreDetailHtml(d, stats, allRows) {
   const line = (k, v) => `<div class="mini-row"><span class="mini-label">${k}</span><span class="mini-val">${v}</span></div>`;
   const head = (t) => `<div style="margin:12px 0 2px; font-size:11.5px; font-weight:800; color:var(--muted2); letter-spacing:0.3px;">${t}</div>`;
 
+  const wf = hsWatch(d, allRows || []);
   // ── 주의 신호 종합(쉬운 말) — 자동 판정 사유 + 무결성 모순 + 리듬 신호 + 유사도 ──
   const warns = [];
   reasons.filter(r => r !== 'NO_SESSION').forEach(r => warns.push(reasonLabel(r)));
@@ -325,9 +390,14 @@ function highScoreDetailHtml(d, stats, allRows) {
   // 성공률(성공 / (성공+실패)) — 플레이 스타일 참고용
   const total = (c.clearCount || 0) + (c.failCount || 0);
   const successRate = total > 0 ? Math.round((c.clearCount || 0) / total * 100) + '%' : '-';
+  const watchBox = wf.watch
+    ? `<div class="hs-summary" style="margin:8px 0; padding:8px 10px; border-radius:8px; background:rgba(234,179,8,0.12); border:1px solid rgba(234,179,8,0.35); font-size:12.5px; line-height:1.7;">👀 <b>관찰 대상 (사유 ${wf.points}개)</b><br>${wf.reasons.map(r => '· ' + escapeHtml(r)).join('<br>')}<br><span style="color:var(--muted); font-size:11px;">※ 확증 아님 — 정상 실력자와 겹칠 수 있어요. 아래 교차표·검증을 함께 보세요.</span></div>`
+    : '';
   return `
     ${warnBox}
+    ${watchBox}
     <div class="hs-summary" style="margin:8px 0; padding:8px 10px; border-radius:8px; background:rgba(148,163,184,0.08); font-size:12.5px; line-height:1.6;">📝 ${escapeHtml(highScoreSummary(d, stats))}</div>
+    ${(allRows && hsCrossGamesHtml(d, allRows)) || ''}
     ${head('📊 기본')}
     ${line('기기', deviceLabel(c.device))}
     ${line('점수', fmtNum(c.finalScore ?? 0) + '점')}
@@ -350,15 +420,18 @@ function highScoreDetailHtml(d, stats, allRows) {
 
 // 목록: 기본 10건 + "더 보기" 커서 페이지네이션 (점수 높은 순)
 let hsRows = [];
-function hsRowHtml(d, i) {
+function hsRowHtml(d, i, wf) {
   const [decText, decCls] = DECISION_KO[d.official?.decision] || ['?', 'unverifiable'];
   const when = d.submittedAt ? fmtDateTime(d.submittedAt) : '-';
   const nWarn = (d.official?.integrity?.flags || []).length;
+  const watchBadge = wf && wf.watch
+    ? `<span class="badge warn" title="관찰 사유 ${wf.points}개 — ${escapeHtml(wf.reasons.join(' · '))}">👀 관찰 ${wf.points}</span>` : '';
   return `
     <div class="verdict-row ${decCls}" data-hs="${i}" style="cursor:pointer; flex-wrap:wrap;">
       <span class="vr-main">
         <span class="nick">${escapeHtml(d.nickname || d.uid || '?')}</span> ${deviceMini(d.client?.device)}
         · <b>${fmtNum(d.client?.finalScore ?? 0)}점</b>
+        ${watchBadge}
         ${nWarn ? `<span class="badge warn">모순 ${nWarn}</span>` : ''}
         <span class="vr-sub">${when} · 눌러서 상세 ▾</span>
       </span>
@@ -370,6 +443,7 @@ function hsRowHtml(d, i) {
 //  Firestore는 부등호 필터(finalScore>=4만) 필드가 첫 orderBy여야 해서 서버 정렬은 점수순만 가능 →
 //  4만+ 세션을 (희소하므로) 한 번에 다 불러온 뒤 클라이언트에서 정렬만 바꾼다.
 let hsSort = 'recent';
+let hsWatchOnly = false; // '관찰만 보기' 필터
 const HS_MAX_LOAD = 600; // 안전 상한 — 4만+는 희소하지만 폭주 대비
 function hsSortRows() {
   if (hsSort === 'score') hsRows.sort((a, b) => (b.client?.finalScore ?? 0) - (a.client?.finalScore ?? 0));
@@ -378,11 +452,27 @@ function hsSortRows() {
 function hsRender() {
   hsSortRows();
   const el = document.getElementById('highScoreList');
-  el.innerHTML = hsRows.map((d, i) => hsRowHtml(d, i)).join('');
+  // 관찰 플래그를 한 번씩 계산(캐시된 리듬/유사도 사용) — data-hs 인덱스는 원본 hsRows 기준 유지
+  const items = hsRows.map((d, i) => ({ d, i, wf: hsWatch(d, hsRows) }));
+  const watchCount = items.filter((x) => x.wf.watch).length;
+  const view = hsWatchOnly ? items.filter((x) => x.wf.watch) : items;
+  el.innerHTML = view.length
+    ? view.map((x) => hsRowHtml(x.d, x.i, x.wf)).join('')
+    : '<div style="padding:14px; text-align:center; color:var(--muted); font-size:12.5px;">관찰 대상이 없어요.</div>';
   const more = document.getElementById('highScoreMoreBtn');
   if (more) more.style.display = 'none'; // 한 번에 다 불러오므로 더보기 미사용
   const sortUi = document.getElementById('highScoreSort');
   if (sortUi) sortUi.style.display = hsRows.length ? '' : 'none';
+  // 관찰 대상 요약 + '관찰만' 필터 버튼 상태
+  const sum = document.getElementById('highScoreWatchSummary');
+  if (sum) {
+    sum.style.display = hsRows.length ? '' : 'none';
+    sum.innerHTML = watchCount
+      ? `👀 <b>관찰 대상 ${watchCount}건</b> / 전체 ${hsRows.length}건 <button id="hsWatchFilterBtn" class="btn btn-ghost btn-sm" style="margin-left:6px;">${hsWatchOnly ? '전체 보기' : '관찰만 보기'}</button>`
+      : `✅ 관찰 대상 없음 / 전체 ${hsRows.length}건`;
+    const fb = document.getElementById('hsWatchFilterBtn');
+    if (fb) fb.onclick = () => { hsWatchOnly = !hsWatchOnly; hsRender(); };
+  }
 }
 async function loadHighScores() {
   const el = document.getElementById('highScoreList');
