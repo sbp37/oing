@@ -11,11 +11,17 @@
 import {
   db, collection, query, orderBy, limit, where,
   fetchDocs, countQuery, makePager,
-  getTodayDateStr, fmtDateTime, fmtNum, escapeHtml, humanError, readStats,
+  getTodayDateStr, fmtDateTime, fmtNum, escapeHtml, humanError, readStats, normalizeNickname,
 } from './firebase.js';
 import { initAnalyticsTab, loadAnalytics } from './analytics.js';
 import { setError } from './admin.js';
 import { renderDataBadge } from './dashboard.js';
+
+// 제작자(운영자) 본인 닉네임 — 사용자 행동 목록에서 제외(개발 중 테스트 클릭이 목록을 덮는 문제 방지).
+// 게임(index.html)도 v4.6.7부터 제작자 행동은 아예 기록하지 않으므로, 여기 필터는 과거 잔재 숨김용.
+// 게임 CREATOR_NICKS와 같은 값으로 유지 — 제작자 닉을 바꾸면 양쪽 한 줄씩 갱신.
+const CREATOR_NICKS = new Set(['오잉이'].map(normalizeNickname));
+const isCreatorNick = (n) => CREATOR_NICKS.has(normalizeNickname(n));
 
 // ── 서브탭 상태 ──
 const sub = { activity: { loaded: false }, referrer: { loaded: true }, behavior: { loaded: false }, datause: { loaded: true } };
@@ -75,16 +81,18 @@ async function bhLoadRecent(col, { withCount = false } = {}) {
   bhState[col] = { rows: [], pager: null, todayCount: null };
   listEl.innerHTML = '<div class="list-loading">불러오는 중...</div>';
   try {
-    const jobs = [fetchDocs(query(collection(db, col), orderBy('ts', 'desc'), limit(5)))];
+    // 제작자 제외 후에도 최근 5건이 남도록 넉넉히(12) 가져온 뒤 필터
+    const jobs = [fetchDocs(query(collection(db, col), orderBy('ts', 'desc'), limit(12)))];
     if (withCount) jobs.push(countQuery(collection(db, col), where('date', '==', getTodayDateStr())).catch(() => null));
-    const [rows, todayCount] = await Promise.all(jobs);
+    const [raw, todayCount] = await Promise.all(jobs);
+    const rows = raw.filter(r => !isCreatorNick(r.nickname)).slice(0, 5);
     bhState[col].rows = rows;
     bhState[col].todayCount = withCount ? todayCount : null;
     if (metaEl && withCount) metaEl.textContent = todayCount != null ? `오늘 ${fmtNum(todayCount)}회` : '';
     listEl.innerHTML = rows.length ? rows.map(r => bhRowHtml(col, r)).join('')
       : '<div class="list-empty">아직 기록이 없어요</div>';
     const moreBtn = document.getElementById('bh-more-' + col);
-    if (moreBtn) moreBtn.style.display = rows.length >= 5 ? '' : 'none';
+    if (moreBtn) moreBtn.style.display = raw.length >= 12 ? '' : 'none';
   } catch (e) {
     delete bhState[col]; // 실패 시 재시도 가능하게
     listEl.innerHTML = `<div class="list-error">⚠️ ${humanError(e)}</div>`;
@@ -103,7 +111,7 @@ async function bhLoadMore(col, btn) {
       st.rows = []; // 첫 20건이 최근 5건을 포함하므로 목록을 교체
     }
     const page = await st.pager.next();
-    st.rows.push(...page);
+    st.rows.push(...page.filter(r => !isCreatorNick(r.nickname))); // 제작자 제외
     listEl.innerHTML = st.rows.length ? st.rows.map(r => bhRowHtml(col, r)).join('')
       : '<div class="list-empty">아직 기록이 없어요</div>';
     btn.textContent = '더 보기 (20건씩)';
