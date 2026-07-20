@@ -602,7 +602,7 @@ async function loadHighScores() {
 const VERDICT_DECISIONS = ['pending_review', 'rejected_invalid'];
 const REASON_LABELS = {
   ELAPSED_TOO_SHORT: '30초 미만 즉시클리어',
-  SCORE_OVER_OFFICIAL_CAP: '점수 상한 초과(5.8만+)',
+  SCORE_OVER_OFFICIAL_CAP: '점수 상한 초과(5만+)',
   IMPOSSIBLE_BURST: '비정상 폭발 성공(버스트)',
   COMPOSITE_ANOMALY: '복합 이상패턴',
   NO_SESSION: '서버세션 없음',
@@ -698,6 +698,8 @@ export async function loadVerdictBadge() {
   }
 }
 
+// 상세보기(리듬·원장·유사도)를 열 수 있는 하한 — 고득점(4만+)만 상세 데이터가 쌓인다.
+const VERDICT_DETAIL_MIN = 40000;
 function verdictRowHtml(d) {
   const dec = d.official?.decision;
   const unverifiable = isUnverifiable(d);
@@ -708,16 +710,77 @@ function verdictRowHtml(d) {
   const reasons = Array.isArray(d.official?.reasons) ? d.official.reasons : [];
   const elapsedSec = typeof d.serverElapsed === 'number' ? Math.round(d.serverElapsed / 1000) : null;
   const burst = d.client?.maxSuccessesIn3Sec;
+  const score = d.client?.finalScore;
+  // 보류(pending_review)만 랭킹 반영 승인 가능 — 거부/검증불가/오탐엔 버튼 안 보임
+  const canApprove = dec === 'pending_review';
+  const canDetail = typeof score === 'number' && score >= VERDICT_DETAIL_MIN;
+  const actions = (canApprove || canDetail) ? `
+      <div class="vr-actions">
+        ${canDetail ? `<button class="btn btn-ghost btn-sm vr-detail-btn">🔎 상세</button>` : ''}
+        ${canApprove ? `<button class="btn btn-sm vr-approve-btn" data-nick="${escapeHtml(d.nickname || '')}" data-score="${score ?? ''}">🏆 랭킹에 올리기</button>` : ''}
+      </div>
+      ${canDetail ? `<div class="hs-detail" style="display:none;"></div>` : ''}` : '';
   return `
-    <div class="verdict-row ${cls}">
+    <div class="verdict-row ${cls}" data-session-id="${escapeHtml(d.id || '')}">
       <span class="vr-main">
         <span class="nick">${escapeHtml(d.nickname || d.uid || '?')}</span>
-        · ${fmtNum(d.client?.finalScore ?? '-')}점
+        · ${fmtNum(score ?? '-')}점
         <span class="vr-reasons">${reasons.map(r => `<span class="verdict-tag ${cls}">${escapeHtml(reasonLabel(r))}</span>`).join('')}</span>
         <span class="vr-sub">플레이 ${elapsedSec != null ? fmtDuration(elapsedSec) : '-'}${burst != null ? ` · 3초내 최대 ${fmtNum(burst)}성공` : ''} · ${d.official?.decidedAt ? fmtDateTime(d.official.decidedAt) : '-'}</span>
       </span>
       <span class="vr-verdict ${cls}">${verdictText}</span>
+      ${actions}
     </div>`;
+}
+
+// verdict 목록(메인·처리완료 둘 다)에 승인/상세 버튼 이벤트를 위임으로 1회 바인딩.
+function bindVerdictActions(container) {
+  if (!container || container.dataset.vBound) return;
+  container.dataset.vBound = '1';
+  container.addEventListener('click', async (ev) => {
+    const row = ev.target.closest('.verdict-row[data-session-id]');
+    if (!row) return;
+    const sessionId = row.dataset.sessionId;
+    // ① 상세 토글
+    const detailBtn = ev.target.closest('.vr-detail-btn');
+    if (detailBtn) {
+      const box = row.querySelector('.hs-detail');
+      if (!box) return;
+      if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+      if (!box.dataset.loaded) {
+        box.innerHTML = '<div class="list-loading">유저 통계 확인 중...</div>';
+        box.style.display = 'block';
+        const d = (cache.peek('security:verdicts') || []).find(x => x.id === sessionId);
+        if (!d) { box.innerHTML = '<div class="list-empty">세션 정보를 찾을 수 없어요</div>'; return; }
+        let stats = null;
+        try { const r = await getUserDocByNick('user_stats', d.nickname || ''); stats = r && r.data; } catch {}
+        box.innerHTML = highScoreDetailHtml(d, stats, []);
+        box.dataset.loaded = '1';
+      }
+      box.style.display = 'block';
+      return;
+    }
+    // ② 랭킹에 올리기(보류 점수 승인)
+    const approveBtn = ev.target.closest('.vr-approve-btn');
+    if (approveBtn) {
+      const nick = approveBtn.dataset.nick || '';
+      const score = Number(approveBtn.dataset.score) || 0;
+      if (!confirm(`"${nick}" ${fmtNum(score)}점을 랭킹에 올릴까요?\n공식·주간 랭킹에 반영됩니다(되돌리려면 별도 조치 필요).`)) return;
+      approveBtn.disabled = true;
+      const old = approveBtn.textContent;
+      approveBtn.textContent = '올리는 중...';
+      try {
+        const res = await httpsCallable(fns, 'adminApproveScore')({ sessionId });
+        const r = (res && res.data) || {};
+        alert(`✅ 반영 완료 — ${r.nickname || nick} ${fmtNum(r.score ?? score)}점\n전체 랭킹: ${r.rankingUpdated ? '갱신됨' : '기존이 더 높아 유지'} · 주간: ${r.weeklyUpdated ? '갱신됨' : '기존이 더 높아 유지'}`);
+        await loadVerdicts({ force: true });
+      } catch (e) {
+        alert('랭킹 반영 실패: ' + humanError(e));
+        approveBtn.disabled = false;
+        approveBtn.textContent = old;
+      }
+    }
+  });
 }
 
 export async function loadVerdicts({ force = false } = {}) {
@@ -783,6 +846,9 @@ export async function loadVerdicts({ force = false } = {}) {
         seenListEl.innerHTML = '';
       }
     }
+    // 승인/상세 버튼 이벤트(위임 1회) — 메인·처리완료 목록 둘 다
+    bindVerdictActions(el);
+    if (seenListEl) bindVerdictActions(seenListEl);
   } catch (e) {
     const msg = humanError(e);
     // 인덱스 미생성 시 Firestore가 주는 콘솔 에러 안내
