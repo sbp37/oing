@@ -9122,14 +9122,15 @@ function burstConfetti() {
         });
       }
     });
-    const T0 = performance.now(); const DUR = 1500;
+    const T0 = performance.now(); const DUR = 3200;
     (function frame(t) {
       const el = t - T0; if (el > DUR) { cv.remove(); return; }
       ctx.clearRect(0, 0, W, H);
-      const fade = el > DUR * 0.7 ? 1 - (el - DUR * 0.7) / (DUR * 0.3) : 1;
+      const fade = el > DUR * 0.78 ? 1 - (el - DUR * 0.78) / (DUR * 0.22) : 1;
       ctx.globalAlpha = Math.max(0, fade);
       for (const p of parts) {
-        p.vy += 0.18; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+        if (el < p.delay) continue; // 지점별 시간차 발사(연속 축포 느낌)
+        p.vy += 0.16; p.vx *= 0.992; p.x += p.vx; p.y += p.vy; p.rot += p.vr;
         ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
         ctx.fillStyle = p.col; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
         ctx.restore();
