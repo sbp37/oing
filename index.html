@@ -7820,7 +7820,7 @@ function tryRemove(sel2) {
         const bd = board[r][c];
         if (bd.cat) bombScore += 5;
         if (bd.cat) sessionCats++;
-        else if (bd.num && !bd.bomb && !bd.clock && !bd.hint) bombScore += (bd.num || 0);
+        else if (bd.num && !bd.bomb && !bd.clock && !bd.hint && !bd.megabomb && !bd.freeze && !bd.lucky) bombScore += (bd.num || 0);
         else bombScore += triggerCaughtItem(bd, r, c, 1);
         board[r][c].empty = true;
         const el = cellEl(r,c);
