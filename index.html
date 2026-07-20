@@ -8783,7 +8783,7 @@ async function endGame() {
     let submitDecision = 'accepted';
     const submitDoneMsg = () => submitDecision === 'accepted'
       ? `🎉 ${escapeHtml(savedNick)} 자동 등록 완료`
-      : '🐾 점수는 접수됐다냥 — 확인 후 랭킹에 반영될 수 있다냥';
+      : '🛡️ 높은 점수라 관리자 확인 후 랭킹에 반영돼요 — 조금만 기다려달라냥';
     try {
       // Firebase 작업 타임아웃 — PR3부터 점수 저장이 CF(submitScore) 왕복을 거치면서
       // 콜드스타트 시 10초를 넘기는 사례가 생겨 "실패"로 잘못 표시되는 문제가 있었음(25초로 상향).
