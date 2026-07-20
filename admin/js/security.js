@@ -714,9 +714,14 @@ function verdictRowHtml(d) {
   // 보류(pending_review)만 랭킹 반영 승인 가능 — 거부/검증불가/오탐엔 버튼 안 보임
   const canApprove = dec === 'pending_review';
   const canDetail = typeof score === 'number' && score >= VERDICT_DETAIL_MIN;
+  const uid = d.uid || '';
+  // 신뢰/확인안내는 uid가 있어야 함(그 계정 문서에 씀). 보류 상태일 때만 노출.
+  const canManage = canApprove && !!uid;
   const actions = (canApprove || canDetail) ? `
       <div class="vr-actions">
         ${canDetail ? `<button class="btn btn-ghost btn-sm vr-detail-btn">🔎 상세</button>` : ''}
+        ${canManage ? `<button class="btn btn-ghost btn-sm vr-notice-btn" data-uid="${escapeHtml(uid)}" data-nick="${escapeHtml(d.nickname || '')}">🔍 확인안내</button>` : ''}
+        ${canManage ? `<button class="btn btn-ghost btn-sm vr-trust-btn" data-uid="${escapeHtml(uid)}" data-nick="${escapeHtml(d.nickname || '')}">✅ 신뢰</button>` : ''}
         ${canApprove ? `<button class="btn btn-sm vr-approve-btn" data-nick="${escapeHtml(d.nickname || '')}" data-score="${score ?? ''}">🏆 랭킹에 올리기</button>` : ''}
       </div>
       ${canDetail ? `<div class="hs-detail" style="display:none;"></div>` : ''}` : '';
@@ -779,6 +784,43 @@ function bindVerdictActions(container) {
         approveBtn.disabled = false;
         approveBtn.textContent = old;
       }
+      return;
+    }
+    // ③ 신뢰(화이트리스트) — 이후 5만+ 자동 반영 (score_trusted/{uid})
+    const trustBtn = ev.target.closest('.vr-trust-btn');
+    if (trustBtn) {
+      const uid = trustBtn.dataset.uid, nick = trustBtn.dataset.nick || '';
+      if (!uid) { alert('이 세션엔 계정(UID)이 없어 신뢰 등록을 할 수 없어요.'); return; }
+      if (!confirm(`"${nick}"을(를) 신뢰 목록에 넣을까요?\n앞으로 이 계정은 5만+ 점수를 내도 보류 없이 자동으로 랭킹에 반영됩니다(영상 등으로 검증된 유저용).\n※ 이 판 자체를 지금 올리려면 "랭킹에 올리기"를 쓰세요.`)) return;
+      trustBtn.disabled = true; const old = trustBtn.textContent; trustBtn.textContent = '등록 중...';
+      try {
+        await setDoc(doc(db, 'score_trusted', uid), { nickname: nick, trustedAt: Date.now(), trustedBy: 'admin' });
+        alert(`✅ "${nick}" 신뢰 등록 완료 — 이후 고득점은 자동 반영돼요.\n(취소하려면 신뢰 목록에서 해제)`);
+        trustBtn.textContent = '✅ 신뢰됨';
+      } catch (e) {
+        alert('신뢰 등록 실패: ' + humanError(e));
+        trustBtn.disabled = false; trustBtn.textContent = old;
+      }
+      return;
+    }
+    // ④ 확인안내 — 그 유저 본인에게만 뜨는 안내 팝업 세팅 (user_notices/{uid})
+    const noticeBtn = ev.target.closest('.vr-notice-btn');
+    if (noticeBtn) {
+      const uid = noticeBtn.dataset.uid, nick = noticeBtn.dataset.nick || '';
+      if (!uid) { alert('이 세션엔 계정(UID)이 없어 안내를 보낼 수 없어요.'); return; }
+      if (!confirm(`"${nick}"에게 "기록 확인 중" 안내를 보낼까요?\n이 유저가 다음에 접속하면 본인에게만 팝업이 한 번 뜨고, 오픈채팅 문의 버튼이 보여요.`)) return;
+      noticeBtn.disabled = true; const old = noticeBtn.textContent; noticeBtn.textContent = '보내는 중...';
+      try {
+        await setDoc(doc(db, 'user_notices', uid), {
+          nickname: nick, type: 'score_review', active: true, at: Date.now(), by: 'admin',
+        });
+        alert(`🔍 "${nick}"에게 확인 안내를 보냈어요 — 다음 접속 시 본인에게만 팝업이 떠요.`);
+        noticeBtn.textContent = '🔍 안내됨';
+      } catch (e) {
+        alert('안내 전송 실패: ' + humanError(e));
+        noticeBtn.disabled = false; noticeBtn.textContent = old;
+      }
+      return;
     }
   });
 }
