@@ -472,6 +472,23 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // score_trusted — 신뢰(화이트리스트) 명단. {uid} 문서가 있으면 submitScore(Admin SDK)가
+    // 그 계정의 '점수 상한 초과' 사유를 면제해 랭킹에 자동 반영한다(영상 등으로 검증된 유저).
+    // 어드민만 읽고/쓰기 — 일반 클라는 접근 불가(자기가 신뢰 목록에 있는지 알 필요 없음).
+    // 실제 상한 면제 판정은 서버(Admin SDK, 규칙 우회)에서만 이뤄진다.
+    match /score_trusted/{uid} {
+      allow read, write: if isAdmin();
+    }
+
+    // user_notices — 유저별 개인 안내(예: 고득점 기록 확인 중 안내 팝업). 어드민이 특정 유저에게
+    // 세팅하면 그 유저 본인만 접속 시 read 해서 팝업으로 본다. write 는 어드민만(유저가 스스로
+    // 안내를 만들거나 지울 수 없음). read 는 본인+어드민 — 남의 안내는 볼 수 없다.
+    match /user_notices/{uid} {
+      allow read: if isAdmin()
+        || (request.auth != null && request.auth.uid == uid);
+      allow write: if isAdmin();
+    }
+
     // play_xp — 오잉 레벨 플레이 XP(정상 완료 판당 +1, KST 하루 상한 10).
     // write 는 오직 submitScore Cloud Function(Admin SDK, 규칙 우회)만 — 클라이언트가
     // XP를 위조/증가시킬 수 없음. read 는 공개(단순 활동 카운터라 민감정보 없음 — 내정보

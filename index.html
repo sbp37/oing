@@ -4567,10 +4567,49 @@ async function migrateLegacyUserData(uid, nick) {
   if (!res.ok) console.warn('자동 마이그레이션 보류(레거시 모드로 계속, 다음 접속 때 재시도):', res.reason);
 }
 
+// ── 개인 확인 안내(user_notices/{uid}) — 어드민이 특정 유저에게 세팅한 안내를 접속 시 1회 표시 ──
+//  본인 문서 1개만 read(규칙상 본인+어드민만 read). 같은 안내(at 타임스탬프)는 한 번만 뜬다.
+const NOTICE_SEEN_KEY = 'oeing_notice_seen_at';
+async function checkMyNotice() {
+  if (!MY_UID) return;
+  try {
+    const snap = await getDoc(doc(db, 'user_notices', MY_UID));
+    if (!snap.exists()) return;
+    const n = snap.data() || {};
+    if (!n.active) return;
+    const seenAt = Number(localStorage.getItem(NOTICE_SEEN_KEY) || 0);
+    if (n.at && seenAt >= n.at) return; // 이미 본 안내면 스킵(1회성)
+    showScoreNoticePopup();
+    try { localStorage.setItem(NOTICE_SEEN_KEY, String(n.at || Date.now())); } catch {}
+  } catch {}
+}
+function showScoreNoticePopup() {
+  if (document.getElementById('scoreNoticeOverlay')) return;
+  const ov = document.createElement('div');
+  ov.id = 'scoreNoticeOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:24px;';
+  ov.innerHTML = `
+    <div style="background:var(--surface2,#1a2233);border-radius:18px;padding:24px 20px;max-width:340px;width:100%;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,0.45);">
+      <div style="font-size:34px;margin-bottom:6px;">🔍</div>
+      <div style="font-size:16px;font-weight:800;color:var(--blue-light,#eaf0ff);margin-bottom:10px;">기록 확인이 조금 더 필요해요</div>
+      <div style="font-size:13.5px;line-height:1.7;color:var(--muted,#b8c4dc);margin-bottom:18px;">점수는 안전하게 보관 중이며<br>게임은 정상적으로 이용할 수 있어요.<br>랭킹 반영 확인을 원하시면<br>오픈채팅으로 문의해주세요 🐾</div>
+      <div style="display:flex;gap:8px;">
+        <a href="https://open.kakao.com/o/spD6cpBi" target="_blank" rel="noopener" style="flex:1.4;padding:13px;border-radius:12px;background:#F7C948;color:#241704;font-weight:800;font-size:14px;text-decoration:none;display:flex;align-items:center;justify-content:center;">💬 오픈채팅 문의</a>
+        <button id="scoreNoticeClose" style="flex:1;padding:13px;border-radius:12px;border:none;background:rgba(255,255,255,0.1);color:var(--blue-light,#cdd6ea);font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;">닫기</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  const close = () => { try { ov.remove(); } catch {} };
+  const cb = ov.querySelector('#scoreNoticeClose');
+  if (cb) cb.addEventListener('click', close);
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+}
+
 async function initAccountSystem() {
   const uid = await ensureAnonymousAuth();
   if (!uid) return; // 인증 실패 — 기존 방식 그대로 동작
   MY_UID = uid;
+  checkMyNotice(); // 개인 확인 안내(있으면 1회 팝업) — 비대기(부팅 흐름 안 막음)
   try {
     const nick = loadNickname();
     if (!nick) return; // 신규 방문자 — 닉네임 등록할 때 UID에 연결
@@ -8783,7 +8822,7 @@ async function endGame() {
     let submitDecision = 'accepted';
     const submitDoneMsg = () => submitDecision === 'accepted'
       ? `🎉 ${escapeHtml(savedNick)} 자동 등록 완료`
-      : '🛡️ 높은 점수라 관리자 확인 후 랭킹에 반영돼요 — 조금만 기다려달라냥';
+      : '🎉 우와, 엄청난 고득점이다냥!<br>공정한 랭킹을 위해 기록을 확인하고 있다냥.<br>확인 후 랭킹 상태가 업데이트된다냥 🐾';
     try {
       // Firebase 작업 타임아웃 — PR3부터 점수 저장이 CF(submitScore) 왕복을 거치면서
       // 콜드스타트 시 10초를 넘기는 사례가 생겨 "실패"로 잘못 표시되는 문제가 있었음(25초로 상향).
