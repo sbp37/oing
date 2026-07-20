@@ -7048,6 +7048,7 @@ let timeWarned = false; // 10초 경고음 1회 제한
 const COMBO_SCORE_CAP = 25;
 let comboCapReached = false; // 이번 판에서 "배율 MAX!" 연출을 이미 보여줬는지
 let bonusHintGiven = false; // 퍼펙트 클리어 임박 보너스 힌트, 판당 1회만
+let carryHintNextStage = false; // ✨퍼펙트 클리어(판 완전 비움) 시 다음 판 힌트 1개 이월(→3개). 연속 퍼펙트해도 3개 유지(4개 안 됨)
 let candyGivenThisGame = false; // 🍬 콤보사탕 — 판당 딱 1개만 나오게 제한 (클로버는 별개, 제한 없음)
 let cloverGivenThisGame = false; // 🍀 클로버 — v3.6: 시간 기반 랜덤 발동 대신 콤보 7배수 아이템풀에 포함, 판당 1개만
 let newbieHintGiven = false; // 뉴비 자동힌트 — 판당 1회만
@@ -7369,7 +7370,10 @@ function makeBoard() {
   // 합10 짝을 일부러 옆자리에 심어주기 — 첫 판은 많이, 갈수록 적게
   seedAdjacentPairs(resetCount === 0 ? 8 : resetCount <= 2 ? 4 : resetCount <= 4 ? 3 : 2);
 
-  hintsUsed = 0;
+  // 퍼펙트 클리어 이월 시 이 판은 힌트 3개(hintsUsed=-1로 시작하면 MAX_HINTS까지 3번 쓸 수 있음).
+  // -1 방식이라 연속 퍼펙트여도 항상 3개로 고정(4개로 안 불어남).
+  hintsUsed = carryHintNextStage ? -1 : 0;
+  carryHintNextStage = false;
   bonusHintGiven = false;
 
   updateStageUI();
@@ -8165,6 +8169,7 @@ function triggerBoardReset() {
       const d = board[r][c];
       if (!d.empty && !d.cat && !d.bomb && !d.clock && !d.hint && !d.megabomb && !d.freeze && !d.lucky) leftoverNums++;
     }
+  if (leftoverNums === 0) carryHintNextStage = true; // ✨퍼펙트 클리어 → 다음 판 힌트 3개(이월)
   showBoardTransitionPop(leftoverNums === 0, resetCount);
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
@@ -8217,7 +8222,7 @@ function showBoardTransitionPop(isPerfect, stageNo) {
     animation:boardPopIn 0.95s cubic-bezier(0.2,1.4,0.4,1) forwards;
   `;
   if (isPerfect) {
-    pop.innerHTML = `⭐ STAGE ${stageNo} CLEAR! ⭐<div style="font-size:16px; margin-top:4px; color:#ffe9a8;">✨ PERFECT ✨</div>`;
+    pop.innerHTML = `⭐ STAGE ${stageNo} CLEAR! ⭐<div style="font-size:16px; margin-top:4px; color:#ffe9a8;">✨ PERFECT ✨</div><div style="font-size:13px; margin-top:4px; color:#bfe8c4; font-family:'Malgun Gothic',sans-serif;">💡 다음 판 힌트 3개! 🎁</div>`;
   } else {
     pop.innerHTML = `🌊 STAGE ${stageNo + 1}<div style="font-size:14px; margin-top:3px; color:#a8cbe8;">새 판이다냥!</div>`;
   }
@@ -8587,6 +8592,7 @@ function startGame() {
   timeLeft = isFreeMode ? 240 : 120; sel1 = null; gameRunning = false;
   maxTimeSeen = 120;
   hintsUsed = 0;
+  carryHintNextStage = false; // 새 게임 첫 판은 항상 힌트 2개 (직전 게임 퍼펙트 이월이 새지 않게)
   shuffleUsed = false;
   timeWarned = false;
   updateShuffleBtn();
