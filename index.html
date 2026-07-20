@@ -1626,21 +1626,15 @@ body.light #dailyGoalStartLine1 b { color:#6b4a12; }
   border-color: var(--me-accent, var(--blue-bright));
   background: var(--me-accent-dim, var(--blue-dim));
   box-shadow:
-    inset 6px 0 0 0 var(--me-accent, var(--blue-bright)),   /* 왼쪽 굵은 세로 바 */
-    inset 0 0 0 1.5px rgba(126,205,240,0.42),               /* 안쪽 하늘색 헤어라인(강화) */
-    inset 0 0 0 2000px rgba(126,205,240,0.07),              /* 행 전체에 은은한 하늘색 틴트(정적) */
-    0 0 14px rgba(126,205,240,0.28),                        /* 외부 글로우 */
+    inset 5px 0 0 0 var(--me-accent, var(--blue-bright)),   /* 왼쪽 세로 바(등급 바 없는 31위+ 행용) */
+    inset 0 0 0 1.6px rgba(126,205,240,0.45),               /* 안쪽 하늘색 헤어라인 */
+    inset 0 0 0 2000px rgba(126,205,240,0.08),              /* 행 전체에 은은한 하늘색 틴트(정적) */
+    0 0 16px rgba(126,205,240,0.32),                        /* 외부 글로우 */
     0 2px 5px rgba(0,0,0,0.22);                             /* 기본 드롭섀도 유지 */
 }
-/* Top10/Top30 등급에 올라가도 강조가 눌리지 않게 동일 강도로 덮어씀 */
-.rank-row.top10.me, .rank-row.top30.me {
-  box-shadow:
-    inset 6px 0 0 0 var(--me-accent, var(--blue-bright)),
-    inset 0 0 0 1.5px rgba(126,205,240,0.40),
-    inset 0 0 0 2000px rgba(126,205,240,0.07),
-    0 0 14px rgba(126,205,240,0.26),
-    0 2px 5px rgba(0,0,0,0.22);
-}
+/* 등급 행(Top10/Top30)의 내 행: 금/보라 왼쪽 등급 바(::before)를 항상 최상단에 유지
+   (내 행 강조 하늘색 틴트/링에 가리지 않게). 실제 강조 box-shadow는 아래 .top10.me/.top30.me에서. */
+.rank-row.top10.me::before, .rank-row.top30.me::before { z-index: 3; }
 .rank-num { font-size: 15.5px; font-weight: 700; color: #c3d2ea; min-width: 26px; max-width: 26px; text-align: right; flex-shrink: 0; }
 .rank-change { font-size: 13px; font-weight: 800; min-width: 34px; max-width: 34px; text-align: center; flex-shrink: 0; }
 .rank-change.up { color: var(--accent-green-light); text-shadow: none; }
@@ -1830,13 +1824,23 @@ body.light #dailyGoalStartLine1 b { color:#6b4a12; }
 .rank-row.top30 .rank-num { font-weight: 800; }
 /* Top10/Top30 + 내 행 — 등급 배경/왼쪽 라인은 그대로, 도는 하이라이트(::after)만 얹힘.
    등급 테두리만 살짝 밝게, 안쪽 하늘색 헤어라인은 약하게(뿌옇지 않게) */
+/* 등급 왼쪽 바(::before 금/보라)는 그대로, 내 행 강조는 하늘색 테두리·틴트·글로우로만
+   (왼쪽 바 없음 → 등급 바를 가리지 않는다). 전부 정적 box-shadow라 발열/재페인트 0. */
 .rank-row.top10.me {
-  border-color: rgba(244,215,126,0.55);
-  box-shadow: inset 0 0 0 1px rgba(126,205,240,0.14), inset 0 1px 0 rgba(255,255,255,0.06);
+  border-color: rgba(244,215,126,0.78);
+  box-shadow:
+    inset 0 0 0 1.6px rgba(126,205,240,0.42),
+    inset 0 0 0 2000px rgba(126,205,240,0.08),
+    0 0 16px rgba(126,205,240,0.30),
+    0 2px 5px rgba(0,0,0,0.22);
 }
 .rank-row.top30.me {
-  border-color: rgba(183,191,255,0.52);
-  box-shadow: inset 0 0 0 1px rgba(126,205,240,0.14), inset 0 1px 0 rgba(255,255,255,0.05);
+  border-color: rgba(183,191,255,0.75);
+  box-shadow:
+    inset 0 0 0 1.6px rgba(126,205,240,0.42),
+    inset 0 0 0 2000px rgba(126,205,240,0.08),
+    0 0 16px rgba(126,205,240,0.30),
+    0 2px 5px rgba(0,0,0,0.22);
 }
 
 .my-rank-info strong { color: var(--blue-light); }
@@ -2072,6 +2076,14 @@ body.light #panelGame .hint-btn.pregame { background: #f5f5f5; border-color: #d0
   22%  { opacity:1; transform:translate(-50%,-50%) scale(1) rotate(0deg); }
   85%  { opacity:1; transform:translate(-50%,-50%) scale(1) rotate(0deg); } /* 여기까지 꽉 찬 상태로 유지 */
   100% { opacity:0; transform:translate(-50%,-70%) scale(1); }
+}
+/* 최고점수 등극 배너 — 확 뜨고 '그대로 유지'(자동 사라짐 없음). 게임시작/랭킹 버튼 누를 때만 사라짐 */
+@keyframes recordpopStay {
+  0%   { opacity:0; transform:translate(-50%,-50%) scale(0.4) rotate(-8deg); }
+  45%  { opacity:1; transform:translate(-50%,-50%) scale(1.15) rotate(3deg); }
+  70%  { transform:translate(-50%,-50%) scale(0.96) rotate(-1deg); }
+  88%  { transform:translate(-50%,-50%) scale(1.04) rotate(0deg); }
+  100% { opacity:1; transform:translate(-50%,-50%) scale(1) rotate(0deg); }
 }
 /* 발열 최적화: box-shadow 펄스 제거(정적 중간값) — 스케일 펄스(GPU)만 유지 */
 @keyframes restartPulse {
@@ -3471,7 +3483,7 @@ if ('serviceWorker' in navigator) {
   </div>
   <div id="scoreComment" style="text-align:center; font-family:'Jua','Malgun Gothic',sans-serif; font-weight:400; font-size:20px; color:var(--blue-light); margin:4px 0 5px;"></div>
   <div id="nextGoal" style="display:none; text-align:center; font-size:15.5px; font-weight:700; color:#DA9845; margin:0 0 12px; letter-spacing:-0.2px;"></div>
-  <div id="beatMsg" style="display:none; text-align:center; font-size:14px; font-weight:800; color:#DA9845; margin:-2px 0 14px;"></div>
+  <div id="beatMsg" style="display:none; text-align:center; font-size:16.5px; font-weight:800; color:#DA9845; margin:-2px 0 16px; line-height:1.85; letter-spacing:-0.2px;"></div>
   <div id="dailyGoalResult" style="display:none; text-align:center; font-size:13.5px; font-weight:700; color:var(--blue-light); margin:0 0 4px; letter-spacing:-0.2px; line-height:1.5;"></div>
   <div id="dailyGoalTotalLine" style="display:none; text-align:center; font-size:11.5px; font-weight:600; color:var(--muted); margin:0 0 10px;"></div>
   <div id="nickSection2">
@@ -6339,8 +6351,8 @@ function playFanfare() {
     const master = ctx.createGain();
     master.gain.value = 0.28; // 다른 합성 효과음(클리어 아르페지오·냥 소리)과 비슷한 음량대
     master.connect(ctx.destination);
-    // C5 → E5 → G5 상승 후 C6 강조 (브라스풍 triangle)
-    const seq = [[523.25, 0.0], [659.25, 0.09], [783.99, 0.18], [1046.5, 0.30]];
+    // C5→E5→G5→C6 상승 후 한 번 더 튀어오르는 축하 프레이즈(더 흥겹고 길게, 브라스풍 triangle)
+    const seq = [[523.25, 0.0], [659.25, 0.08], [783.99, 0.16], [1046.5, 0.26], [880, 0.42], [1046.5, 0.5], [1318.5, 0.62]];
     seq.forEach(([f, t], i) => {
       const isLast = i === seq.length - 1;
       const o = ctx.createOscillator(); o.type = 'triangle';
@@ -6348,21 +6360,35 @@ function playFanfare() {
       const st = now + t;
       o.frequency.setValueAtTime(f, st);
       g.gain.setValueAtTime(0.0001, st);
-      g.gain.linearRampToValueAtTime(isLast ? 1.0 : 0.62, st + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0008, st + (isLast ? 0.6 : 0.17));
+      g.gain.linearRampToValueAtTime(isLast ? 1.0 : 0.6, st + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0008, st + (isLast ? 0.72 : 0.15));
       o.connect(g); g.connect(master);
-      o.start(st); o.stop(st + (isLast ? 0.66 : 0.2));
+      o.start(st); o.stop(st + (isLast ? 0.78 : 0.18));
     });
-    // 끝에 고역 반짝(축포 느낌) 살짝
-    const sp = now + 0.30;
-    const spO = ctx.createOscillator(); spO.type = 'sine';
-    const spG = ctx.createGain();
-    spO.frequency.setValueAtTime(1567.98, sp); // G6
-    spG.gain.setValueAtTime(0.0001, sp);
-    spG.gain.linearRampToValueAtTime(0.35, sp + 0.02);
-    spG.gain.exponentialRampToValueAtTime(0.0008, sp + 0.5);
-    spO.connect(spG); spG.connect(master);
-    spO.start(sp); spO.stop(sp + 0.55);
+    // 마지막에 밝은 메이저 화음(C6+E6+G6) 겹쳐서 '완성·환호' 느낌
+    [1046.5, 1318.5, 1567.98].forEach((f) => {
+      const st = now + 0.62;
+      const o = ctx.createOscillator(); o.type = 'triangle';
+      const g = ctx.createGain();
+      o.frequency.setValueAtTime(f, st);
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.linearRampToValueAtTime(0.3, st + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0008, st + 0.75);
+      o.connect(g); g.connect(master);
+      o.start(st); o.stop(st + 0.8);
+    });
+    // 고역 반짝(축포 느낌) 2회 — 흩뿌려지는 스파클
+    [[1567.98, 0.30], [2093.0, 0.56]].forEach(([f, t]) => {
+      const sp = now + t;
+      const spO = ctx.createOscillator(); spO.type = 'sine';
+      const spG = ctx.createGain();
+      spO.frequency.setValueAtTime(f, sp);
+      spG.gain.setValueAtTime(0.0001, sp);
+      spG.gain.linearRampToValueAtTime(0.33, sp + 0.02);
+      spG.gain.exponentialRampToValueAtTime(0.0008, sp + 0.5);
+      spO.connect(spG); spG.connect(master);
+      spO.start(sp); spO.stop(sp + 0.55);
+    });
   } catch {}
 }
 
@@ -8535,6 +8561,7 @@ let countdownId = 0; // 카운트다운 세션 ID (중복 방지)
 
 function startGame() {
   resumeAC();
+  try { dismissRecordBanner(); } catch {} // 새 판 시작 시 최고점 등극 배너 정리
   if (!visitPlayStarted) { visitPlayStarted = true; writeVisitSession('game_start'); }
   try { hideNewVersionBanner(); } catch {}
   boardResetting = false;
@@ -9076,20 +9103,25 @@ function burstConfetti() {
     document.body.appendChild(cv);
     const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
     const colors = ['#FFD36B', '#FFE9A8', '#7ecdf0', '#B7BFFF', '#f9a8d4', '#86efac', '#fca5a5'];
-    const cx = W / 2, cy = H * 0.34;
-    const N = W < 480 ? 70 : 100;
+    // 좌·중·우 3지점에서 시간차로 연달아 터지는 '풍성한' 축포
+    const origins = [{ x: W * 0.5, y: H * 0.30 }, { x: W * 0.22, y: H * 0.40 }, { x: W * 0.78, y: H * 0.40 }];
+    const perOrigin = W < 480 ? 60 : 85; // 지점당 조각 수(총 ~180~255)
     const parts = [];
-    for (let i = 0; i < N; i++) {
-      const ang = Math.random() * Math.PI * 2;
-      const spd = 3 + Math.random() * 7;
-      parts.push({
-        x: cx, y: cy,
-        vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - (3 + Math.random() * 3),
-        w: 5 + Math.random() * 5, h: 8 + Math.random() * 6,
-        rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.4,
-        col: colors[(Math.random() * colors.length) | 0], life: 0,
-      });
-    }
+    origins.forEach((o, oi) => {
+      const delay = oi * 260; // 지점마다 시간차 발사 → 연속 축하 느낌
+      for (let i = 0; i < perOrigin; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const spd = 3 + Math.random() * 8;
+        const big = Math.random() < 0.25; // 일부는 큼직한 조각
+        parts.push({
+          x: o.x, y: o.y,
+          vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - (3 + Math.random() * 4),
+          w: (big ? 8 : 5) + Math.random() * 5, h: (big ? 12 : 8) + Math.random() * 6,
+          rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.45,
+          col: colors[(Math.random() * colors.length) | 0], life: 0, delay,
+        });
+      }
+    });
     const T0 = performance.now(); const DUR = 1500;
     (function frame(t) {
       const el = t - T0; if (el > DUR) { cv.remove(); return; }
@@ -9107,11 +9139,22 @@ function burstConfetti() {
   } catch {}
 }
 
+// 최고점수 등극 배너 — 자동으로 사라지지 않고, 게임 시작/랭킹 이동 때 이 함수로 치운다.
+function dismissRecordBanner() {
+  const b = document.getElementById('newRecordBanner');
+  if (!b) return;
+  b.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+  b.style.opacity = '0';
+  b.style.transform = 'translate(-50%,-64%) scale(0.94)';
+  setTimeout(() => { try { b.remove(); } catch {} }, 320);
+}
 function showNewRecordPop() {
   burstConfetti();
+  dismissRecordBanner(); // 이전 배너가 남아있으면 정리(중복 방지)
   const pop = document.createElement('div');
+  pop.id = 'newRecordBanner';
   pop.style.cssText = `
-    position:fixed; top:34%; left:50%;
+    position:fixed; top:22%; left:50%;
     transform:translate(-50%,-50%);
     font-size:23px; font-weight:900;
     color:#3a2606;
@@ -9121,12 +9164,12 @@ function showNewRecordPop() {
     box-shadow:0 6px 26px rgba(224,153,43,0.5), 0 0 40px rgba(255,213,103,0.45), inset 0 1px 0 rgba(255,255,255,0.6);
     text-align:center; line-height:1.5;
     pointer-events:none; z-index:300;
-    animation:recordpopLong 4.5s ease forwards;
+    animation:recordpopStay 0.9s ease forwards;
     white-space:nowrap;
   `;
   pop.innerHTML = `🎉 최고점수 등극! 🎉<br><span style="font-size:15px; font-weight:800; color:#6b4a12;">역대 최고 기록 경신이다냥 🐱🔥</span>`;
   document.body.appendChild(pop);
-  setTimeout(() => pop.remove(), 4500);
+  // 자동 사라짐 없음 — dismissRecordBanner()가 게임 시작/랭킹 이동 때 치운다.
 }
 
 // 정답 표시
@@ -10673,6 +10716,7 @@ function clearAnswerHighlights() {
 }
 
 function switchTab(tab) {
+  try { dismissRecordBanner(); } catch {} // 탭 이동(랭킹 등) 시 최고점 등극 배너 정리
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   if (tab === 'game') {
