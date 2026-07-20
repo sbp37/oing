@@ -3483,7 +3483,7 @@ if ('serviceWorker' in navigator) {
   </div>
   <div id="scoreComment" style="text-align:center; font-family:'Jua','Malgun Gothic',sans-serif; font-weight:400; font-size:20px; color:var(--blue-light); margin:4px 0 5px;"></div>
   <div id="nextGoal" style="display:none; text-align:center; font-size:15.5px; font-weight:700; color:#DA9845; margin:0 0 12px; letter-spacing:-0.2px;"></div>
-  <div id="beatMsg" style="display:none; text-align:center; font-size:16.5px; font-weight:800; color:#DA9845; margin:-2px 0 16px; line-height:1.85; letter-spacing:-0.2px;"></div>
+  <div id="beatMsg" style="display:none; text-align:center; font-size:15px; font-weight:800; color:#e7edf6; margin:-2px 0 16px; line-height:1.75; letter-spacing:-0.2px;"></div>
   <div id="dailyGoalResult" style="display:none; text-align:center; font-size:13.5px; font-weight:700; color:var(--blue-light); margin:0 0 4px; letter-spacing:-0.2px; line-height:1.5;"></div>
   <div id="dailyGoalTotalLine" style="display:none; text-align:center; font-size:11.5px; font-weight:600; color:var(--muted); margin:0 0 10px;"></div>
   <div id="nickSection2">
@@ -9018,14 +9018,15 @@ async function endGame() {
             const weekLine = (weekInfo && weekInfo.top)
               ? { name: weekInfo.top, climbed: weekInfo.climbed } : null;
             const lines = [];
+            const GREEN = 'color:#7fe895;'; // 순위 상승은 항상 초록(전체·주간 통일)
             if (allLine && weekLine && allLine.name === weekLine.name) {
-              // 같은 사람 — 한 줄로 합침
+              // 같은 사람 — 한 줄로 합침(전체·주간 상승 모두 초록)
               lines.push(`🏆 <b>${escapeHtml(allLine.name)}</b>님을 이겼다냥! `
-                + `<span style="color:#7fe895;">전체 ${allLine.climbed}계단 ↑</span> `
-                + `<span style="color:#DA9845;">이번 주 ${weekLine.climbed}계단 ↑</span>`);
+                + `<span style="${GREEN}">전체 ${allLine.climbed} · 주간 ${weekLine.climbed}계단 ↑</span>`);
             } else {
-              if (allLine) lines.push(`🏆 <span style="color:#7fe895;">전체 ${allLine.climbed}계단 ↑</span> · <b>${escapeHtml(allLine.name)}</b>님을 이겼다냥!`);
-              if (weekLine) lines.push(`🔥 <span style="color:#DA9845;">이번 주 ${weekLine.climbed}계단 ↑</span> · <b>${escapeHtml(weekLine.name)}</b>님을 이겼다냥!`);
+              // 이름 먼저 → "이겼다냥!" → 전체/주간 N계단 ↑(초록)
+              if (allLine) lines.push(`🏆 <b>${escapeHtml(allLine.name)}</b>님을 이겼다냥! <span style="${GREEN}">전체 ${allLine.climbed}계단 ↑</span>`);
+              if (weekLine) lines.push(`🔥 <b>${escapeHtml(weekLine.name)}</b>님을 이겼다냥! <span style="${GREEN}">주간 ${weekLine.climbed}계단 ↑</span>`);
             }
             if (beatEl && lines.length) {
               beatEl.innerHTML = lines.join('<br>');
