@@ -118,15 +118,22 @@ test('user_stats: jelly 동일 update 허용(5→5)', async () => {
   await assertSucceeds(setDoc(doc(unauth(), 'user_stats', 'j2'), { jelly: 5 }));
 });
 
-// ─────────────── champions ───────────────
-test('champions: count=1 create 허용', async () => {
-  await assertSucceeds(setDoc(doc(unauth(), 'champions', 'chA'), { count: 1, lastCrownedAt: 1 }));
+// ─────────────── champions (signedIn 요구 추가) ───────────────
+test('champions: 인증 유저 count=1 create 허용', async () => {
+  await assertSucceeds(setDoc(doc(asUser('u1'), 'champions', 'chA'), { count: 1, lastCrownedAt: 1 }));
 });
-test('champions: +1 update 허용 / +2 update 거부', async () => {
+test('champions: 미인증 create 거부(신규 — 미인증 write 차단)', async () => {
+  await assertFails(setDoc(doc(unauth(), 'champions', 'chAu'), { count: 1, lastCrownedAt: 1 }));
+});
+test('champions: 인증 유저 +1 update 허용 / +2 update 거부', async () => {
   await seed((db) => setDoc(doc(db, 'champions', 'chB'), { count: 1, lastCrownedAt: 1 }));
-  await assertSucceeds(setDoc(doc(unauth(), 'champions', 'chB'), { count: 2, lastCrownedAt: 2 }));
+  await assertSucceeds(setDoc(doc(asUser('u1'), 'champions', 'chB'), { count: 2, lastCrownedAt: 2 }));
   await seed((db) => setDoc(doc(db, 'champions', 'chC'), { count: 1, lastCrownedAt: 1 }));
-  await assertFails(setDoc(doc(unauth(), 'champions', 'chC'), { count: 3, lastCrownedAt: 2 }));
+  await assertFails(setDoc(doc(asUser('u1'), 'champions', 'chC'), { count: 3, lastCrownedAt: 2 }));
+});
+test('champions: 미인증 +1 update 거부(신규)', async () => {
+  await seed((db) => setDoc(doc(db, 'champions', 'chBu'), { count: 1, lastCrownedAt: 1 }));
+  await assertFails(setDoc(doc(unauth(), 'champions', 'chBu'), { count: 2, lastCrownedAt: 2 }));
 });
 
 // ─────────────── users_private (민감정보 잠금) ───────────────
@@ -258,4 +265,60 @@ test('삭제된 추적 컬렉션: create/read 모두 거부 (catch-all)', async 
   await assertFails(addDoc(collection(unauth(), 'supporterpack_clicks'), { nickname: 'n', ts: 1, date: 'd' }));
   await seed((db) => setDoc(doc(db, 'tutorial_starts', 'x'), { nickname: 'n' }));
   await assertFails(getDoc(doc(unauth(), 'tutorial_starts', 'x')));
+});
+
+// ═══════════ [보안 수정 2026-07-21] 랭킹 신뢰 구멍 최소 수정 회귀 ═══════════
+
+// ── weekly_rankings delete: 예전엔 rankings/{nick} 없으면 누구나 삭제 가능 → 이제 어드민만 ──
+test('weekly delete: rankings 문서 없어도 미인증 삭제 거부(구멍 수정)', async () => {
+  await seed((db) => setDoc(doc(db, ...WK, 'wdel1'), { score: 100, ts: 1 })); // rankings/wdel1 은 없음
+  await assertFails(deleteDoc(doc(unauth(), ...WK, 'wdel1')));
+});
+test('weekly delete: 인증 유저여도(비어드민) 삭제 거부', async () => {
+  await seed((db) => setDoc(doc(db, ...WK, 'wdel2'), { score: 100, ts: 1 }));
+  await assertFails(deleteDoc(doc(asUser('u1'), ...WK, 'wdel2')));
+});
+
+// ── meta: 미인증 write 차단(허용 문서/필드는 유지), 인증 유저는 정상 ──
+test('meta: 미인증 currentChampion write 거부(신규)', async () => {
+  await assertFails(setDoc(doc(unauth(), 'meta', 'currentChampion'), { nickname: 'n', ts: 1 }));
+});
+test('meta: 인증 유저 currentChampion write 허용(왕관 로직 유지)', async () => {
+  await assertSucceeds(setDoc(doc(asUser('u1'), 'meta', 'currentChampion'), { nickname: 'n', ts: 1 }));
+});
+test('meta: 인증 유저여도 허용 외 문서/필드는 여전히 거부', async () => {
+  await assertFails(setDoc(doc(asUser('u1'), 'meta', 'currentChampion'), { nickname: 'n', ts: 1, evil: 1 }));
+  await assertFails(setDoc(doc(asUser('u1'), 'meta', 'randomDoc'), { foo: 1 }));
+});
+
+// ── visit_sessions: 미인증 write 차단 + 소유(visitorKey) 불변 + 숫자 범위 ──
+const VS_OK = { sessionId: 'vs1', visitorKey: 'nick:n', nickname: 'n', date: '2026-07-14', enterTs: 1, lastSeenTs: 2, durationSec: 10, playStarted: false, playCount: 0 };
+test('visit_sessions: 미인증 create 거부(구멍 수정 — 예전엔 인증 없이 허용)', async () => {
+  await assertFails(setDoc(doc(unauth(), 'visit_sessions', 'vs1'), VS_OK));
+});
+test('visit_sessions: 인증 유저 정상 create 허용(통계 유지)', async () => {
+  await assertSucceeds(setDoc(doc(asUser('u1'), 'visit_sessions', 'vs2'), { ...VS_OK, sessionId: 'vs2' }));
+});
+test('visit_sessions: update 시 visitorKey 변경(타인 세션 가로채기) 거부', async () => {
+  await seed((db) => setDoc(doc(db, 'visit_sessions', 'vs3'), { ...VS_OK, sessionId: 'vs3', visitorKey: 'nick:owner' }));
+  await assertFails(setDoc(doc(asUser('u1'), 'visit_sessions', 'vs3'), { ...VS_OK, sessionId: 'vs3', visitorKey: 'nick:attacker' }));
+});
+test('visit_sessions: update 시 visitorKey 동일하면 허용', async () => {
+  await seed((db) => setDoc(doc(db, 'visit_sessions', 'vs4'), { ...VS_OK, sessionId: 'vs4', visitorKey: 'nick:me' }));
+  await assertSucceeds(setDoc(doc(asUser('u1'), 'visit_sessions', 'vs4'), { ...VS_OK, sessionId: 'vs4', visitorKey: 'nick:me', durationSec: 20 }));
+});
+test('visit_sessions: 비정상 숫자(playCount 초과/음수 duration) 거부', async () => {
+  await assertFails(setDoc(doc(asUser('u1'), 'visit_sessions', 'vs5'), { ...VS_OK, sessionId: 'vs5', playCount: 100001 }));
+  await assertFails(setDoc(doc(asUser('u1'), 'visit_sessions', 'vs6'), { ...VS_OK, sessionId: 'vs6', durationSec: -1 }));
+});
+
+// ── score_recoveries: 감사 로그 — 어드민만 read, 클라 write 전면 차단(append-only) ──
+test('score_recoveries: 클라 write 전면 거부', async () => {
+  await assertFails(addDoc(collection(unauth(), 'score_recoveries'), { targetUid: 'u', recoverScore: 100 }));
+  await assertFails(addDoc(collection(asUser('u1'), 'score_recoveries'), { targetUid: 'u', recoverScore: 100 }));
+});
+test('score_recoveries: 비어드민 read 거부', async () => {
+  await seed((db) => setDoc(doc(db, 'score_recoveries', 'r1'), { targetUid: 'u', recoverScore: 100 }));
+  await assertFails(getDoc(doc(asUser('u1'), 'score_recoveries', 'r1')));
+  await assertFails(getDoc(doc(unauth(), 'score_recoveries', 'r1')));
 });
