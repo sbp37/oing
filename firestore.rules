@@ -388,10 +388,13 @@ service cloud.firestore {
     }
     match /visit_sessions/{sessionId} {
       allow read: if true;
-      // 예전엔 인증 없이도 임의 문서를 쓸 수 있었음 — 최소한 Firebase(익명) 인증을 요구해
-      // 미인증 대량 생성/수정을 차단. 정상 클라는 익명 인증 상태라 통계 기록은 그대로 동작.
+      // [이번 최소 수정 범위] '미인증 쓰기 차단'만 목표 — 예전엔 인증 없이도 임의 문서를 쓸 수
+      // 있었음. 최소한 Firebase(익명) 인증을 요구한다. 정상 클라는 익명 인증 상태라 통계 기록은
+      // 그대로 동작. (익명 인증 사용자는 여전히 요청 가능하므로 완전한 UID 소유권/조작 방지는 아님 —
+      //  진짜 소유권은 문서에 uid 필드를 실어야 가능. 알려진 제한사항으로 남김.)
       allow create: if signedIn() && visitSessionFieldsOk();
-      // update: 소유 표식(visitorKey)이 바뀌지 않아야 함 — 남의 방문 세션 문서를 가로채 수정 불가.
+      // update: 소유 표식(visitorKey) 값이 그대로일 때만 — 기존 문서의 visitorKey 를 다른 값으로
+      // 바꾸는 것만 차단하는 부분적 방어(완전한 소유권 검증은 아님).
       allow update: if signedIn() && visitSessionFieldsOk()
         && request.resource.data.visitorKey == resource.data.visitorKey;
       allow delete: if isAdmin();
