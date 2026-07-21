@@ -123,8 +123,10 @@ service cloud.firestore {
     match /weekly_rankings/{weekId}/scores/{nick} {
       allow read: if true;
       allow create, update: if isAdmin();
-      allow delete: if isAdmin()
-        || !exists(/databases/$(database)/documents/rankings/$(nick));
+      // 주간 점수 문서 삭제는 어드민(또는 Admin SDK 서버)만. 예전엔 rankings/{nick} 문서가
+      // 없으면 누구나(미인증 포함) 삭제할 수 있는 구멍이 있었음 — 정상 클라 삭제 사용처가
+      // 없으므로(프론트는 전부 read만) 완전 차단해 임의 주간기록 삭제를 막는다.
+      allow delete: if isAdmin();
     }
 
     // user_stats — 젤리는 클라이언트가 절대 늘릴 수 없음 (증가는 서버 함수만)
@@ -154,11 +156,14 @@ service cloud.firestore {
     // champions — compat과 동일
     match /champions/{nick} {
       allow read: if true;
+      // 클라(주간 왕관 지급 로직)는 익명 인증 상태로 count를 1씩 올린다 — 최소한 로그인 요구해
+      // 미인증 임의 write 차단. 증가폭(+1)·형식 제한은 그대로 유지.
       allow create: if isAdmin()
-        || (validNick(nick)
+        || (signedIn() && validNick(nick)
             && request.resource.data.get('count', 0) == 1);
       allow update: if isAdmin()
-        || (request.resource.data.get('count', 0) is int
+        || (signedIn()
+            && request.resource.data.get('count', 0) is int
             && request.resource.data.get('count', 0) >= resource.data.get('count', 0)
             && request.resource.data.get('count', 0) <= resource.data.get('count', 0) + 1);
       allow delete: if isAdmin();
@@ -182,7 +187,9 @@ service cloud.firestore {
     }
     match /meta/{docId} {
       allow read: if true;
-      allow create, update: if isAdmin() || metaOk(docId);
+      // 정상 클라(왕관·랭크 스냅샷 등)는 익명 인증 상태로 쓴다 — 최소한 로그인은 요구해
+      // 미인증 임의 write(currentChampion 등 위조)를 차단. 허용 문서·필드는 metaOk()가 계속 제한.
+      allow create, update: if isAdmin() || (signedIn() && metaOk(docId));
       allow delete: if isAdmin();
     }
 
@@ -356,23 +363,40 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // visit_sessions — compat과 동일
-    match /visit_sessions/{sessionId} {
-      allow read: if true;
-      allow create, update: if request.resource.data.keys().hasOnly(
+    // visit_sessions — 방문 세션 통계. 허용 필드·타입·숫자 범위 검증.
+    // (기존 프론트 write 필드 그대로 유지 — 통계가 깨지지 않게 최소 수정만.)
+    function visitSessionFieldsOk() {
+      return request.resource.data.keys().hasOnly(
           ['sessionId','visitorKey','nickname','date','enterTs','lastSeenTs','durationSec','playStarted','playCount'])
         && request.resource.data.sessionId is string
         && request.resource.data.visitorKey is string
+        && request.resource.data.visitorKey.size() <= 60
         && okStr(request.resource.data.get('nickname', ''), 20)
         && request.resource.data.date is string
+        && request.resource.data.date.size() <= 12
         && request.resource.data.enterTs is int
+        && request.resource.data.enterTs > 0
         && request.resource.data.lastSeenTs is int
+        && request.resource.data.lastSeenTs > 0
         && request.resource.data.durationSec is int
         && request.resource.data.durationSec >= 0
         && request.resource.data.durationSec <= 7200
         && request.resource.data.playStarted is bool
         && request.resource.data.playCount is int
-        && request.resource.data.playCount >= 0;
+        && request.resource.data.playCount >= 0
+        && request.resource.data.playCount <= 100000;
+    }
+    match /visit_sessions/{sessionId} {
+      allow read: if true;
+      // [이번 최소 수정 범위] '미인증 쓰기 차단'만 목표 — 예전엔 인증 없이도 임의 문서를 쓸 수
+      // 있었음. 최소한 Firebase(익명) 인증을 요구한다. 정상 클라는 익명 인증 상태라 통계 기록은
+      // 그대로 동작. (익명 인증 사용자는 여전히 요청 가능하므로 완전한 UID 소유권/조작 방지는 아님 —
+      //  진짜 소유권은 문서에 uid 필드를 실어야 가능. 알려진 제한사항으로 남김.)
+      allow create: if signedIn() && visitSessionFieldsOk();
+      // update: 소유 표식(visitorKey) 값이 그대로일 때만 — 기존 문서의 visitorKey 를 다른 값으로
+      // 바꾸는 것만 차단하는 부분적 방어(완전한 소유권 검증은 아님).
+      allow update: if signedIn() && visitSessionFieldsOk()
+        && request.resource.data.visitorKey == resource.data.visitorKey;
       allow delete: if isAdmin();
     }
 
@@ -478,6 +502,14 @@ service cloud.firestore {
     // 실제 상한 면제 판정은 서버(Admin SDK, 규칙 우회)에서만 이뤄진다.
     match /score_trusted/{uid} {
       allow read, write: if isAdmin();
+    }
+
+    // score_recoveries — 관리자 점수 복구 감사 로그. 오직 adminRecoverScore(Admin SDK)만 신규
+    // 문서를 추가한다(규칙 우회). 일반 유저는 read/write 전면 불가, 어드민만 조회. 클라 write가
+    // 규칙상 아예 없으므로 수정·삭제 없이 append-only(신규 추가만)로 유지된다.
+    match /score_recoveries/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // user_notices — 유저별 개인 안내(예: 고득점 기록 확인 중 안내 팝업). 어드민이 특정 유저에게
