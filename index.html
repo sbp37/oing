@@ -7049,8 +7049,8 @@ const COMBO_SCORE_CAP = 25;
 let comboCapReached = false; // 이번 판에서 "배율 MAX!" 연출을 이미 보여줬는지
 let bonusHintGiven = false; // 퍼펙트 클리어 임박 보너스 힌트, 판당 1회만
 let carryHintNextStage = false; // ✨퍼펙트 클리어(판 완전 비움) 시 다음 판 힌트 1개 이월(→3개). 연속 퍼펙트해도 3개 유지(4개 안 됨)
-let candyGivenThisGame = false; // 🍬 콤보사탕 — 판당 딱 1개만 나오게 제한 (클로버는 별개, 제한 없음)
-let cloverGivenThisGame = false; // 🍀 클로버 — v3.6: 시간 기반 랜덤 발동 대신 콤보 7배수 아이템풀에 포함, 판당 1개만
+let candyGivenThisGame = false; // 🍬 콤보사탕 — 게임당 딱 1개만 나오게 제한 (추가로 스테이지 1~2에서만 등장)
+let cloverGivenThisGame = false; // 🍀 클로버 — v3.6: 시간 기반 랜덤 발동 대신 콤보 7배수 아이템풀에 포함, 게임당 1개만
 let newbieHintGiven = false; // 뉴비 자동힌트 — 판당 1회만
 let newbieSkillMetric = null; // 이번 판 시작 시점의 실력 지표(캐싱)
 let lastInteractionAt = 0; // 마지막으로 화면을 누른 시각
@@ -7830,6 +7830,12 @@ function tryRemove(sel2) {
         const el = cellEl(r,c);
         if (el) el.classList.add('exploding');
       });
+      // 콤보 이어짐 + 보너스 — 직접 탭 발동과 동일하게 +20점·콤보+1
+      // (예전엔 드래그 발동만 이 보상이 빠져 탭과 최종 보상이 달랐음 — 통일)
+      combo++;
+      if (combo > maxCombo) maxCombo = combo;
+      const bonus = 20;
+      bombScore += bonus;
       if (bombScore > 0) {
         score += bombScore;
         updateStats();
@@ -7839,11 +7845,12 @@ function tryRemove(sel2) {
           showScorePop(rMin, cMin, '+' + bombScore + ' 💣', false, 'bomb');
         }
       }
-      // 폭발에 낀 사탕/클로버(+2)로 7 경계를 넘었으면 아이템 지급 — 예전엔 이 경로에
+      // 폭발에 낀 사탕/클로버(+2)나 위 콤보+1로 7 경계를 넘었으면 아이템 지급 — 예전엔 이 경로에
       // 체크 자체가 없어 아이템을 통째로 놓쳤음. (메인 매치의 crossed7은 이 setTimeout
       // 이전에 이미 판정 끝난 상태라 여기와 중복 지급되지 않음)
       const crossedB = Math.floor(combo / 7) > Math.floor(prevCB / 7);
-      if (crossedB) { updateComboUI(true); spawnRandomItem(); }
+      updateComboUI(crossedB);
+      if (crossedB) spawnRandomItem();
     }, 150);
   }
 
@@ -8101,7 +8108,7 @@ function spawnRandomItem() {
   const tier = combo >= 21 ? 3 : combo >= 14 ? 2 : 1;
   const elapsed = Date.now() - gameStartTime;
   const candyAllowed = timeLeft <= 70 && !candyGivenThisGame && resetCount <= 1; // 콤보사탕은 스테이지 1~2까지만
-  const cloverAllowed = !cloverGivenThisGame; // 🍀 v3.6: 시간 랜덤 대신 콤보 7배수 풀에 포함, 판당 1개만
+  const cloverAllowed = !cloverGivenThisGame; // 🍀 v3.6: 시간 랜덤 대신 콤보 7배수 풀에 포함, 게임당 1개만
 
   // 티어1(초보): 폭탄60% 시계40% (콤보사탕 허용 시 폭탄50% 시계33% 콤보사탕17%) — 후하게 유지
   // 티어2(중수): 폭탄40% 시계40% 메가폭탄20% (콤보사탕 허용 시 폭탄33% 시계33% 메가폭탄17% 콤보사탕17%)
@@ -8134,7 +8141,7 @@ function spawnRandomItem() {
   board[r][c] = { num:1, cat:false, bomb:false, clock:false, hint:false,
                   megabomb:false, freeze:false, lucky:false, empty:false };
   board[r][c][pick] = true;
-  if (pick === 'lucky') { board[r][c].luckyKind = 'candy'; candyGivenThisGame = true; } // 콤보사탕은 판당 1개만
+  if (pick === 'lucky') { board[r][c].luckyKind = 'candy'; candyGivenThisGame = true; } // 콤보사탕은 게임당 1개만
 }
 
 // 판이 막혔을 때(더 이상 만들 수 있는 합이 없을 때) 보드를 새로 섞는 연출

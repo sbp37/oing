@@ -255,14 +255,23 @@ export const cache = {
 };
 
 // ── 오류 메시지 정리 ──────────────────────────────────────────
+// 서버(HttpsError)가 보낸 사용자용 message 를 우선 표시한다 — 예전엔 e.code 를 먼저 집어
+// "functions/failed-precondition" 같은 코드가 화면에 그대로 떠서, 서버가 정성껏 담은
+// 한글 안내문("서버에서 확인 가능한 정상 기록을 찾지 못했습니다" 등)이 전부 묻혔음.
+// 스택트레이스·details·원본 객체는 절대 노출하지 않는다(문자열 message/code만 사용).
 export function humanError(e) {
-  const msg = String((e && (e.code || e.message)) || e);
-  if (msg.includes('permission-denied') || msg.includes('Missing or insufficient permissions')) {
+  const code = String((e && e.code) || '');
+  const serverMsg = String((e && e.message) || '');
+  const all = code + ' ' + serverMsg;
+  if (all.includes('permission-denied') || all.includes('Missing or insufficient permissions')) {
     return '권한 없음 — Firestore 보안 규칙이 이 작업을 막았습니다. (관리자 계정 이메일 로그인이 필요할 수 있어요)';
   }
-  if (msg.includes('failed-precondition') && msg.includes('index')) {
+  if (all.includes('failed-precondition') && all.includes('index')) {
     return '인덱스 필요 — Firebase 콘솔에서 복합 인덱스를 생성해야 하는 쿼리입니다.';
   }
-  if (msg.includes('unavailable') || msg.includes('network')) return '네트워크 오류 — 잠시 후 다시 시도해주세요.';
-  return msg;
+  if (all.includes('unavailable') || all.includes('network')) return '네트워크 오류 — 잠시 후 다시 시도해주세요.';
+  // 서버가 보낸 정상적인 사용자용 메시지가 있으면 그대로 표시.
+  // 단, 'internal' 류 일반 내부 오류 문구는 도움이 안 되므로 코드 폴백.
+  if (serverMsg && !/^\s*internal\s*$/i.test(serverMsg) && serverMsg !== code) return serverMsg;
+  return code || serverMsg || String(e);
 }

@@ -608,13 +608,23 @@ const REASON_LABELS = {
   NO_SESSION: '서버세션 없음',
   OWNERSHIP: '남의 닉네임 문서 시도',
 };
-function reasonLabel(code) { return REASON_LABELS[code] || code; }
+// 판정 v4부터 강한 무결성 사유(LEDGER_SCORE_MISMATCH 등)가 reasons 로도 들어온다 —
+// 라벨은 기존 INTEGRITY_KO(원장 분석용 한글 라벨)를 그대로 재사용해 영문 코드 노출을 막는다.
+function reasonLabel(code) { return REASON_LABELS[code] || INTEGRITY_KO[code] || code; }
 
 // NO_SESSION(서버세션 없음)은 치팅 의심 신호가 아니라 "검증 불가" 상태다.
 // (예: startSession 호출이 인프라 문제로 실패한 정상 유저도 이 사유로 찍힘 — 2026-07-12
 //  Cloud Run IAM 권한 누락 사고로 다수 정상 유저가 이 사유로 몰린 바 있음.)
 // 의심 판정 집계·배지에서는 제외하고, 목록에서는 별도 섹션(회색 "검증 불가")으로 분리 표시한다.
-const isUnverifiable = (d) => Array.isArray(d.official?.reasons) && d.official.reasons.includes('NO_SESSION');
+// 단, 강한 의심 사유가 함께 있으면 '검증 불가'로 접지 않고 의심 그룹에 우선 배치한다
+// (예: reasons = [NO_SESSION, LEDGER_SCORE_MISMATCH] → 의심 그룹).
+const STRONG_SUSPECT_REASONS = [
+  'SCORE_OVER_OFFICIAL_CAP', 'IMPOSSIBLE_BURST', 'COMPOSITE_ANOMALY',
+  'LEDGER_SCORE_MISMATCH', 'COMBO_GT_CLEARS', 'BURST_GT_CLEARS',
+];
+const isUnverifiable = (d) => Array.isArray(d.official?.reasons)
+  && d.official.reasons.includes('NO_SESSION')
+  && !d.official.reasons.some(r => STRONG_SUSPECT_REASONS.includes(r));
 
 // ELAPSED_TOO_SHORT(30초 미만 즉시클리어) 단독 사유는 실제로는 대부분 오탐이다:
 // 게임 자체는 정상적으로 120초를 채워야 끝나므로, 진짜로 30초 안에 낸 점수라면 클라이언트가
@@ -664,13 +674,16 @@ export async function loadReviewPendingBadge() {
   }
 }
 
-// game_sessions에서 보류/거부 세션 최근 50건 (복합 인덱스 필요 — 첫 실행 시 콘솔 링크로 생성)
+// game_sessions에서 보류/거부 세션 최근 200건 (복합 인덱스 필요 — 첫 실행 시 콘솔 링크로 생성)
+// 50 → 200 확대(2026-07-21): 판정 v4부터 NO_SESSION 저득점 pending 이 매일 소량 쌓여,
+// 50건 창이 그걸로 차면 진짜 의심(강한 무결성 등)이 조회 밖으로 밀리는 걸 방지.
+// 같은 쿼리에 limit 만 확대라 추가 인덱스 불필요. 어드민 진입 시 1회만 읽고 세션 캐시 재사용.
 function verdictQuery() {
   return query(
     collection(db, 'game_sessions'),
     where('official.decision', 'in', VERDICT_DECISIONS),
     orderBy('official.decidedAt', 'desc'),
-    limit(50),
+    limit(200),
   );
 }
 
