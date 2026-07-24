@@ -5051,11 +5051,13 @@ function medianOf(arr) {
 //  예전엔 매일 최근 7판 중간값으로 새로 계산해서, 0점·즉시종료 판이 끼면 목표가
 //  1600→600처럼 널뛰고("내 목표"가 아니라 "최근 운의 반영"), 중간값 근처라 노력 없이
 //  절반은 그냥 깨져 재미가 없었다. 이제 어제 목표를 기준으로 계단처럼 오르내린다:
-//   · 어제 달성 → 한 계단 위(+7%, 최소 +100)  [도전냥]
+//   · 어제 달성 → 한 계단 위(+5%, 3일 이상 연속 달성 중엔 +3%로 둔화, 최소 +50)  [도전냥]
+//     (예전 +7%는 매일 달성하는 유저에게 복리로 쌓여 목표가 급등 → 부담 완화, 2026-07-22)
 //   · 어제 플레이했는데 실패 → 유지, 이틀 연속 실패 → 반 계단 아래(-8%)  [가볍냥]
 //   · 어제 안 했으면 → 그대로 유지 (안 한 날 때문에 내려가지 않음)  [보통냥]
-//  가드: 0/즉시종료 판 제외한 실측 중간값의 0.5~1.6배 범위 밖으로 못 벗어남(현실과
-//  동떨어진 계단 방지), 최고기록의 85% 상한, 500점 하한. 랜덤 없음(하루 동안 결정적).
+//  가드: 0/즉시종료 판 제외한 실측 중간값의 0.5~1.25배 범위 밖으로 못 벗어남(예전 1.6배는
+//  "평소보다 60% 더"까지 올라가 부담 — 이젠 평소보다 살짝 위에서 멈춤), 최고기록의 75% 상한
+//  (예전 85%), 500점 하한. 랜덤 없음(하루 동안 결정적).
 function computeDailyGoal(prevStats, nickname, dateStr) {
   const d = prevStats || {};
   const best = d.bestScore || 0;
@@ -5069,7 +5071,9 @@ function computeDailyGoal(prevStats, nickname, dateStr) {
     const achieved = !!d.dailyGoalAchievedToday;
     const playedGoalDay = d.dailyDate === d.dailyGoalDate && (d.dailyPlayCount || 0) > 0;
     if (achieved) {
-      goal = Math.max(prevGoal + 100, Math.round(prevGoal * 1.07 / 50) * 50); // 달성 → 한 계단 위
+      // 달성 → 한 계단 위: 기본 +5%, 3일 이상 연속 달성 중이면 +3%로 둔화(복리 급등 방지)
+      const stepRate = (d.goalStreak || 0) >= 3 ? 1.03 : 1.05;
+      goal = Math.max(prevGoal + 50, Math.round(prevGoal * stepRate / 50) * 50);
       label = '도전냥'; missStreak = 0;
     } else if (playedGoalDay) {
       missStreak += 1;
@@ -5087,14 +5091,46 @@ function computeDailyGoal(prevStats, nickname, dateStr) {
     goal = Math.floor(base / 100) * 100;
     label = '보통냥';
   }
-  // 실측 능력 범위 가드 — 계단이 현실과 동떨어지지 않게
+  // 실측 능력 범위 가드 — 계단이 현실과 동떨어지지 않게 (상한 1.6→1.25배, 2026-07-22 부담 완화)
   if (m > 0) {
-    goal = Math.min(goal, Math.round(m * 1.6 / 50) * 50);
+    goal = Math.min(goal, Math.round(m * 1.25 / 50) * 50);
     goal = Math.max(goal, Math.round(m * 0.5 / 50) * 50);
   }
-  if (best > 0) goal = Math.min(goal, Math.floor((best * 0.85) / 100) * 100);
+  if (best > 0) goal = Math.min(goal, Math.floor((best * 0.75) / 100) * 100);
   goal = Math.max(goal, 500);
   return { score: goal, label, missStreak };
+}
+
+// ── 🛟 목표 스트릭 안전망 — 서버 저장 실패 대비 로컬 백업 (2026-07-22) ──
+//  해외(중국 등 파이어베이스 차단 지역)·오프라인에서 판을 끝내면 화면엔 "목표 달성!"이
+//  떴는데 서버 저장만 조용히 실패 → 다음 접속 때 서버의 옛 값이 로컬을 덮어써서
+//  연속 달성이 1일차로 리셋되던 문제의 안전망. 목표/스트릭 필드만 별도 키에 백업해두고,
+//  다음 게임 때 백업이 서버 값보다 최신이면(날짜 문자열 비교) 백업을 이어받아 저장한다.
+//  다른 기기에서 더 나중에 달성한 기록이 서버에 있으면 서버가 이긴다(멀티기기 안전).
+const GOAL_BACKUP_FIELDS = ['dailyGoalDate', 'dailyGoalScore', 'dailyGoalType', 'dailyGoalAchievedToday',
+  'goalStreak', 'goalStreakLastDate', 'goalTotalCount', 'goalMissStreak', 'maxGoalStreak'];
+function saveGoalBackup(nick, stats) {
+  try {
+    const b = {};
+    for (const k of GOAL_BACKUP_FIELDS) if (stats[k] !== undefined) b[k] = stats[k];
+    localStorage.setItem('oeing_goal_backup_' + nick, JSON.stringify(b));
+  } catch {}
+}
+function mergeGoalBackup(nick, server) {
+  try {
+    const b = JSON.parse(localStorage.getItem('oeing_goal_backup_' + nick) || 'null');
+    if (!b || !server) return server;
+    // 백업이 최신인 경우만 이어받음: 목표 날짜가 더 나중이거나, 같은 날인데 진행(달성/스트릭)이 더 앞선 경우
+    const sd = server.dailyGoalDate || '', bd = b.dailyGoalDate || '';
+    const newer = bd > sd || (bd === sd && (
+      (b.goalStreakLastDate || '') > (server.goalStreakLastDate || '') ||
+      (b.goalStreak || 0) > (server.goalStreak || 0) ||
+      (!!b.dailyGoalAchievedToday && !server.dailyGoalAchievedToday)));
+    if (!newer) return server;
+    const out = { ...server };
+    for (const k of GOAL_BACKUP_FIELDS) if (b[k] !== undefined) out[k] = b[k];
+    return out;
+  } catch { return server; }
 }
 
 // ══════════════════════════════
@@ -5138,7 +5174,9 @@ async function refreshStartScreenFromServer() {
   if (!nick) { try { renderStartScreenGoal(); } catch {} return; }
   try {
     const { data } = await getMyDoc('user_stats');
-    if (data) { try { localStorage.setItem('oeing_local_stats_' + nick, JSON.stringify(data)); } catch {} }
+    // 🛟 서버 값이 로컬 백업보다 뒤처져 있으면(직전 저장 실패) 백업의 목표/스트릭을 덧씌워 표시
+    const merged = data ? mergeGoalBackup(nick, data) : data;
+    if (merged) { try { localStorage.setItem('oeing_local_stats_' + nick, JSON.stringify(merged)); } catch {} }
   } catch (e) {}
   try { renderStartScreenGoal(); } catch {}
 }
@@ -5245,6 +5283,8 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
     docRef = r.ref;
     prevData = r.data;
   }
+  // 🛟 직전 판 저장이 서버에 못 갔으면(해외 차단·오프라인) 로컬 백업의 목표/스트릭이 더 최신 — 이어받는다
+  prevData = mergeGoalBackup(nickname, prevData);
   const now = Date.now();
   const todayStr = getLocalDateStr();
   const catsThisSession = sessionCatsArg || 0;
@@ -5373,7 +5413,15 @@ async function updateUserStats(nickname, playTimeSeconds, score, sessionCatsArg,
       statsOut.migratedFrom = (prevData.migratedFrom !== undefined) ? prevData.migratedFrom : null;
     }
   }
-  if (docRef) await setDoc(docRef, statsOut); // local-only 모드에서는 서버 쓰기 생략
+  saveGoalBackup(nickname, statsOut); // 🛟 서버 쓰기 전에 백업 — 아래 setDoc이 실패해도 스트릭 증거가 남는다
+  if (docRef) {
+    try { await setDoc(docRef, statsOut); } // local-only 모드에서는 서버 쓰기 생략
+    catch (e) {
+      // 서버 저장 실패(해외 차단·오프라인 등) — 게임 흐름은 막지 않는다.
+      // 로컬 캐시·백업은 최신으로 유지되고, 다음 성공 저장 때 mergeGoalBackup이 이어붙인다.
+      console.warn('user_stats 저장 실패(다음 게임 때 백업으로 이어붙임):', e && (e.code || e.message));
+    }
+  }
   try { localStorage.setItem('oeing_local_stats_' + nickname, JSON.stringify(statsOut)); } catch {}
   try { syncReactBest(statsOut.bestScore); } catch (e) {} // 리액션용 로컬 최고기록을 서버 값과 동기화 (기기 바꿔도 신기록 오판 방지)
   return { stats: statsOut, prev: prevData || null };
