@@ -10,7 +10,7 @@
 // ══════════════════════════════════════════════════════════════
 import {
   db, collection, doc, orderBy, query, limit,
-  fetchDoc, fetchDocs, deleteDoc, makePager, getUserDocByNick, resolveUserDocId,
+  fetchDoc, fetchDocs, deleteDoc, setDoc, makePager, getUserDocByNick, resolveUserDocId,
   getWeekId, getTodayDateStr, fmtAgo, fmtDateTime, fmtDuration, fmtNum, escapeHtml,
   humanError, normalizeNickname,
 } from './firebase.js';
@@ -192,14 +192,51 @@ async function openUserDetail(nick) {
       <details class="tool-acc danger-acc" style="margin-top:12px;">
         <summary>🔴 관리 도구</summary>
         <div class="tool-body">
+          <div style="display:flex; gap:6px; align-items:stretch; margin-bottom:8px;">
+            <input id="userModalStreakN" type="number" min="0" max="3650" inputmode="numeric"
+              placeholder="목표 연속 달성 일수" style="flex:1; min-width:0;">
+            <button id="userModalStreakFix" class="btn btn-ghost" style="white-space:nowrap;">🔥 스트릭 복구</button>
+          </div>
+          <div class="card-note" style="margin:0 0 10px;">해외 체류·오프라인 등으로 저장이 누락돼 "오늘 목표 연속 달성"이 끊긴 유저 보정용.
+            현재 스트릭 값(오늘까지 기준)을 넣으면 마지막 성공일을 함께 맞춰줘요.</div>
           <button id="userModalDeleteRank" class="btn btn-danger btn-block">🗑️ 이 유저 랭킹 기록 삭제</button>
           <div id="userModalResult"></div>
         </div>
       </details>`;
     const delBtn = document.getElementById('userModalDeleteRank');
     delBtn.addEventListener('click', guardBtn(delBtn, () => deleteRankingRecord(nick, 'userModalResult')));
+    const stBtn = document.getElementById('userModalStreakFix');
+    stBtn.addEventListener('click', guardBtn(stBtn, () =>
+      repairGoalStreak(nick, Number(document.getElementById('userModalStreakN').value), 'userModalResult')));
   } catch (e) {
     setError(body, humanError(e));
+  }
+}
+
+// ── 🔥 목표 스트릭 복구 — 서버 저장 누락(해외 차단·오프라인)으로 끊긴 "오늘 목표 연속 달성" 보정 ──
+//  goalStreak(오늘까지 기준 연속일)·goalStreakLastDate·maxGoalStreak만 merge 갱신.
+//  마지막 성공일: 오늘 이미 달성한 상태면 오늘, 아니면 어제로 — 다음 날 달성 시 자연스럽게 +1 이어짐.
+//  목표 점수·달성 여부·젤리 등 다른 필드는 건드리지 않는다.
+async function repairGoalStreak(nick, n, resultElId) {
+  if (!Number.isInteger(n) || n < 0 || n > 3650) { resultMsg(resultElId, '연속 일수는 0~3650 사이 정수로 넣어주세요.', false); return; }
+  if (!confirm(`'${nick}' 의 목표 연속 달성을 ${n}일로 복구할까요?\n(저장 누락으로 끊긴 스트릭 보정 — 다른 기록은 안 건드려요)`)) return;
+  try {
+    const { ref, data } = await getUserDocByNick('user_stats', nick);
+    if (!data) { resultMsg(resultElId, '플레이 통계(user_stats)가 없어요.', false); return; }
+    const today = getTodayDateStr();
+    const achievedToday = data.dailyGoalDate === today && !!data.dailyGoalAchievedToday;
+    const yest = new Date(); yest.setDate(yest.getDate() - 1);
+    const p2 = (x) => String(x).padStart(2, '0');
+    const yestStr = `${yest.getFullYear()}-${p2(yest.getMonth() + 1)}-${p2(yest.getDate())}`;
+    const lastDate = n > 0 ? (achievedToday ? today : yestStr) : '';
+    await setDoc(ref, {
+      goalStreak: n,
+      goalStreakLastDate: lastDate,
+      maxGoalStreak: Math.max(data.maxGoalStreak || 0, data.goalStreak || 0, n),
+    }, { merge: true });
+    resultMsg(resultElId, `🔥 복구 완료 — 연속 ${n}일 (마지막 성공일: ${lastDate || '없음'})`);
+  } catch (e) {
+    resultMsg(resultElId, humanError(e), false);
   }
 }
 
