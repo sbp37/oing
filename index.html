@@ -3524,6 +3524,21 @@ if ('serviceWorker' in navigator) {
     </div>
     <div style="flex:1; overflow-y:auto; margin-top:10px; text-align:left;">
 
+      <!-- v4.6 -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v4.6</div>
+        <span id="newBadge46" style="display:none;background:#DD6032;color:white;font-size:11px;font-weight:900;padding:1px 6px;border-radius:10px;letter-spacing:1px;">NEW</span>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:#DA9845;margin-bottom:5px;">🎉 새 기능 · 개선</div>
+      <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
+        <li>▫️ 🤍 <b>친구 랭킹이 전체 점수 기준</b>으로 바뀌어 매주 리셋되지 않아요 (이번 주 점수는 작게 같이 표시)</li>
+        <li>▫️ ✨ <b>올클리어(판 완전히 비우기) 보상</b> — 다음 판 힌트가 3개로 늘어나요</li>
+        <li>▫️ 🎯 <b>오늘 목표가 더 완만하게</b> 올라가요 — 매일 달성해도 부담되지 않는 선에서 멈춰요</li>
+        <li>▫️ 🔥 목표 연속 달성이 <b>해외·오프라인에서도 안 끊기게</b> 보완했어요</li>
+        <li>▫️ 💣 폭탄을 드래그로 함께 지워도 <b>직접 눌렀을 때와 똑같은 보너스</b>를 받아요</li>
+      </ul>
+      <div style="border-top:1px solid var(--border);margin-bottom:12px;"></div>
+
       <!-- v4.5 -->
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
         <div style="font-size:13px;font-weight:700;color:#3b82f6;letter-spacing:1px;">v4.5</div>
@@ -3531,7 +3546,6 @@ if ('serviceWorker' in navigator) {
       </div>
       <div style="font-size:13px;font-weight:700;color:#DA9845;margin-bottom:5px;">🎉 새 기능 · 개선</div>
       <ul style="list-style:none;padding:0;font-size:14px;color:#fff;line-height:1.9;margin-bottom:8px;">
-        <li>▫️ 🤍 <b>친구 랭킹이 전체 점수 기준</b>으로 바뀌어 매주 리셋되지 않아요 (이번 주 점수는 작게 같이 표시)</li>
         <li>▫️ 🍀 폭탄이 터질 때 반경에 클로버가 있으면 이제 정답 힌트가 제대로 발동돼요</li>
         <li>▫️ ⚡ 내부 최적화로 점수 저장·랭킹 화면이 더 빨라졌어요</li>
       </ul>
@@ -11982,17 +11996,17 @@ document.addEventListener('mouseup', () => {
 // 업데이트 내역 팝업
 const UPDATE_VERSION = 'v4.5';
 // 배포마다 이 숫자만 올리면 됨(클수록 최신). 새로고침 배너의 기준값이자 화면 표시 build 번호.
-const BUILD = 1785120000; // v4.7.0 — 힌트 3칸+ / 폭탄 위치 개선 / 🏅 나의 주간 기록(지난주 순위·참여 주차·Top10/30) UI (번호 유지: 새로고침 알림 없이 조용히 반영)
+const BUILD = 1785340000; // v4.6 업데이트 — 친구 랭킹 전체 점수 기준 / 올클리어 힌트 보상 / 오늘 목표 완화 / 스트릭 안전망 / 폭탄 보상 통일
 try { const _bt = document.getElementById('buildTag'); if (_bt) _bt.textContent = 'build #' + BUILD; } catch {}
 let lastVersionCheck = 0;
 let updateAvailable = false;
-const SEEN_KEY = 'seenUpdate_v4.5';
+const SEEN_KEY = 'seenUpdate_v4.6';
 
 function openUpdateLog() {
   document.getElementById('updateLog').style.display = 'flex';
   // NEW 뱃지 숨기기 + 본 것으로 저장
   localStorage.setItem(SEEN_KEY, '1');
-  const badge = document.getElementById('newBadge45');
+  const badge = document.getElementById('newBadge46');
   if (badge) badge.style.display = 'none';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'none';
@@ -12005,7 +12019,7 @@ document.getElementById('updateLogBtn').addEventListener('click', openUpdateLog)
 
 // 최초 방문 시 NEW 뱃지 표시
 if (!localStorage.getItem(SEEN_KEY)) {
-  const badge = document.getElementById('newBadge45');
+  const badge = document.getElementById('newBadge46');
   if (badge) badge.style.display = 'inline';
   const btnBadge = document.getElementById('updateLogBtnNew');
   if (btnBadge) btnBadge.style.display = 'inline';
