@@ -4938,11 +4938,17 @@ async function loadLastWeekRanks() {
 }
 
 // 관리자가 남긴 "응원자 감사 메시지" — 랭킹(이번주) 화면 맨 아래에 표시
+//
+// 🔒 잠시 닫아둠: 후원자 닉네임 공개가 문제될 소지가 있어 노출을 중단한다.
+//    아래 SHOW_WEEKLY_THANKS 를 true 로 바꾸면 그대로 원복된다.
+//    (meta/weeklyThanks 저장 데이터·어드민 입력 기능은 건드리지 않음)
+const SHOW_WEEKLY_THANKS = false;
 async function renderWeeklyThanks() {
   try {
     const el = document.getElementById('weeklyThanksDisplay');
     const toggle = document.getElementById('weeklyThanksToggle');
     if (!el || !toggle) return;
+    if (!SHOW_WEEKLY_THANKS) { el.style.display = 'none'; toggle.style.display = 'none'; return; }
     const snap = await getDoc(doc(db, 'meta', 'weeklyThanks'));
     const raw = snap.exists() ? (snap.data().text || '').trim() : '';
     if (!raw) { el.style.display = 'none'; toggle.style.display = 'none'; return; }
