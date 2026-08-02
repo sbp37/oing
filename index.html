@@ -2762,7 +2762,10 @@ if ('serviceWorker' in navigator) {
     <button class="tab-btn" id="tabMain">🪧 메인</button>
     <button class="tab-btn active" id="tabGame">🎮 게임</button>
     <button class="tab-btn" id="tabRank">🏆 랭킹</button>
+    <!-- 스킨샵(유료) 입구 — 닫아둠(사업자등록 정리 전까지 현금 결제 경로 비노출).
+         다시 열 때는 아래 display:none 한 줄만 지우면 원복된다. 구매 이력·스킨 소유는 그대로 유지. -->
     <button id="supportTopBtn" style="
+      display:none;
       margin: 6px 6px 6px auto; padding: 4px 11px; flex-shrink:0; align-self:center;
       border-radius: 20px; border: 1px solid rgba(234,194,117,0.6);
       background: rgba(234,194,117,0.18); color: #EAC275;
@@ -3035,7 +3038,7 @@ if ('serviceWorker' in navigator) {
         <!-- 4등 이하 -->
         <div class="rank-list" id="rankList"></div>
         <div class="rank-empty" id="rankEmpty" style="display:none">아직 기록이 없어요<br>🐾 첫 번째 도전자가 되어보세요!</div>
-        <button id="weeklyThanksToggle" style="display:none; margin:14px auto 4px; padding:6px 16px; background:none; border:1px solid rgba(218,152,69,0.4); border-radius:16px; color:rgba(240,216,168,0.75); font-family:inherit; font-size:12px; cursor:pointer;">🐾 이번달 함께해주신 분 ▾</button>
+        <button id="weeklyThanksToggle" style="display:none; margin:14px auto 4px; padding:6px 16px; background:none; border:1px solid rgba(218,152,69,0.4); border-radius:16px; color:rgba(240,216,168,0.75); font-family:inherit; font-size:12px; cursor:pointer;">🐾 함께해주신 분 ▾</button>
         <div id="weeklyThanksDisplay" class="thanks-card" style="display:none;"></div>
 
         <div class="my-rank-info" id="myRankInfo"></div>
@@ -3188,7 +3191,10 @@ if ('serviceWorker' in navigator) {
 
     <div class="jshop-notice-text">✨ 프레임 등 더 다양한 꾸미기가 앞으로 계속 추가될 예정이에요!</div>
 
-    <div class="jshop-support-box">
+    <!-- 서포터팩(990원 현금) — 닫아둠. 젤리샵은 랭킹의 '+ 말풍선' 탭으로도
+         열리므로, 유료 결제 경로를 완전히 막으려면 이 박스도 함께 숨긴다.
+         다시 열 때는 아래 display:none 한 줄만 지우면 원복. -->
+    <div class="jshop-support-box" style="display:none;">
       <div class="jshop-support-ribbon">🐾⭐ 오잉게임 서포터팩 ⭐🐾</div>
       <div class="jshop-support-body">
         <div class="jshop-support-items">
@@ -4954,14 +4960,14 @@ async function renderWeeklyThanks() {
       <div class="thanks-foot">보내주신 마음 덕분에 오잉게임을 계속 돌보고 있어요.<br>항상 고맙다냥 💛</div>`;
     // 기본은 접힘 — 화면에 다시 올 때마다(게임하다 오거나 다른 화면 갔다 와도) 항상 닫힌 상태로 초기화
     el.style.display = 'none';
-    toggle.textContent = '🐾 이번달 함께해주신 분 ▾';
+    toggle.textContent = '🐾 함께해주신 분 ▾';
     toggle.style.display = 'block';
     if (!toggle.dataset.bound) {
       toggle.dataset.bound = '1';
       toggle.addEventListener('click', () => {
         const open = el.style.display === 'block';
         el.style.display = open ? 'none' : 'block';
-        toggle.textContent = open ? '🐾 이번달 함께해주신 분 ▾' : '🐾 이번달 함께해주신 분 ▴';
+        toggle.textContent = open ? '🐾 함께해주신 분 ▾' : '🐾 함께해주신 분 ▴';
         // 펼칠 때마다 기록 (누가 몇 번 열어보는지 = 관심도 신호)
         if (!open) {
           try {
