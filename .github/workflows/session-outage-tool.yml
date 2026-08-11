@@ -64,10 +64,22 @@ jobs:
           gcloud run services list --project oing-game --region "$REGION" \
             --format="table(metadata.name,status.conditions[0].type,status.conditions[0].status,status.conditions[0].message)" 2>&1 | head -40 || true
           echo
-          echo "── startSession 리비전 상태 ──"
-          gcloud run revisions list --project oing-game --region "$REGION" \
-            --service startSession \
-            --format="table(metadata.name,status.conditions[0].type,status.conditions[0].status,status.conditions[0].message)" 2>&1 | head -20 || true
+          echo "── Cloud Functions 리소스 상태 (cloudfunctions.net 라우팅의 근거) ──"
+          gcloud functions describe startSession --project oing-game --region "$REGION" --gen2 \
+            --format="yaml(name,state,environment,serviceConfig.uri,serviceConfig.service,updateTime)" 2>&1 | head -30 || true
+          echo
+          echo "── 직통 run.app URL (있으면 클라에서 이쪽을 부를 수 있음) ──"
+          for S in startsession submitscore adminrecoverscore adminapprovescore; do
+            U=$(gcloud run services describe "$S" --project oing-game --region "$REGION" \
+                  --format="value(status.url)" 2>/dev/null || true)
+            echo "  $S -> ${U:-(조회 실패)}"
+            if [ -n "$U" ]; then
+              # 인증 없이 호출 → 401/permission-denied 등 '앱 레벨' 응답이면 라우팅은 살아있다는 뜻
+              CODE=$(curl -s -o /dev/null -w '%{http_code}' -m 15 -X POST "$U" \
+                       -H 'Content-Type: application/json' -d '{"data":{}}' || echo "000")
+              echo "     직통 호출 HTTP $CODE"
+            fi
+          done
 
       - name: Run
         run: node test/session-outage-tool.mjs
