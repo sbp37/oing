@@ -1,0 +1,34 @@
+name: 뉴오잉(토스) 빌드 구조 점검 (수동)
+
+# 이 작업 환경에서는 vercel.app 으로 나가는 접속이 프록시에 막혀 있어(EGRESS_BLOCKED)
+# 배포된 화면을 직접 열어볼 수 없다. Actions 러너는 나갈 수 있으므로 여기서 받아
+# 평가에 필요한 구조 정보만 요약해 출력한다. 읽기 전용이며 아무것도 쓰지 않는다.
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: '점검할 배포 URL'
+        default: 'https://oing-toss.vercel.app'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_URL: ${{ inputs.url }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Inspect
+        run: node test/inspect-toss-build.mjs
