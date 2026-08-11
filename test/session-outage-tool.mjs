@@ -135,6 +135,19 @@ async function inspectPending(db, limit) {
   for (const [r, n] of [...reasonCount].sort((a, b) => b[1] - a[1])) console.log(`    ${r}: ${n}`);
   console.log(`  ▶ 복구 대상(NO_SESSION 만, 강한 의심 없음): ${eligible}건`);
 
+  // 대상이 어느 주차 것인지 — 옛날 기록을 이번 주에 몰아넣지 않도록 미리 확인
+  const byWeek = new Map();
+  for (const doc of docs) {
+    const s = doc.data();
+    const { strong, noSession } = classify(s);
+    if (!noSession || strong.length) continue;
+    const t = Number(s.submittedAt) || Number(s?.official?.decidedAt) || 0;
+    const w = t ? kstWeekId(new Date(t)) : '(시각없음)';
+    byWeek.set(w, (byWeek.get(w) || 0) + 1);
+  }
+  console.log('  대상의 플레이 주차 분포:');
+  for (const [w, n] of [...byWeek].sort((a, b) => (a[0] < b[0] ? 1 : -1))) console.log(`    ${w}: ${n}건`);
+
   const sample = docs.find((d) => { const c = classify(d.data()); return c.noSession && !c.strong.length; });
   if (sample) {
     const s = sample.data();
@@ -154,7 +167,7 @@ async function inspectPending(db, limit) {
 async function applyRecovery(db, admin, limit) {
   console.log('\n══ 4. 복구 반영(apply) ══');
   const docs = await findPending(db, limit);
-  const weekId = kstWeekId();
+  const perWeek = new Map();
   let done = 0, skipped = 0, failed = 0;
   for (const doc of docs) {
     const s = doc.data();
@@ -164,6 +177,12 @@ async function applyRecovery(db, admin, limit) {
     if (!noSession || strong.length) { skipped++; continue; }
     if (!nick || !Number.isFinite(score) || score <= 0) { skipped++; continue; }
     if (score > APPROVE_SCORE_MAX) { console.log(`  건너뜀(상한초과) ${mask(nick)} ${score}`); skipped++; continue; }
+    // ⚠️ 보류 건은 여러 주에 걸쳐 쌓여 있다. "지금 주차"에 몰아넣으면 이번 주 랭킹이
+    //    옛날 점수로 오염되므로, 그 판을 실제로 친 주차에 넣는다.
+    const playedAt = Number(s.submittedAt) || Number(s?.official?.decidedAt) || 0;
+    if (!playedAt) { console.log(`  건너뜀(시각없음) ${mask(nick)}`); skipped++; continue; }
+    const weekId = kstWeekId(new Date(playedAt));
+    perWeek.set(weekId, (perWeek.get(weekId) || 0) + 1);
     try {
       await db.runTransaction(async (tx) => {
         const rRef = db.collection('rankings').doc(nick);
@@ -190,7 +209,9 @@ async function applyRecovery(db, admin, limit) {
       console.log(`  실패 ${mask(nick)}: ${e.message}`);
     }
   }
-  console.log(`  ▶ 반영 ${done}건 · 건너뜀 ${skipped}건 · 실패 ${failed}건 (주차 ${weekId})`);
+  console.log(`  ▶ 반영 ${done}건 · 건너뜀 ${skipped}건 · 실패 ${failed}건`);
+  console.log('  주차별 반영 시도:');
+  for (const [w, n] of [...perWeek].sort((a, b) => (a[0] < b[0] ? 1 : -1))) console.log(`    ${w}: ${n}건`);
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────
