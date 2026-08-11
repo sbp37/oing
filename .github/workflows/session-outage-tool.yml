@@ -1,0 +1,55 @@
+name: 랭킹 누락 장애 진단/복구 (수동)
+
+# 2026-08 장애 대응 — startSession 실패로 점수가 NO_SESSION → 보류로 빠져
+# 랭킹·주간랭킹에 반영되지 않는 문제를 진단하고, 보류된 정상 기록을 되살린다.
+#
+# 기본값은 inspect(읽기 전용). 실제 반영은 mode 를 apply 로 골라야 한다.
+# ⚠️ 이 저장소는 공개라 실행 로그도 공개된다 — 스크립트가 닉네임·UID를 마스킹한다.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '실행 모드'
+        type: choice
+        options: [inspect, apply]
+        default: inspect
+        required: true
+      limit:
+        description: '조회할 보류 세션 수 (최근순)'
+        default: '300'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_ID: oing-game
+      REGION: asia-northeast3
+      GOOGLE_CLOUD_QUOTA_PROJECT: oing-game
+      MODE: ${{ inputs.mode }}
+      LIMIT: ${{ inputs.limit }}
+    steps:
+      # workflow_dispatch 는 임의 브랜치로 실행할 수 있어 main 으로 고정한다.
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install firebase-admin
+        run: npm install --no-save firebase-admin@12
+
+      - name: Run
+        run: node test/session-outage-tool.mjs
