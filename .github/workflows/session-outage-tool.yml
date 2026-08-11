@@ -51,5 +51,23 @@ jobs:
       - name: Install firebase-admin
         run: npm install --no-save firebase-admin@12
 
+      # 503("service not available yet")이 나올 때 실제 배포 상태를 확인한다.
+      # 읽기 전용 조회이며, 권한이 없으면 조용히 넘어간다(진단이 목적이라 실패해도 무방).
+      - name: Cloud Functions / Cloud Run 상태 조회 (읽기 전용)
+        continue-on-error: true
+        run: |
+          echo "── Cloud Functions (gen1+gen2) ──"
+          gcloud functions list --project oing-game --regions "$REGION" \
+            --format="table(name,state,environment,updateTime)" 2>&1 | head -40 || true
+          echo
+          echo "── Cloud Run 서비스 (gen2 함수의 실체) ──"
+          gcloud run services list --project oing-game --region "$REGION" \
+            --format="table(metadata.name,status.conditions[0].type,status.conditions[0].status,status.conditions[0].message)" 2>&1 | head -40 || true
+          echo
+          echo "── startSession 리비전 상태 ──"
+          gcloud run revisions list --project oing-game --region "$REGION" \
+            --service startSession \
+            --format="table(metadata.name,status.conditions[0].type,status.conditions[0].status,status.conditions[0].message)" 2>&1 | head -20 || true
+
       - name: Run
         run: node test/session-outage-tool.mjs
