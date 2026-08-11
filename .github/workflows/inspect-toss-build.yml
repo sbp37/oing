@@ -32,3 +32,7 @@ jobs:
 
       - name: Inspect
         run: node test/inspect-toss-build.mjs
+
+      # 드롭인 패치를 쓰려면 실제 선택자와 현재 값이 필요하다. 관련 규칙만 좁혀서 뽑는다.
+      - name: Extract styles for patching
+        run: node test/extract-toss-styles.mjs
