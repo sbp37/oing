@@ -220,6 +220,86 @@ async function applyRecovery(db, admin, limit) {
   for (const [w, n] of [...perWeek].sort((a, b) => (a[0] < b[0] ? 1 : -1))) console.log(`    ${w}: ${n}건`);
 }
 
+// ── 5) 이번 주 복구 (user_stats 기반) ────────────────────────────────────────
+// 서버(Cloud Functions)가 결제 정지로 죽어 있던 동안의 기록은 game_sessions 에 아예
+// 남지 않았다. 유일하게 살아남은 기록이 user_stats — 클라이언트가 직접 쓰는 문서라
+// 서버 장애의 영향을 받지 않았다.
+//
+// ⚠️ 클라 기록이라 서버 검증을 거치지 않았다. 그래서 공식 상한(50,000) 이상은 반영하지
+//    않고 목록만 남긴다. 그 이상은 사람이 직접 판단해야 한다.
+const CLIENT_RECOVER_MAX = 50000;
+
+// 어드민의 todaysBestScoreClient 와 동일한 계산 (그 날 실제로 친 판들 중 최고점)
+function bestScoreOfDay(s, day) {
+  if (!s) return 0;
+  if (s.lastPlayDate !== day && s.dailyDate !== day) return 0;
+  const recent = Array.isArray(s.recentScores) ? s.recentScores.filter((x) => Number.isInteger(x) && x >= 0) : [];
+  if (!recent.length) return (Number.isInteger(s.lastScore) && s.lastScore > 0) ? s.lastScore : 0;
+  const dpc = (Number.isInteger(s.dailyPlayCount) && s.dailyPlayCount > 0) ? s.dailyPlayCount : recent.length;
+  const n = Math.max(1, Math.min(dpc, recent.length));
+  return Math.max(...recent.slice(-n));
+}
+
+async function recoverThisWeek(db, write) {
+  const weekId = kstWeekId();
+  console.log(`\n══ 5. 이번 주(${weekId}) 복구 — user_stats 기반 ${write ? '[반영]' : '[미리보기]'} ══`);
+  // 이번 주 월요일 이후에 마지막으로 플레이한 유저만 (문자열 날짜라 범위 비교 가능)
+  const snap = await db.collection('user_stats').where('lastPlayDate', '>=', weekId).get();
+  console.log(`  이번 주 플레이 기록이 있는 user_stats: ${snap.size}명`);
+
+  const cands = [];
+  for (const d of snap.docs) {
+    const s = d.data();
+    const nick = String(s.nickname || d.id || '').trim();
+    if (!nick) continue;
+    const day = String(s.lastPlayDate || '');
+    const best = bestScoreOfDay(s, day);
+    if (!Number.isInteger(best) || best <= 0) continue;
+    cands.push({ nick, best, day, uid: s.uid || '' });
+  }
+  cands.sort((a, b) => b.best - a.best);
+  console.log(`  점수가 있는 대상: ${cands.length}명`);
+
+  const over = cands.filter((c) => c.best > CLIENT_RECOVER_MAX);
+  if (over.length) {
+    console.log(`  ⚠️ 상한(${CLIENT_RECOVER_MAX}) 초과라 자동 반영 제외 — 사람이 판단 필요:`);
+    for (const c of over) console.log(`     ${mask(c.nick)} ${c.best}pt (${c.day})`);
+  }
+  const targets = cands.filter((c) => c.best <= CLIENT_RECOVER_MAX);
+  console.log(`  자동 반영 대상: ${targets.length}명 (상위 10명만 표시)`);
+  for (const c of targets.slice(0, 10)) console.log(`     ${mask(c.nick)} ${c.best}pt (${c.day})`);
+
+  if (!write) { console.log('  (미리보기 — 아무것도 쓰지 않았습니다)'); return; }
+
+  let done = 0, nochange = 0, failed = 0;
+  for (const c of targets) {
+    try {
+      await db.runTransaction(async (tx) => {
+        const rRef = db.collection('rankings').doc(c.nick);
+        const wRef = db.collection('weekly_rankings').doc(weekId).collection('scores').doc(c.nick);
+        const [rSnap, wSnap] = await Promise.all([tx.get(rRef), tx.get(wRef)]);
+        const now = Date.now();
+        const prevRank = rSnap.exists ? (Number(rSnap.data().score) || 0) : null;
+        const prevWeek = wSnap.exists ? (Number(wSnap.data().score) || 0) : null;
+        const rankingUpdated = prevRank === null || prevRank < c.best;
+        const weeklyUpdated = prevWeek === null || prevWeek < c.best;
+        if (!rankingUpdated && !weeklyUpdated) return;
+        if (rankingUpdated) tx.set(rRef, { nickname: c.nick, score: c.best, ts: now, ...(c.uid ? { uid: c.uid } : {}) }, { merge: true });
+        if (weeklyUpdated) tx.set(wRef, { nickname: c.nick, score: c.best, ts: now, ...(c.uid ? { uid: c.uid } : {}) }, { merge: true });
+        tx.set(db.collection('score_recoveries').doc(), {
+          source: 'userstats-week-recovery-2026-08', nickname: c.nick, uid: c.uid,
+          score: c.best, weekId, playedDate: c.day, at: now,
+          prevRank, prevWeek, rankingUpdated, weeklyUpdated,
+          note: '서버 장애(결제정지) 기간 기록 — 출처는 클라이언트 user_stats',
+        });
+        done++;
+      });
+    } catch (e) { failed++; console.log(`  실패 ${mask(c.nick)}: ${e.message}`); }
+  }
+  nochange = targets.length - done - failed;
+  console.log(`  ▶ 반영 ${done}명 · 이미 같거나 높음 ${nochange}명 · 실패 ${failed}명`);
+}
+
 // ── main ─────────────────────────────────────────────────────────────────────
 async function main() {
   console.log(`모드: ${MODE} · 프로젝트: ${PROJECT_ID}`);
@@ -235,8 +315,13 @@ async function main() {
   if (MODE === 'apply') {
     await applyRecovery(db, admin, Number(LIMIT) || 300);
     await inspectWeeks(db); // 반영 후 재확인
+  } else if (MODE === 'apply-week') {
+    await recoverThisWeek(db, true);
+    await inspectWeeks(db); // 반영 후 재확인
   } else {
-    console.log('\n(읽기 전용 모드 — 아무것도 쓰지 않았습니다. 실제 반영은 MODE=apply)');
+    await recoverThisWeek(db, false); // 미리보기(쓰기 없음)
+    console.log('\n(읽기 전용 모드 — 아무것도 쓰지 않았습니다.');
+    console.log(' 보류 세션 복구 = MODE=apply / 이번 주 user_stats 복구 = MODE=apply-week)');
   }
 }
 
