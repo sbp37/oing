@@ -104,5 +104,22 @@ jobs:
             echo
           done
 
+      # Cloud Run 기동 실패 사유가 "billing is disabled for this project" 였다.
+      # 결제 연결 상태를 직접 확인한다(읽기 전용). 계정 ID는 공개 로그라 일부만 노출.
+      - name: 결제(billing) 상태 조회 (읽기 전용)
+        continue-on-error: true
+        run: |
+          echo "── 프로젝트 결제 연결 상태 ──"
+          gcloud billing projects describe oing-game \
+            --format="value(billingEnabled,billingAccountName)" 2>&1 | head -5 \
+            | sed -E 's#(billingAccounts/[0-9A-Z]{6})[0-9A-Z-]*#\1…(마스킹)#' || true
+          echo
+          echo "── 이 자격증명으로 보이는 결제 계정 ──"
+          gcloud billing accounts list --format="value(name,open,displayName)" 2>&1 | head -5 \
+            | sed -E 's#(billingAccounts/[0-9A-Z]{6})[0-9A-Z-]*#\1…(마스킹)#' || true
+          echo
+          echo "※ billingEnabled=False 이면 결제가 끊긴 것이고, 콘솔에서 결제수단을"
+          echo "  갱신·재연결해야 한다. 서비스 계정 권한으로는 결제 재연결이 불가능하다."
+
       - name: Run
         run: node test/session-outage-tool.mjs
