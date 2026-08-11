@@ -189,10 +189,15 @@ async function applyRecovery(db, admin, limit) {
         const wRef = db.collection('weekly_rankings').doc(weekId).collection('scores').doc(nick);
         const [rSnap, wSnap] = await Promise.all([tx.get(rRef), tx.get(wRef)]);
         const now = Date.now();
-        if (!rSnap.exists || (Number(rSnap.data().score) || 0) < score) {
+        // 되돌릴 수 있도록 직전 값을 먼저 붙잡아 둔다(일괄 쓰기라 원복 근거가 반드시 필요).
+        const prevRank = rSnap.exists ? (Number(rSnap.data().score) || 0) : null;
+        const prevWeek = wSnap.exists ? (Number(wSnap.data().score) || 0) : null;
+        const rankingUpdated = prevRank === null || prevRank < score;
+        const weeklyUpdated = prevWeek === null || prevWeek < score;
+        if (rankingUpdated) {
           tx.set(rRef, { nickname: nick, score, ts: now, ...(s.uid ? { uid: s.uid } : {}) }, { merge: true });
         }
-        if (!wSnap.exists || (Number(wSnap.data().score) || 0) < score) {
+        if (weeklyUpdated) {
           tx.set(wRef, { nickname: nick, score, ts: now, ...(s.uid ? { uid: s.uid } : {}) }, { merge: true });
         }
         tx.set(doc.ref, {
@@ -201,6 +206,7 @@ async function applyRecovery(db, admin, limit) {
         tx.set(db.collection('score_recoveries').doc(), {
           source: 'outage-recovery-2026-08', sessionId: doc.id, nickname: nick,
           uid: s.uid || '', score, weekId, at: now,
+          prevRank, prevWeek, rankingUpdated, weeklyUpdated, // ← 원복용 스냅샷
         });
       });
       done++;
