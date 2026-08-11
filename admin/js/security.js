@@ -838,6 +838,72 @@ function bindVerdictActions(container) {
   });
 }
 
+// ── 🏆 검증 불가(NO_SESSION) 보류 일괄 승인 ──
+// startSession 실패로 서버세션이 안 만들어지면 정상 플레이도 전부 NO_SESSION → 보류로 빠져
+// 랭킹에 반영되지 않는다(2026-08 장애). 한 건씩 누르면 수십 번이라 한꺼번에 올린다.
+//
+// 안전장치: ① isUnverifiable(= NO_SESSION 이고 강한 의심 사유가 하나도 없음)인 보류만 대상
+//          ② 실제 반영 판정·상한(15만)·감사 로그는 전부 서버(adminApproveScore)가 담당
+//          ③ 순차 호출(동시 호출로 서버·랭킹 트랜잭션을 때리지 않게)
+function bulkApproveTargets() {
+  const rows = cache.peek('security:verdicts') || [];
+  return rows.filter(d => d.official?.decision === 'pending_review' && isUnverifiable(d));
+}
+
+async function bulkApproveUnverifiable(btn) {
+  const targets = bulkApproveTargets();
+  if (!targets.length) { alert('올릴 수 있는 검증 불가 보류 건이 없어요.'); return; }
+  const total = targets.length;
+  if (!confirm(
+    `검증 불가(서버세션 없음) 보류 ${total}건을 전부 랭킹에 올릴까요?\n\n` +
+    `· 강한 의심 사유가 붙은 기록은 대상에서 빠집니다\n` +
+    `· 각 건은 서버가 상한(15만)과 현재 점수를 확인해 반영합니다\n` +
+    `· 되돌리려면 별도 조치가 필요합니다`
+  )) return;
+
+  const old = btn.textContent;
+  btn.disabled = true;
+  let ok = 0, skip = 0;
+  const fails = [];
+  for (let i = 0; i < total; i++) {
+    const d = targets[i];
+    btn.textContent = `올리는 중... ${i + 1}/${total}`;
+    try {
+      const res = await httpsCallable(fns, 'adminApproveScore')({ sessionId: d.id });
+      const r = (res && res.data) || {};
+      if (r.rankingUpdated || r.weeklyUpdated) ok++; else skip++;
+    } catch (e) {
+      fails.push(`${d.nickname || d.uid || '?'} — ${humanError(e)}`);
+    }
+  }
+  btn.textContent = old;
+  btn.disabled = false;
+  alert(
+    `🏆 일괄 반영 끝 — 총 ${total}건\n` +
+    `· 반영됨 ${ok}건\n` +
+    `· 기존 점수가 더 높아 변경 없음 ${skip}건\n` +
+    `· 실패 ${fails.length}건` +
+    (fails.length ? `\n\n[실패 목록]\n${fails.slice(0, 10).join('\n')}${fails.length > 10 ? `\n… 외 ${fails.length - 10}건` : ''}` : '')
+  );
+  await loadVerdicts({ force: true });
+}
+
+// 검증 불가 묶음 위에 붙는 일괄 승인 버튼 HTML (대상이 있을 때만)
+function bulkApproveBarHtml(count) {
+  if (!count) return '';
+  return `<div style="margin:10px 0 8px;">
+      <button class="btn btn-primary btn-sm" id="bulkApproveBtn">🏆 검증 불가 ${count}건 한꺼번에 랭킹에 올리기</button>
+    </div>`;
+}
+
+// 버튼은 목록을 다시 그릴 때마다 새로 생기므로 렌더 직후 매번 연결한다.
+function bindBulkApprove() {
+  const b = document.getElementById('bulkApproveBtn');
+  if (!b || b.dataset.bound) return;
+  b.dataset.bound = '1';
+  b.addEventListener('click', () => bulkApproveUnverifiable(b));
+}
+
 export async function loadVerdicts({ force = false } = {}) {
   const el = document.getElementById('verdictList');
   const seenListEl = document.getElementById('verdictSeenList');
@@ -869,6 +935,7 @@ export async function loadVerdicts({ force = false } = {}) {
         ? (seenSuspects.length ? seenSuspects.map(verdictRowHtml).join('') : '') +
           (unverifiable.length
             ? `<div class="card-note" style="margin:10px 0 6px;">❔ 검증 불가 (서버세션 없음) — 치팅 의심이 아니라 서버세션이 생성되지 않아 판정을 확정할 수 없는 기록입니다.</div>
+               ${bulkApproveBarHtml(bulkApproveTargets().length)}
                ${unverifiable.map(verdictRowHtml).join('')}`
             : '') +
           (elapsedOnly.length
@@ -889,6 +956,7 @@ export async function loadVerdicts({ force = false } = {}) {
           (seenSuspects.length ? seenSuspects.map(verdictRowHtml).join('') : '') +
           (unverifiable.length
             ? `<div class="card-note" style="margin:10px 0 6px;">❔ 검증 불가 (서버세션 없음) — 치팅 의심이 아니라 서버세션이 생성되지 않아 판정을 확정할 수 없는 기록입니다.</div>
+               ${bulkApproveBarHtml(bulkApproveTargets().length)}
                ${unverifiable.map(verdictRowHtml).join('')}`
             : '') +
           (elapsedOnly.length
@@ -904,6 +972,7 @@ export async function loadVerdicts({ force = false } = {}) {
     // 승인/상세 버튼 이벤트(위임 1회) — 메인·처리완료 목록 둘 다
     bindVerdictActions(el);
     if (seenListEl) bindVerdictActions(seenListEl);
+    bindBulkApprove(); // 일괄 승인 버튼은 렌더될 때마다 새로 생기므로 매번 연결
   } catch (e) {
     const msg = humanError(e);
     // 인덱스 미생성 시 Firestore가 주는 콘솔 에러 안내
