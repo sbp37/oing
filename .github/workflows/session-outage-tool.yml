@@ -81,5 +81,28 @@ jobs:
             fi
           done
 
+      # startSession·submitScore 만 컨테이너 기동 실패(503). 다른 함수는 앱까지 도달(500).
+      # 마지막 배포(2026-08-08T17:18Z) 직후부터라 그 배포가 원인으로 보인다.
+      # 롤백 대상을 찾기 위해 리비전 이력과 기동 실패 로그를 본다. 읽기 전용.
+      - name: 기동 실패 원인·롤백 후보 조회 (읽기 전용)
+        continue-on-error: true
+        run: |
+          for S in startsession submitscore; do
+            echo "════════ $S 리비전 이력 ════════"
+            gcloud run revisions list --project oing-game --region "$REGION" --service "$S" \
+              --format="table(metadata.name,metadata.creationTimestamp,status.conditions[0].status)" \
+              --sort-by="~metadata.creationTimestamp" --limit 6 2>&1 | head -20 || true
+            echo
+            echo "──── $S 현재 트래픽 ────"
+            gcloud run services describe "$S" --project oing-game --region "$REGION" \
+              --format="value(status.traffic)" 2>&1 | head -5 || true
+            echo
+            echo "──── $S 최근 오류 로그 (기동 실패 사유) ────"
+            gcloud logging read \
+              "resource.type=cloud_run_revision AND resource.labels.service_name=$S AND severity>=ERROR" \
+              --project oing-game --limit 8 --format="value(timestamp,textPayload,jsonPayload.message)" 2>&1 | head -30 || true
+            echo
+          done
+
       - name: Run
         run: node test/session-outage-tool.mjs
