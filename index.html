@@ -6057,7 +6057,11 @@ async function checkWeeklyCrownSnapshot() {
 
     if (!shouldAward) return;
 
-    const q = query(collection(db, 'rankings'), orderBy('score', 'desc'), limit(1));
+    // 방금 넘어간 주(=지난주)의 1등에게 왕관을 줘야 한다. 'rankings'는 전체 누적
+    // 랭킹이라 여기서 뽑으면 그 주 실제 1등이 아니라 역대 1등이 매주 왕관을 받는
+    // 버그가 된다 — weekly_rankings/{지난주}/scores에서 뽑아야 맞다.
+    const lastWeekId = getLastWeekId();
+    const q = query(collection(db, 'weekly_rankings', lastWeekId, 'scores'), orderBy('score', 'desc'), limit(1));
     const topSnap = await getDocs(q);
     if (topSnap.empty) return;
     const topNick = topSnap.docs[0].id;
