@@ -328,6 +328,68 @@ function hsRhythmOf(d) {
 }
 const fmtMs = (ms) => (ms >= 1000 ? (ms / 1000).toFixed(2) + '초' : ms + 'ms');
 
+// ── 🕵️ 원장 점프 탐지 — LEDGER_SCORE_MISMATCH 등으로 의심될 때 "어느 성공에서 튀었는지" 짚어준다 ──
+// 정상 1회 클리어의 이론적 상한: (cells + catCells*5 + WOW보너스) × min(combo, 25). 실제 게임에서
+// 셀 수가 10칸을 넘는 조합은 극히 드물어(대부분 2~4칸) 콤보 상한(25)까지 감안해도 한 번의 클리어가
+// 이 값을 넘기는 경우는 사실상 없다 — 그래서 절대 상한을 넉넉히 잡아도(2000) 정상 플레이를 오탐하지 않는다.
+const LEDGER_JUMP_ABS_MAX = 2000;
+const LEDGER_JUMP_REL_MULT = 8; // 이 판 중앙값 대비 몇 배 이상이면 상대적 이상치로도 잡을지
+function hsLedgerJumps(entries) {
+  if (!entries || entries.length < 2) return [];
+  const deltas = entries.map((e, i) => (i === 0 ? e[1] : e[1] - entries[i - 1][1]));
+  const sorted = [...deltas].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)] || 0;
+  const jumps = [];
+  deltas.forEach((delta, i) => {
+    const absOutlier = delta > LEDGER_JUMP_ABS_MAX;
+    const relOutlier = median > 0 && delta > median * LEDGER_JUMP_REL_MULT;
+    if (absOutlier || relOutlier) jumps.push({ index: i, delta, entry: entries[i], absOutlier, relOutlier });
+  });
+  return jumps;
+}
+// 원장 상세 — 이상 구간 요약(항상 표시) + 전체 원장(펼쳐보기, 성능을 위해 <details>로 지연)
+function hsLedgerDetailHtml(entries, finalScore) {
+  if (!entries || !entries.length) return '';
+  const jumps = hsLedgerJumps(entries);
+  const jumpRows = jumps.map((j) => {
+    const [dt, sc, cb] = j.entry;
+    return `<div class="mini-row"><span class="mini-label">${j.index + 1}번째 성공${j.absOutlier && j.relOutlier ? ' 🚩🚩' : ' 🚩'}</span>
+      <span class="mini-val" style="color:#fca5a5;">+${fmtNum(j.delta)}점 (누적 ${fmtNum(sc)}, 콤보 ${cb}, 간격 ${fmtMs(dt)})</span></div>`;
+  }).join('');
+  const jumpBox = jumps.length
+    ? `<div style="margin:8px 0; padding:8px 10px; border-radius:8px; background:rgba(226,90,90,0.10); border:1px solid rgba(226,90,90,0.3); font-size:12.5px;">
+        🚩 <b>비정상 점프 ${jumps.length}건</b> — 정상 1회 클리어로는 나올 수 없는 폭(콤보25 상한 감안해도 최대 ~${fmtNum(LEDGER_JUMP_ABS_MAX)}점 안팎)이거나, 이 판 다른 성공들 대비 ${LEDGER_JUMP_REL_MULT}배 넘는 튐
+        ${jumpRows}
+      </div>`
+    : `<div style="margin:8px 0; padding:8px 10px; border-radius:8px; background:rgba(76,175,107,0.10); border:1px solid rgba(76,175,107,0.3); font-size:12.5px;">✅ 줄 사이 비정상 점프 없음 (합계가 안 맞아도, 어느 한 줄에서 튄 건 아님 — 통째로 다른 값을 보냈을 가능성)</div>`;
+  const lastScore = entries[entries.length - 1][1];
+  const finalGapRow = (typeof finalScore === 'number' && finalScore !== lastScore)
+    ? `<div class="mini-row"><span class="mini-label">원장 마지막 줄 → 제출값</span>
+        <span class="mini-val" style="color:#fca5a5;">${fmtNum(lastScore)} → ${fmtNum(finalScore)} (＋${fmtNum(finalScore - lastScore)})</span></div>`
+    : '';
+  const fullRows = entries.map((e, i) => {
+    const [dt, sc, cb] = e;
+    const isJump = jumps.some((j) => j.index === i);
+    return `<tr${isJump ? ' style="background:rgba(226,90,90,0.16);"' : ''}>
+      <td>${i + 1}</td><td>${fmtMs(dt)}</td><td>${fmtNum(sc)}</td><td>${cb}</td>
+    </tr>`;
+  }).join('');
+  return `
+    ${jumpBox}
+    ${finalGapRow}
+    <details style="margin:6px 0 2px;">
+      <summary style="cursor:pointer; font-size:11.5px; font-weight:800; color:var(--muted2);">📜 전체 원장 펼쳐보기 (${entries.length}줄)</summary>
+      <div style="max-height:320px; overflow-y:auto; margin-top:6px; border:1px solid rgba(148,163,184,0.2); border-radius:8px;">
+        <table style="width:100%; border-collapse:collapse; font-size:11.5px;">
+          <thead style="position:sticky; top:0; background:var(--bg2, #1a2233);">
+            <tr><th style="text-align:left; padding:4px 6px;">#</th><th style="text-align:left; padding:4px 6px;">간격</th><th style="text-align:left; padding:4px 6px;">누적점수</th><th style="text-align:left; padding:4px 6px;">콤보</th></tr>
+          </thead>
+          <tbody>${fullRows}</tbody>
+        </table>
+      </div>
+    </details>`;
+}
+
 // ── 🔎 이 유저의 다른 고득점 판 교차표 — 판마다 성적·리듬이 판박이면 매크로/보조툴 의심 ──
 //  같은 닉네임의 로드된 4만+ 세션을 시간순으로 나열. 이 판과의 리듬 지문 거리도 표시.
 function hsCrossGamesHtml(d, allRows) {
@@ -463,6 +525,7 @@ function highScoreDetailHtml(d, stats, allRows) {
     ${line('자동 판정', `${(DECISION_KO[d.official?.decision] || ['-'])[0]}${reasons.length ? ' — ' + reasons.map(reasonLabel).join(', ') : ''}`)}
     ${head('🧮 점수 검증')}
     ${verifyRows}
+    ${entries ? head('🔍 원장 상세 — 어느 성공에서 튀었나') + hsLedgerDetailHtml(entries, c.finalScore) : ''}
     ${head('🎹 입력 리듬')}
     ${rhythmRows}
     ${winRows ? head('🪟 시간·창 상태') + winRows : ''}
