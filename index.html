@@ -15,6 +15,7 @@
 (function () {
   var NEW_ORIGIN = 'https://oinggame.com';
   var OLD_HOST = 'sbp37.github.io';
+  var MOVED_KEY = 'oeing_moved_at_v1';   // 이사 완료 표시(새 주소에 기록)
   if (window.Capacitor) return;                       // 앱: 아무것도 하지 않음
 
   function toB64(str) {
@@ -35,10 +36,15 @@
   if (got) {
     try {
       var bag = JSON.parse(fromB64(got[1])), n = 0;
+      // 첫 이사에서는 실려온 값이 이긴다. 새 주소를 미리 열어봐서 자동 생성된
+      // 기본값이 진짜 기록의 이전을 막던 문제(친구 목록 유실)를 없앤다.
+      // 두 번째부터는 덮어쓰지 않는다 — 새 주소에서 쌓은 기록을 보호한다.
+      var firstMove = !localStorage.getItem(MOVED_KEY);
       for (var k in bag) {
         if (!Object.prototype.hasOwnProperty.call(bag, k)) continue;
-        if (localStorage.getItem(k) === null) { localStorage.setItem(k, bag[k]); n++; }
+        if (firstMove || localStorage.getItem(k) === null) { localStorage.setItem(k, bag[k]); n++; }
       }
+      try { localStorage.setItem(MOVED_KEY, String(Date.now())); } catch (e) {}
       try { sessionStorage.setItem('oeing_migrated_in', String(n)); } catch (e) {}
     } catch (e) { /* 실패해도 게임은 그대로 진행 — 신규 유저로 시작할 뿐 */ }
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
@@ -50,24 +56,27 @@
   if (/[?&]nomigrate=1/.test(location.search)) return;  // 비상 탈출구(옛 주소 그대로 쓰기)
   var qs = location.search || '';                       // ?r=추천코드 등 보존
   try {
-    var out = {};
+    // 작은 키부터 담는다 — 용량이 넘쳐도 큰 덩어리(로컬 통계 등)만 빠지고
+    // 친구·닉네임·PIN 같은 작은 핵심 키는 항상 살아남는다.
+    // (예전엔 넘치면 신원 키 4개만 남기고 전부 버려서 친구 목록이 통째로 유실됐다.)
+    var items = [];
     for (var i = 0; i < localStorage.length; i++) {
       var key = localStorage.key(i);
       if (!key) continue;
       if (key === 'oeing_rankings_v1') continue;        // 랭킹 캐시 — 서버에서 다시 받으므로 제외
       if (key.indexOf('oeing_') === 0 || key === 'iosPopupDismissed' || key.indexOf('seenUpdate_') === 0) {
-        out[key] = localStorage.getItem(key);
+        var val = localStorage.getItem(key) || '';
+        items.push([key, val, key.length + val.length]);
       }
     }
-    var payload = toB64(JSON.stringify(out));
-    if (payload.length > 60000) {                       // URL 과대 방어 — 신원 키만 추려 재시도
-      var slim = {};
-      ['oeing_nickname_v1', 'oeing_pin_v1', 'oeing_uid_linked_v1', 'oeing_visitor_id'].forEach(function (k) {
-        if (out[k] != null) slim[k] = out[k];
-      });
-      payload = toB64(JSON.stringify(slim));
+    items.sort(function (a, b) { return a[2] - b[2]; }); // 작은 것 우선
+    var out = {}, used = 0;
+    for (var m = 0; m < items.length; m++) {
+      if (used + items[m][2] > 150000) continue;        // 큰 것만 건너뛴다(#조각은 서버로 전송되지 않음)
+      out[items[m][0]] = items[m][1];
+      used += items[m][2];
     }
-    location.replace(NEW_ORIGIN + '/' + qs + '#m=' + payload);
+    location.replace(NEW_ORIGIN + '/' + qs + '#m=' + toB64(JSON.stringify(out)));
   } catch (e) {
     location.replace(NEW_ORIGIN + '/' + qs);            // 최악의 경우에도 이동은 시킨다
   }
